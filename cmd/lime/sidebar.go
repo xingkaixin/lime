@@ -278,25 +278,56 @@ func (a *app) sideBar(c *ui.Context) {
 	ui.Column(c).Fill().Background(ch.bg).Children(func() {
 		ui.Text(c, "FOLDERS").FontSize(11).TextColor(ch.muted).Padding(10, 14, 6)
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-			ui.Tree(c, func() {
+			ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
 				for _, f := range a.proj.folders {
-					a.treeDir(c, f, true, cur)
+					a.treeDir(c, f, 0, cur)
 				}
-			}).FillWidth()
+			})
 		})
 	})
 }
 
-func (a *app) treeDir(c *ui.Context, dir string, top bool, cur *doc) {
-	ui.TreeItem(c.Key(dir), filepath.Base(dir), a.proj.isOpen(dir, top), func() {
-		for _, e := range a.proj.list(dir) {
-			p := filepath.Join(dir, e.Name())
-			if e.IsDir() {
-				a.treeDir(c, p, false, cur)
-				continue
-			}
-			ui.TreeItem(c.Key(p), e.Name(), nil, nil).Selected(cur != nil && cur.path == p).
-				OnClick(func() { a.open([]string{p}) })
+// treeIcon and treeGap size a row's icon and the room after it, which
+// each level indents by, as Sublime Text's side bar does.
+const treeIcon, treeGap = 16, 6
+
+// treeDir shows dir, and what it holds while open. A click anywhere on its
+// row opens or closes it.
+func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
+	open := a.proj.isOpen(dir, depth == 0)
+	ic, tint := icon("_folder"), a.scheme.chrome().muted
+	if *open {
+		ic, tint = icon("_folder_open"), a.scheme.accent
+	}
+	a.treeRow(c, dir, depth, ic, tint, false).Expanded(*open).OnClick(func() { *open = !*open })
+	if !*open {
+		return
+	}
+	for _, e := range a.proj.list(dir) {
+		p := filepath.Join(dir, e.Name())
+		if e.IsDir() {
+			a.treeDir(c, p, depth+1, cur)
+			continue
 		}
+		a.treeRow(c, p, depth+1, fileIcon(e.Name()), a.scheme.chrome().muted, cur != nil && cur.path == p).
+			OnClick(func() { a.open([]string{p}) })
+	}
+}
+
+func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui.Color, selected bool) ui.Element {
+	t := c.Theme()
+	name := filepath.Base(path)
+	row := ui.Row(c.Key(path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
+		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Radius(t.Radius).
+		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected)
+	if selected {
+		tint = t.AccentText
+	} else if row.Hovered() {
+		row.Background(t.SurfaceHover)
+	}
+	row.Children(func() {
+		ui.Icon(c, ic).Size(treeIcon, treeIcon).Shrink(0).TextColor(tint)
+		ui.Text(c, name).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 	})
+	return row
 }
