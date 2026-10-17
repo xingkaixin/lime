@@ -212,15 +212,15 @@ func (a *app) restore(s sessionWindow) {
 // unsaved text over it as an edit that Undo takes back. A file gone with
 // nothing unsaved is left out.
 func restoreDoc(sd sessionDoc) *doc {
-	var disk []byte
+	var disk string
 	if sd.Path != "" {
-		b, err := os.ReadFile(sd.Path)
+		text, err := readText(sd.Path)
 		if err != nil && sd.Text == nil {
 			return nil
 		}
-		disk = b
+		disk = text
 	}
-	d := newDoc(sd.Path, string(disk))
+	d := newDoc(sd.Path, disk)
 	if sd.Text != nil {
 		d.st.Buffer.Set(*sd.Text)
 	}

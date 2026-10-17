@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"iter"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/egoist/mygo"
@@ -321,13 +323,31 @@ func (a *app) open(paths []string) {
 			a.show(d)
 			continue
 		}
-		b, err := os.ReadFile(p)
+		text, err := readText(p)
 		if err != nil {
 			go mygo.Dialog.Error("Unable to open "+filepath.Base(p), err.Error())
 			continue
 		}
-		a.add(p, string(b))
+		a.add(p, text)
 	}
+}
+
+// readText reads the file at path as a string, without the copy that
+// converting os.ReadFile's bytes makes, which a big file feels.
+func readText(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	var b strings.Builder
+	if fi, err := f.Stat(); err == nil {
+		b.Grow(int(fi.Size()))
+	}
+	if _, err := io.Copy(&b, f); err != nil {
+		return "", err
+	}
+	return b.String(), nil
 }
 
 func (a *app) docAt(path string) *doc {
