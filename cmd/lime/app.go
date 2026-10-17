@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -130,6 +131,9 @@ type lime struct {
 	themeSource mygo.ThemeSource
 	menuState   string
 	sessionKey  string // of the session last kept
+	sessionGen  uint64 // numbers the sessions taken to write
+	writing     sync.Mutex
+	written     uint64 // the number of the session last written
 	quitting    bool   // the session is kept and the windows close
 }
 
