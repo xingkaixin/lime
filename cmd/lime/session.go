@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -39,6 +40,9 @@ type sessionDoc struct {
 	Text   *string  `json:"text,omitempty"` // the unsaved text, when there is some
 	Syntax string   `json:"syntax"`
 	Sels   [][2]int `json:"sels,omitempty"`
+	// unsaved is the text Text takes as the session is written, off the
+	// main thread.
+	unsaved *editor.Snapshot
 }
 
 func (l *lime) sessionPath() string {
@@ -57,7 +61,8 @@ func (l *lime) session() session {
 }
 
 func (a *app) session() sessionWindow {
-	s := sessionWindow{Layout: a.layout.name, Cols: a.cols, Rows: a.rows, Focus: a.focus, Folders: a.proj.folders, Project: a.proj.path}
+	s := sessionWindow{Layout: a.layout.name, Cols: slices.Clone(a.cols), Rows: slices.Clone(a.rows), Focus: a.focus,
+		Folders: slices.Clone(a.proj.folders), Project: a.proj.path}
 	if a.win != nil {
 		s.Bounds = a.win.Bounds()
 	}
@@ -66,8 +71,8 @@ func (a *app) session() sessionWindow {
 		for _, d := range g.docs {
 			sd := sessionDoc{Path: d.path, Syntax: syntaxName(d.st.Buffer.Language())}
 			if d.dirty() {
-				text := d.st.Buffer.String()
-				sd.Text = &text
+				snap := d.st.Buffer.Snapshot()
+				sd.unsaved = &snap
 			}
 			for _, sel := range d.st.Selections() {
 				sd.Sels = append(sd.Sels, [2]int{sel.Anchor, sel.Head})
@@ -79,14 +84,37 @@ func (a *app) session() sessionWindow {
 	return s
 }
 
-// saveSession writes the session, by way of a temporary file so that a
-// write cut short leaves the last one whole.
+// saveSession writes the session now, as on quitting.
 func (l *lime) saveSession() error {
+	l.sessionGen++
+	return l.writeSession(l.session(), l.sessionGen)
+}
+
+// writeSession writes s, the session numbered gen, unless a later one is
+// written already, by way of a temporary file so that a write cut short
+// leaves the last one whole. It copies the unsaved texts out of their
+// snapshots, which it can do on any goroutine.
+func (l *lime) writeSession(s session, gen uint64) error {
 	p := l.sessionPath()
 	if p == "" {
 		return nil
 	}
-	b, err := json.Marshal(l.session())
+	l.writing.Lock()
+	defer l.writing.Unlock()
+	if gen < l.written {
+		return nil
+	}
+	for _, w := range s.Windows {
+		for _, g := range w.Groups {
+			for i := range g.Docs {
+				if u := g.Docs[i].unsaved; u != nil {
+					text := u.String()
+					g.Docs[i].Text = &text
+				}
+			}
+		}
+	}
+	b, err := json.Marshal(s)
 	if err != nil {
 		return err
 	}
@@ -96,7 +124,11 @@ func (l *lime) saveSession() error {
 	if err := os.WriteFile(p+".tmp", b, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(p+".tmp", p)
+	if err := os.Rename(p+".tmp", p); err != nil {
+		return err
+	}
+	l.written = gen
+	return nil
 }
 
 // sessionChanged tells the sessions apart cheaply, by what an edit, a
@@ -122,7 +154,8 @@ func (l *lime) sessionChanged() bool {
 // closing the windows, as the system restarting or the app crashing.
 func (l *lime) autosave() {
 	if !l.quitting && len(l.wins) > 0 && l.sessionChanged() {
-		l.saveSession()
+		l.sessionGen++
+		go l.writeSession(l.session(), l.sessionGen)
 	}
 }
 
@@ -179,15 +212,15 @@ func (a *app) restore(s sessionWindow) {
 // unsaved text over it as an edit that Undo takes back. A file gone with
 // nothing unsaved is left out.
 func restoreDoc(sd sessionDoc) *doc {
-	var disk []byte
+	var disk string
 	if sd.Path != "" {
-		b, err := os.ReadFile(sd.Path)
+		text, err := readText(sd.Path)
 		if err != nil && sd.Text == nil {
 			return nil
 		}
-		disk = b
+		disk = text
 	}
-	d := newDoc(sd.Path, string(disk))
+	d := newDoc(sd.Path, disk)
 	if sd.Text != nil {
 		d.st.Buffer.Set(*sd.Text)
 	}

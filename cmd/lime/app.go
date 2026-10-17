@@ -3,9 +3,13 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"iter"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -16,7 +20,12 @@ import (
 type doc struct {
 	path    string // "" while untitled
 	st      *editor.State
-	columns bool // a column drag remapped from another press is going on
+	columns bool            // a column drag remapped from another press is going on
+	saved   editor.Snapshot // the text on disk
+	// checked is the version modified was found for: dirty compares the
+	// text with saved once a version.
+	checked  uint64
+	modified bool
 }
 
 func (d *doc) name() string {
@@ -26,7 +35,47 @@ func (d *doc) name() string {
 	return filepath.Base(d.path)
 }
 
-func (d *doc) dirty() bool { return d.st.Buffer.Modified() }
+// dirty reports whether the text differs from the saved one, as
+// Buffer.Modified does, which copies both texts out at every call.
+func (d *doc) dirty() bool {
+	s := d.st.Buffer.Snapshot()
+	if s.Version() == d.saved.Version() {
+		return false
+	}
+	if s.Version() != d.checked {
+		d.checked, d.modified = s.Version(), !sameText(s, d.saved)
+	}
+	return d.modified
+}
+
+// sameText compares a and b a chunk at a time, without copying them.
+func sameText(a, b editor.Snapshot) bool {
+	if a.Len() != b.Len() {
+		return false
+	}
+	next, stop := iter.Pull(func(yield func(string) bool) { b.Chunks(0, b.Len(), yield) })
+	defer stop()
+	same, rest := true, ""
+	a.Chunks(0, a.Len(), func(s string) bool {
+		for len(s) > 0 {
+			for rest == "" {
+				var ok bool
+				if rest, ok = next(); !ok {
+					same = false
+					return false
+				}
+			}
+			n := min(len(s), len(rest))
+			if s[:n] != rest[:n] {
+				same = false
+				return false
+			}
+			s, rest = s[n:], rest[n:]
+		}
+		return true
+	})
+	return same
+}
 
 // group is a pane of the layout, with its own tabs.
 type group struct {
@@ -34,6 +83,7 @@ type group struct {
 	active int     // -1 while empty
 	bar    ui.Rect // the tab bar as the last frame laid it out, in the window
 	tabW   float32 // the width of its tabs, all the same
+	blank  *doc    // the editor shown without tabs, which typing makes a tab
 }
 
 func (g *group) current() *doc {
@@ -41,6 +91,28 @@ func (g *group) current() *doc {
 		return nil
 	}
 	return g.docs[g.active]
+}
+
+// placeholder is the editor an empty group shows, as Sublime Text's: what
+// is typed in it opens a tab with the text (adopt).
+func (g *group) placeholder() *doc {
+	if g.blank == nil {
+		g.blank = newDoc("", "")
+		g.blank.st.LineNumbers, g.blank.st.NoFolding = editor.LineNumbersOff, true
+	}
+	return g.blank
+}
+
+// adopt makes the placeholder of g a tab once it has been typed in.
+func (a *app) adopt(g *group) {
+	b := g.blank
+	if b == nil || b.st.Buffer.Version() == 0 {
+		return
+	}
+	g.blank = nil
+	b.st.LineNumbers, b.st.NoFolding = editor.LineNumbersOn, false
+	g.docs = append(g.docs, b)
+	a.show(b)
 }
 
 // place is where the keyboard focus is: an editor of a group. A doc moved
@@ -84,6 +156,9 @@ type lime struct {
 	themeSource mygo.ThemeSource
 	menuState   string
 	sessionKey  string // of the session last kept
+	sessionGen  uint64 // numbers the sessions taken to write
+	writing     sync.Mutex
+	written     uint64 // the number of the session last written
 	quitting    bool   // the session is kept and the windows close
 }
 
@@ -191,7 +266,7 @@ func (a *app) focusGroup(gi int) {
 		a.show(d)
 		return
 	}
-	a.focus, a.focused = gi, place{}
+	a.focus, a.focused = gi, place{g, g.placeholder()}
 }
 
 // touch puts d first in the order tabs were last used.
@@ -212,7 +287,7 @@ func (a *app) syncFocus(ctrlHeld bool) {
 	if gi := slices.Index(a.groups, p.g); gi >= 0 {
 		a.focus = gi
 	}
-	if a.cycle == nil && (len(a.mru) == 0 || a.mru[0] != p.d) {
+	if a.cycle == nil && p.d != p.g.blank && (len(a.mru) == 0 || a.mru[0] != p.d) {
 		a.touch(p.d)
 	}
 }
@@ -234,12 +309,31 @@ func (a *app) cycleTabs(step int) {
 // newDoc makes a tab of the file at path holding text, its text on disk.
 func newDoc(path, text string) *doc {
 	buf := editor.NewBuffer(text)
-	d := &doc{path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}}
+	d := &doc{path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, saved: buf.Snapshot()}
 	if path != "" {
 		buf.SetLanguage(editor.LanguageFor(path))
-		d.st.DiffBase = editor.NewBuffer(text)
+		d.setDiffBase(d.saved)
 	}
 	return d
+}
+
+// largeFile is the size from which a file opens lighter. The gutter does
+// not mark its changes: the DiffBase would hold a second copy of the
+// text, which the editor compares line by line with the first as the
+// file opens and is saved.
+const largeFile = 16 << 20
+
+// setDiffBase has the gutter mark the changes against disk, the text on
+// disk.
+func (d *doc) setDiffBase(disk editor.Snapshot) {
+	switch {
+	case disk.Len() > largeFile:
+		d.st.DiffBase = nil
+	case d.st.DiffBase == nil:
+		d.st.DiffBase = editor.NewBuffer(disk.String())
+	default:
+		d.st.DiffBase.Reset(disk.String())
+	}
 }
 
 func (a *app) add(path, text string) *doc {
@@ -271,13 +365,31 @@ func (a *app) open(paths []string) {
 			a.show(d)
 			continue
 		}
-		b, err := os.ReadFile(p)
+		text, err := readText(p)
 		if err != nil {
 			go mygo.Dialog.Error("Unable to open "+filepath.Base(p), err.Error())
 			continue
 		}
-		a.add(p, string(b))
+		a.add(p, text)
 	}
+}
+
+// readText reads the file at path as a string, without the copy that
+// converting os.ReadFile's bytes makes, which a big file feels.
+func readText(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	var b strings.Builder
+	if fi, err := f.Stat(); err == nil {
+		b.Grow(int(fi.Size()))
+	}
+	if _, err := io.Copy(&b, f); err != nil {
+		return "", err
+	}
+	return b.String(), nil
 }
 
 func (a *app) docAt(path string) *doc {
@@ -309,8 +421,9 @@ func (a *app) reopenClosed() {
 
 // write saves d to path, on the main thread.
 func (a *app) write(d *doc, path string) error {
+	snap := d.st.Buffer.Snapshot()
 	var b bytes.Buffer
-	if _, err := d.st.Buffer.WriteTo(&b); err != nil {
+	if _, err := snap.WriteTo(&b); err != nil {
 		return err
 	}
 	mode := os.FileMode(0o644)
@@ -326,11 +439,8 @@ func (a *app) write(d *doc, path string) error {
 		d.st.Buffer.SetLanguage(editor.LanguageFor(path))
 	}
 	d.st.Buffer.MarkSaved()
-	if d.st.DiffBase == nil {
-		d.st.DiffBase = editor.NewBuffer(b.String())
-	} else {
-		d.st.DiffBase.Reset(b.String())
-	}
+	d.saved = snap
+	d.setDiffBase(snap)
 	return nil
 }
 

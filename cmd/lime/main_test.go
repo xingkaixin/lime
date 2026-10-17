@@ -106,6 +106,25 @@ func TestTabs(t *testing.T) {
 	}
 }
 
+// Typing in a group without tabs opens a tab with the text, as in
+// Sublime Text.
+func TestTypeWithoutTabs(t *testing.T) {
+	a := newApp("")
+	a.newFile()
+	tt := ui.NewTester(a.view, 800, 500)
+	if err := tt.Click("Close untitled"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("hi")
+	tt.Type("!")
+	if n := a.docCount(); n != 1 || a.current().st.Buffer.String() != "hi!" {
+		t.Fatalf("typing without tabs: %d tabs", n)
+	}
+	if !a.current().dirty() || len(a.mru) != 1 {
+		t.Fatalf("the tab typing opened: dirty %v, %d in the tab order", a.current().dirty(), len(a.mru))
+	}
+}
+
 // A tab dragged along its tab bar moves as the pointer goes, the others
 // making way, and stays where it is let go.
 func TestTabDrag(t *testing.T) {
