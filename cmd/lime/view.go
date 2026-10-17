@@ -124,6 +124,7 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		d.st.Theme = s.editorTheme()
 		d.st.SoftWrap = a.set.WordWrap
 		d.st.Font.Size = a.set.FontSize
+		d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
 		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
 		a.input(e, d)
 	})

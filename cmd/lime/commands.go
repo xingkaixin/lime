@@ -68,6 +68,8 @@ func makeCommands() []command {
 		{id: "show_goto", caption: "Goto Anything", run: func(a *app) { a.showGoto("") }},
 		{id: "show_command_palette", run: (*app).showCommandPalette},
 		{id: "goto_line", caption: "Goto Line", run: func(a *app) { a.showGoto(":") }},
+		{id: "show_panel find", run: func(a *app) { a.showFind(false) }},
+		{id: "show_panel replace", run: func(a *app) { a.showFind(true) }},
 		{id: "next_view", run: func(a *app) { a.selectTab(a.group().active + 1) }},
 		{id: "prev_view", run: func(a *app) { a.selectTab(a.group().active - 1) }},
 		{id: "next_view_in_stack", run: func(a *app) { a.cycleTabs(1) }},
@@ -124,7 +126,12 @@ func makeCommands() []command {
 		edit("delete_to_eol", "", editor.DeleteToLineEnd),
 		edit("delete_to_bol", "", editor.DeleteToLineStart),
 		edit("show_at_center", "", editor.ScrollCursorCenter),
-		{id: "find_under_expand_skip", run: withDoc(func(_ *app, d *doc) { skipNext(d.st) })},
+		edit("find_next", "", editor.FindNext),
+		edit("find_prev", "", editor.FindPrevious),
+		{id: "find_under_expand", run: quickFind(func(st *editor.State) { st.Run(editor.SelectNext) })},
+		{id: "find_all_under", run: quickFind(func(st *editor.State) { st.Run(editor.SelectAllMatches) })},
+		{id: "find_under_expand_skip", run: quickFind(skipNext)},
+		{id: "slurp_find_string", run: quickFind(func(st *editor.State) { st.Run(editor.UseSelectionForFind) })},
 	}
 	for i := range 9 {
 		c = append(c, edit(foldLevel(i+1), "", editor.FoldLevel1+editor.Command(i)))

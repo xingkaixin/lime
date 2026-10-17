@@ -69,15 +69,12 @@ func macEditorKeys() []editor.Binding {
 		bind(cmd, ui.KeyX, editor.Cut), bind(cmd, ui.KeyC, editor.Copy),
 		bind(cmd, ui.KeyV, editor.Paste), bind(cmd|sh, ui.KeyV, editor.Paste),
 		bind(cmd, ui.KeyA, editor.SelectAll), bind(cmd|sh, ui.KeyL, editor.SplitSelectionIntoLines),
-		bind(cmd, ui.KeyL, editor.SelectLine), bind(cmd, ui.KeyD, editor.SelectNext),
+		bind(cmd, ui.KeyL, editor.SelectLine),
 		bind(cmd|sh, ui.KeySpace, editor.SelectLarger), bind(cmd|sh, ui.KeyA, editor.SelectLarger),
 		bind(ctrl|sh, ui.KeyM, editor.SelectLarger), bind(ctrl, ui.KeyM, editor.MoveToBracket),
-		bind(ctrl|cmd, ui.KeyG, editor.SelectAllMatches),
 		bind(cmd, ui.KeyBracketRight, editor.Indent), bind(cmd, ui.KeyBracketLeft, editor.Outdent),
 		bind(cmd, ui.KeyEnter, editor.NewlineBelow), bind(cmd|sh, ui.KeyEnter, editor.NewlineAbove),
 		bind(0, ui.KeyF12, editor.GoToDefinition), bind(cmd|alt, ui.KeyDown, editor.GoToDefinition),
-		bind(cmd, ui.KeyF, editor.Find), bind(cmd, ui.KeyI, editor.Find), bind(cmd|sh, ui.KeyI, editor.Find),
-		bind(cmd|alt, ui.KeyF, editor.FindReplace), bind(cmd, ui.KeyE, editor.UseSelectionForFind),
 		bind(cmd, ui.KeyG, editor.FindNext), bind(cmd|sh, ui.KeyG, editor.FindPrevious),
 		bind(ctrl, ui.KeyPeriod, editor.NextHunk), bind(ctrl, ui.KeyComma, editor.PreviousHunk),
 		bind(ctrl|cmd, ui.KeyUp, editor.MoveLinesUp), bind(ctrl|cmd, ui.KeyDown, editor.MoveLinesDown),
@@ -128,13 +125,11 @@ func pcEditorKeys(windows bool) []editor.Binding {
 		bind(ctrl, ui.KeyA, editor.SelectAll), bind(ctrl|sh, ui.KeyL, editor.SplitSelectionIntoLines),
 		bind(0, ui.KeyEscape, editor.Cancel), bind(0, ui.KeyTab, editor.Tab), bind(sh, ui.KeyTab, editor.Backtab),
 		bind(ctrl, ui.KeyBracketRight, editor.Indent), bind(ctrl, ui.KeyBracketLeft, editor.Outdent),
-		bind(ctrl, ui.KeyL, editor.SelectLine), bind(ctrl, ui.KeyD, editor.SelectNext),
+		bind(ctrl, ui.KeyL, editor.SelectLine),
 		bind(ctrl|sh, ui.KeySpace, editor.SelectLarger), bind(ctrl|sh, ui.KeyA, editor.SelectLarger),
 		bind(ctrl|sh, ui.KeyM, editor.SelectLarger), bind(ctrl, ui.KeyM, editor.MoveToBracket),
 		bind(0, ui.KeyF12, editor.GoToDefinition),
-		bind(ctrl, ui.KeyF, editor.Find), bind(ctrl, ui.KeyI, editor.Find), bind(ctrl|sh, ui.KeyI, editor.Find),
-		bind(ctrl, ui.KeyH, editor.FindReplace), bind(ctrl, ui.KeyE, editor.UseSelectionForFind),
-		bind(0, ui.KeyF3, editor.FindNext), bind(sh, ui.KeyF3, editor.FindPrevious), bind(alt, ui.KeyF3, editor.SelectAllMatches),
+		bind(0, ui.KeyF3, editor.FindNext), bind(sh, ui.KeyF3, editor.FindPrevious),
 		bind(ctrl, ui.KeyPeriod, editor.NextHunk), bind(ctrl, ui.KeyComma, editor.PreviousHunk),
 		bind(ctrl|sh, ui.KeyUp, editor.MoveLinesUp), bind(ctrl|sh, ui.KeyDown, editor.MoveLinesDown),
 		bind(ctrl, ui.KeyBackspace, editor.DeleteWordLeft), bind(ctrl, ui.KeyDelete, editor.DeleteWordRight),
@@ -191,6 +186,8 @@ var appKeys = func() []appKey {
 		k(ctrl, ui.KeyTab, "next_view_in_stack"), k(ctrl|sh, ui.KeyTab, "prev_view_in_stack"),
 		k(cmd, ui.KeyEqual, "increase_font_size"), k(cmd|sh, ui.KeyEqual, "increase_font_size"),
 		k(cmd, ui.KeyMinus, "decrease_font_size"),
+		k(cmd, ui.KeyF, "show_panel find"), k(cmd, ui.KeyI, "show_panel find"), k(cmd|sh, ui.KeyI, "show_panel find"),
+		k(cmd, ui.KeyE, "slurp_find_string"), k(cmd, ui.KeyD, "find_under_expand"),
 
 		ch(0, ui.KeyB, "toggle_side_bar"),
 		ch(0, ui.KeyU, "upper_case"), ch(0, ui.KeyL, "lower_case"), ch(0, ui.KeyD, "find_under_expand_skip"),
@@ -227,11 +224,11 @@ var appKeys = func() []appKey {
 		keys = append(keys, k(layout, key, l.id()))
 	}
 	if mac {
-		keys = append(keys, k(cmd, ui.KeyT, "show_goto"), k(cmd|alt, ui.KeyS, "save_all"),
+		keys = append(keys, k(cmd|alt, ui.KeyF, "show_panel replace"), k(ctrl|cmd, ui.KeyG, "find_all_under"), k(cmd, ui.KeyT, "show_goto"), k(cmd|alt, ui.KeyS, "save_all"),
 			k(cmd|sh, ui.KeyBracketLeft, "prev_view"), k(cmd|sh, ui.KeyBracketRight, "next_view"),
 			k(cmd|alt, ui.KeyLeft, "prev_view"), k(cmd|alt, ui.KeyRight, "next_view"))
 	} else {
-		keys = append(keys, k(ctrl, ui.KeyF4, "close"))
+		keys = append(keys, k(ctrl, ui.KeyH, "show_panel replace"), k(alt, ui.KeyF3, "find_all_under"), k(ctrl, ui.KeyF4, "close"))
 	}
 	return keys
 }()
