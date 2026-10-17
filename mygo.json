@@ -1,0 +1,7 @@
+{
+  "name": "Lime",
+  "identifier": "com.example.lime",
+  "version": "0.1.0",
+  "main": "./cmd/lime",
+  "out": "build"
+}
