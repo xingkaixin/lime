@@ -249,6 +249,27 @@ func TestPanels(t *testing.T) {
 	}
 }
 
+// Files take their icons as Zed gives them, and every icon parses.
+func TestIcons(t *testing.T) {
+	for name, want := range map[string]string{
+		"main.go": "go", "go.mod": "go-mod", ".gitignore": "git", "Gemfile.lock": "ruby-gem-lock",
+		"Makefile": "makefile", "app.component.ts": "angular-component", "notes": "_file", "a.unknown": "_file",
+	} {
+		if fileIcon(name) != icon(want) {
+			t.Errorf("%s: want %s", name, want)
+		}
+	}
+	m := iconMap()
+	for _, names := range []map[string]string{m.Stems, m.Suffixes} {
+		for _, name := range names {
+			b, err := iconFiles.ReadFile("icons/" + name + ".svg")
+			if _, perr := ui.ParseSVG(b); err != nil || perr != nil {
+				t.Errorf("%s: %v %v", name, err, perr)
+			}
+		}
+	}
+}
+
 // Hot exit: the next run brings back the windows, their tabs, the unsaved
 // text over the file on disk, and the layout.
 func TestHotExit(t *testing.T) {
