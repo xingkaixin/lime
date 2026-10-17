@@ -250,13 +250,14 @@ func TestPanels(t *testing.T) {
 }
 
 // The find panel goes along the bottom of the editor, as Sublime Text's,
-// and one opened in another tab starts with the last query.
+// and one opened in another tab starts with the last query, or the one
+// Quick Add Next found.
 func TestFindPanel(t *testing.T) {
 	if !mac {
 		t.Skip("the test presses macOS keys")
 	}
 	a := newApp("")
-	one := a.add("", "alpha beta\nbeta\n")
+	one := a.add("", "alpha beta\nbeta alpha\n")
 	two := a.add("", "one beta\n")
 	tt := ui.NewTester(a.view, 900, 500)
 	a.show(one)
@@ -277,6 +278,20 @@ func TestFindPanel(t *testing.T) {
 	tt.Key(ui.Cmd, ui.KeyF)
 	if got := two.st.SelectedText(); got != "beta" || tt.HasText("Replace All") {
 		t.Fatalf("Cmd+F in another tab: selects %q, replace row %v", got, tt.HasText("Replace All"))
+	}
+
+	a.show(one)
+	tt.Frame()
+	one.st.Select(0, 0)
+	tt.Key(ui.Cmd, ui.KeyD)
+	tt.Key(ui.Cmd, ui.KeyD)
+	if n := len(one.st.Selections()); n != 2 {
+		t.Fatalf("Cmd+D twice: %d selections", n)
+	}
+	one.st.Select(5, 5)
+	tt.Key(ui.Cmd, ui.KeyF)
+	if got := one.st.SelectedText(); got != "alpha" {
+		t.Fatalf("Cmd+F after Cmd+D: selects %q, want the next alpha", got)
 	}
 }
 

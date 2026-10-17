@@ -14,7 +14,8 @@ type finding struct {
 	query, replace             string
 	caseSens, wholeWord, regex bool
 	replacing                  bool
-	pending                    bool // the current editor's panel takes them as it next shows
+	pending                    bool   // the current editor's panel takes them as it next shows
+	seen                       string // the query of the current editor's panel, as last read
 }
 
 // showFind opens the find panel of the current editor, with the replace
@@ -28,20 +29,34 @@ func (a *app) showFind(replace bool) {
 	s := &a.find
 	s.replacing, s.pending = replace, true
 	d.st.Run(editor.Find)
-	if t := d.st.SelectedText(); t != "" && !strings.Contains(t, "\n") {
+	if t := selectionQuery(d.st); t != "" {
 		s.query = t
 	} else {
 		d.st.Find(s.query)
 	}
 }
 
-// useSelectionForFind is Sublime Text's slurp_find_string: the
-// selection becomes the query of the find panels to come.
-func (a *app) useSelectionForFind(d *doc) {
-	if t := d.st.SelectedText(); t != "" {
-		a.find.query = t
-		d.st.Run(editor.UseSelectionForFind)
+// selectionQuery returns the text of the newest selection, when it is on
+// one line, as Sublime Text takes a query from the selections.
+func selectionQuery(st *editor.State) string {
+	s := st.Selection()
+	t := st.Buffer.Slice(min(s.Anchor, s.Head), max(s.Anchor, s.Head))
+	if strings.Contains(t, "\n") {
+		return ""
 	}
+	return t
+}
+
+// quickFind makes a command of run, one of Sublime Text's commands that
+// find from the selections, as Quick Add Next: the newest selection it
+// leaves becomes the query of the find panels to come.
+func quickFind(run func(st *editor.State)) func(a *app) {
+	return withDoc(func(a *app, d *doc) {
+		run(d.st)
+		if t := selectionQuery(d.st); t != "" {
+			a.find.query = t
+		}
+	})
 }
 
 const (
@@ -62,12 +77,17 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 	case d != a.current():
 		// A panel left open in another group keeps its own.
 	case s.pending:
-		s.pending = false
+		s.pending, s.seen = false, *f.Query()
 		*f.Replacement() = s.replace
 		*f.CaseSensitive(), *f.WholeWord(), *f.Regexp() = s.caseSens, s.wholeWord, s.regex
 		f.SetReplacing(s.replacing)
 	default:
-		s.query, s.replace = *f.Query(), *f.Replacement()
+		// Only a query typed in the panel replaces the window's: Quick Add
+		// Next sets that while the panel still shows another.
+		if q := *f.Query(); q != s.seen {
+			s.query, s.seen = q, q
+		}
+		s.replace = *f.Replacement()
 		s.caseSens, s.wholeWord, s.regex = *f.CaseSensitive(), *f.WholeWord(), *f.Regexp()
 	}
 
