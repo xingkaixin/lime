@@ -76,7 +76,6 @@ func macEditorKeys() []editor.Binding {
 		bind(cmd, ui.KeyBracketRight, editor.Indent), bind(cmd, ui.KeyBracketLeft, editor.Outdent),
 		bind(cmd, ui.KeyEnter, editor.NewlineBelow), bind(cmd|sh, ui.KeyEnter, editor.NewlineAbove),
 		bind(0, ui.KeyF12, editor.GoToDefinition), bind(cmd|alt, ui.KeyDown, editor.GoToDefinition),
-		bind(cmd, ui.KeyE, editor.UseSelectionForFind),
 		bind(cmd, ui.KeyG, editor.FindNext), bind(cmd|sh, ui.KeyG, editor.FindPrevious),
 		bind(ctrl, ui.KeyPeriod, editor.NextHunk), bind(ctrl, ui.KeyComma, editor.PreviousHunk),
 		bind(ctrl|cmd, ui.KeyUp, editor.MoveLinesUp), bind(ctrl|cmd, ui.KeyDown, editor.MoveLinesDown),
@@ -131,7 +130,6 @@ func pcEditorKeys(windows bool) []editor.Binding {
 		bind(ctrl|sh, ui.KeySpace, editor.SelectLarger), bind(ctrl|sh, ui.KeyA, editor.SelectLarger),
 		bind(ctrl|sh, ui.KeyM, editor.SelectLarger), bind(ctrl, ui.KeyM, editor.MoveToBracket),
 		bind(0, ui.KeyF12, editor.GoToDefinition),
-		bind(ctrl, ui.KeyE, editor.UseSelectionForFind),
 		bind(0, ui.KeyF3, editor.FindNext), bind(sh, ui.KeyF3, editor.FindPrevious), bind(alt, ui.KeyF3, editor.SelectAllMatches),
 		bind(ctrl, ui.KeyPeriod, editor.NextHunk), bind(ctrl, ui.KeyComma, editor.PreviousHunk),
 		bind(ctrl|sh, ui.KeyUp, editor.MoveLinesUp), bind(ctrl|sh, ui.KeyDown, editor.MoveLinesDown),
@@ -190,6 +188,7 @@ var appKeys = func() []appKey {
 		k(cmd, ui.KeyEqual, "increase_font_size"), k(cmd|sh, ui.KeyEqual, "increase_font_size"),
 		k(cmd, ui.KeyMinus, "decrease_font_size"),
 		k(cmd, ui.KeyF, "show_panel find"), k(cmd, ui.KeyI, "show_panel find"), k(cmd|sh, ui.KeyI, "show_panel find"),
+		k(cmd, ui.KeyE, "slurp_find_string"),
 
 		ch(0, ui.KeyB, "toggle_side_bar"),
 		ch(0, ui.KeyU, "upper_case"), ch(0, ui.KeyL, "lower_case"), ch(0, ui.KeyD, "find_under_expand_skip"),

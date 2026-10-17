@@ -35,6 +35,15 @@ func (a *app) showFind(replace bool) {
 	}
 }
 
+// useSelectionForFind is Sublime Text's slurp_find_string: the
+// selection becomes the query of the find panels to come.
+func (a *app) useSelectionForFind(d *doc) {
+	if t := d.st.SelectedText(); t != "" {
+		a.find.query = t
+		d.st.Run(editor.UseSelectionForFind)
+	}
+}
+
 const (
 	findToggleW = 28
 	// The status and the buttons share a width, which they give up to

@@ -70,6 +70,7 @@ func makeCommands() []command {
 		{id: "goto_line", caption: "Goto Line", run: func(a *app) { a.showGoto(":") }},
 		{id: "show_panel find", run: func(a *app) { a.showFind(false) }},
 		{id: "show_panel replace", run: func(a *app) { a.showFind(true) }},
+		{id: "slurp_find_string", run: withDoc((*app).useSelectionForFind)},
 		{id: "next_view", run: func(a *app) { a.selectTab(a.group().active + 1) }},
 		{id: "prev_view", run: func(a *app) { a.selectTab(a.group().active - 1) }},
 		{id: "next_view_in_stack", run: func(a *app) { a.cycleTabs(1) }},
