@@ -289,9 +289,28 @@ func newDoc(path, text string) *doc {
 	d := &doc{path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, saved: buf.Snapshot()}
 	if path != "" {
 		buf.SetLanguage(editor.LanguageFor(path))
-		d.st.DiffBase = editor.NewBuffer(text)
+		d.setDiffBase(d.saved)
 	}
 	return d
+}
+
+// largeFile is the size from which a file opens lighter. The gutter does
+// not mark its changes: the DiffBase would hold a second copy of the
+// text, which the editor compares line by line with the first as the
+// file opens and is saved.
+const largeFile = 16 << 20
+
+// setDiffBase has the gutter mark the changes against disk, the text on
+// disk.
+func (d *doc) setDiffBase(disk editor.Snapshot) {
+	switch {
+	case disk.Len() > largeFile:
+		d.st.DiffBase = nil
+	case d.st.DiffBase == nil:
+		d.st.DiffBase = editor.NewBuffer(disk.String())
+	default:
+		d.st.DiffBase.Reset(disk.String())
+	}
 }
 
 func (a *app) add(path, text string) *doc {
@@ -398,11 +417,7 @@ func (a *app) write(d *doc, path string) error {
 	}
 	d.st.Buffer.MarkSaved()
 	d.saved = snap
-	if d.st.DiffBase == nil {
-		d.st.DiffBase = editor.NewBuffer(b.String())
-	} else {
-		d.st.DiffBase.Reset(b.String())
-	}
+	d.setDiffBase(snap)
 	return nil
 }
 
