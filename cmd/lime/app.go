@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"iter"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,7 +17,12 @@ import (
 type doc struct {
 	path    string // "" while untitled
 	st      *editor.State
-	columns bool // a column drag remapped from another press is going on
+	columns bool            // a column drag remapped from another press is going on
+	saved   editor.Snapshot // the text on disk
+	// checked is the version modified was found for: dirty compares the
+	// text with saved once a version.
+	checked  uint64
+	modified bool
 }
 
 func (d *doc) name() string {
@@ -26,7 +32,47 @@ func (d *doc) name() string {
 	return filepath.Base(d.path)
 }
 
-func (d *doc) dirty() bool { return d.st.Buffer.Modified() }
+// dirty reports whether the text differs from the saved one, as
+// Buffer.Modified does, which copies both texts out at every call.
+func (d *doc) dirty() bool {
+	s := d.st.Buffer.Snapshot()
+	if s.Version() == d.saved.Version() {
+		return false
+	}
+	if s.Version() != d.checked {
+		d.checked, d.modified = s.Version(), !sameText(s, d.saved)
+	}
+	return d.modified
+}
+
+// sameText compares a and b a chunk at a time, without copying them.
+func sameText(a, b editor.Snapshot) bool {
+	if a.Len() != b.Len() {
+		return false
+	}
+	next, stop := iter.Pull(func(yield func(string) bool) { b.Chunks(0, b.Len(), yield) })
+	defer stop()
+	same, rest := true, ""
+	a.Chunks(0, a.Len(), func(s string) bool {
+		for len(s) > 0 {
+			for rest == "" {
+				var ok bool
+				if rest, ok = next(); !ok {
+					same = false
+					return false
+				}
+			}
+			n := min(len(s), len(rest))
+			if s[:n] != rest[:n] {
+				same = false
+				return false
+			}
+			s, rest = s[n:], rest[n:]
+		}
+		return true
+	})
+	return same
+}
 
 // group is a pane of the layout, with its own tabs.
 type group struct {
@@ -234,7 +280,7 @@ func (a *app) cycleTabs(step int) {
 // newDoc makes a tab of the file at path holding text, its text on disk.
 func newDoc(path, text string) *doc {
 	buf := editor.NewBuffer(text)
-	d := &doc{path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}}
+	d := &doc{path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, saved: buf.Snapshot()}
 	if path != "" {
 		buf.SetLanguage(editor.LanguageFor(path))
 		d.st.DiffBase = editor.NewBuffer(text)
@@ -309,8 +355,9 @@ func (a *app) reopenClosed() {
 
 // write saves d to path, on the main thread.
 func (a *app) write(d *doc, path string) error {
+	snap := d.st.Buffer.Snapshot()
 	var b bytes.Buffer
-	if _, err := d.st.Buffer.WriteTo(&b); err != nil {
+	if _, err := snap.WriteTo(&b); err != nil {
 		return err
 	}
 	mode := os.FileMode(0o644)
@@ -326,6 +373,7 @@ func (a *app) write(d *doc, path string) error {
 		d.st.Buffer.SetLanguage(editor.LanguageFor(path))
 	}
 	d.st.Buffer.MarkSaved()
+	d.saved = snap
 	if d.st.DiffBase == nil {
 		d.st.DiffBase = editor.NewBuffer(b.String())
 	} else {
