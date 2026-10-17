@@ -1,6 +1,6 @@
 {
   "name": "Lime",
-  "identifier": "com.example.lime",
+  "identifier": "me.xingkaixin.lime",
   "version": "0.1.0",
   "main": "./cmd/lime",
   "out": "build"
