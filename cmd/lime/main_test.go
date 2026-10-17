@@ -249,6 +249,28 @@ func TestPanels(t *testing.T) {
 	}
 }
 
+// The find panel goes along the bottom of the editor, as Sublime Text's.
+func TestFindPanel(t *testing.T) {
+	if !mac {
+		t.Skip("the test presses macOS keys")
+	}
+	a := newApp("")
+	one := a.add("", "alpha beta\nbeta\n")
+	tt := ui.NewTester(a.view, 900, 500)
+	a.show(one)
+	tt.Frame()
+	tt.Key(ui.Cmd|ui.Alt, ui.KeyF)
+	tt.Type("beta")
+	bar, _ := tt.Find("Find")
+	ed, _ := tt.Find("Code editor")
+	if bar.Y+bar.H != ed.Y+ed.H || bar.W != ed.W {
+		t.Fatalf("find panel at %v, want along the bottom of the editor at %v", bar, ed)
+	}
+	if n, _ := one.st.FindMatches(); n != 2 || !tt.HasText("Replace All") {
+		t.Fatalf("Cmd+Alt+F: %d matches, replace row %v", n, tt.HasText("Replace All"))
+	}
+}
+
 // Hot exit: the next run brings back the windows, their tabs, the unsaved
 // text over the file on disk, and the layout.
 func TestHotExit(t *testing.T) {
