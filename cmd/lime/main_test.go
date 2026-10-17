@@ -249,13 +249,15 @@ func TestPanels(t *testing.T) {
 	}
 }
 
-// The find panel goes along the bottom of the editor, as Sublime Text's.
+// The find panel goes along the bottom of the editor, as Sublime Text's,
+// and one opened in another tab starts with the last query.
 func TestFindPanel(t *testing.T) {
 	if !mac {
 		t.Skip("the test presses macOS keys")
 	}
 	a := newApp("")
 	one := a.add("", "alpha beta\nbeta\n")
+	two := a.add("", "one beta\n")
 	tt := ui.NewTester(a.view, 900, 500)
 	a.show(one)
 	tt.Frame()
@@ -268,6 +270,13 @@ func TestFindPanel(t *testing.T) {
 	}
 	if n, _ := one.st.FindMatches(); n != 2 || !tt.HasText("Replace All") {
 		t.Fatalf("Cmd+Alt+F: %d matches, replace row %v", n, tt.HasText("Replace All"))
+	}
+
+	a.show(two)
+	tt.Frame()
+	tt.Key(ui.Cmd, ui.KeyF)
+	if got := two.st.SelectedText(); got != "beta" || tt.HasText("Replace All") {
+		t.Fatalf("Cmd+F in another tab: selects %q, replace row %v", got, tt.HasText("Replace All"))
 	}
 }
 

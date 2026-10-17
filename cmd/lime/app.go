@@ -184,6 +184,7 @@ type app struct {
 	title   string
 	scheme  *scheme
 	panel   *panel
+	find    finding
 	proj    project
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag

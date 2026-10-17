@@ -1,9 +1,39 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 )
+
+// finding is what Sublime Text's find panel keeps across the editors of
+// a window: the query, the replacement and the options of the panel last
+// used, which a panel opened in another editor starts with.
+type finding struct {
+	query, replace             string
+	caseSens, wholeWord, regex bool
+	replacing                  bool
+	pending                    bool // the current editor's panel takes them as it next shows
+}
+
+// showFind opens the find panel of the current editor, with the replace
+// row when replace is set. The query is the selection on one line, as in
+// Sublime Text, else the last one.
+func (a *app) showFind(replace bool) {
+	d := a.current()
+	if d == nil {
+		return
+	}
+	s := &a.find
+	s.replacing, s.pending = replace, true
+	d.st.Run(editor.Find)
+	if t := d.st.SelectedText(); t != "" && !strings.Contains(t, "\n") {
+		s.query = t
+	} else {
+		d.st.Find(s.query)
+	}
+}
 
 const (
 	findToggleW = 28
@@ -14,10 +44,24 @@ const (
 	findQueryW  = 120
 )
 
-// findBar builds an editor's find panel as Sublime Text's, along the
-// bottom of the editor: the options, the query and the buttons, and the
-// replacement below them while replacing.
-func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar) {
+// findBar builds the find panel of d's editor as Sublime Text's, along
+// the bottom of the editor: the options, the query and the buttons, and
+// the replacement below them while replacing.
+func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) {
+	s := &a.find
+	switch {
+	case d != a.current():
+		// A panel left open in another group keeps its own.
+	case s.pending:
+		s.pending = false
+		*f.Replacement() = s.replace
+		*f.CaseSensitive(), *f.WholeWord(), *f.Regexp() = s.caseSens, s.wholeWord, s.regex
+		f.SetReplacing(s.replacing)
+	default:
+		s.query, s.replace = *f.Query(), *f.Replacement()
+		s.caseSens, s.wholeWord, s.regex = *f.CaseSensitive(), *f.WholeWord(), *f.Regexp()
+	}
+
 	sc, ch := a.scheme, a.scheme.chrome()
 	// The editor places the bar over its top right corner: Attach moves it
 	// to the bottom, and Top and Right take back the editor's offsets.
