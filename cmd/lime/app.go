@@ -7,9 +7,11 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -532,8 +534,22 @@ func (a *app) closeCurrent() {
 }
 
 func (a *app) remove(d *doc) {
-	if a.take(d) && d.path != "" {
+	if !a.take(d) {
+		return
+	}
+	if d.path != "" {
 		a.closed = append(a.closed, d.path)
+	}
+	release(d)
+}
+
+// release gives the memory of large docs just closed back to the system,
+// once the frames that showed them are gone: the runtime would collect
+// them only as the heap grows again, and give back the memory over
+// minutes.
+func release(docs ...*doc) {
+	if slices.ContainsFunc(docs, func(d *doc) bool { return d.st.Buffer.Len() > largeFile }) {
+		time.AfterFunc(time.Second, debug.FreeOSMemory)
 	}
 }
 
@@ -719,7 +735,7 @@ func (a *app) closing(e *mygo.CloseEvent) {
 		case 1:
 			a.win.Update(func() {
 				for _, d := range a.allDocs() {
-					a.take(d)
+					a.remove(d)
 				}
 				a.win.Close()
 			})
@@ -744,6 +760,7 @@ func (l *lime) quit(e interface{ PreventDefault() }) {
 }
 
 func (l *lime) closed(a *app) {
+	release(a.allDocs()...)
 	l.wins = slices.DeleteFunc(l.wins, func(w *app) bool { return w == a })
 	if l.last == a && len(l.wins) > 0 {
 		l.last = l.wins[len(l.wins)-1]
