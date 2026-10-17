@@ -83,6 +83,7 @@ type group struct {
 	active int     // -1 while empty
 	bar    ui.Rect // the tab bar as the last frame laid it out, in the window
 	tabW   float32 // the width of its tabs, all the same
+	blank  *doc    // the editor shown without tabs, which typing makes a tab
 }
 
 func (g *group) current() *doc {
@@ -90,6 +91,28 @@ func (g *group) current() *doc {
 		return nil
 	}
 	return g.docs[g.active]
+}
+
+// placeholder is the editor an empty group shows, as Sublime Text's: what
+// is typed in it opens a tab with the text (adopt).
+func (g *group) placeholder() *doc {
+	if g.blank == nil {
+		g.blank = newDoc("", "")
+		g.blank.st.LineNumbers, g.blank.st.NoFolding = editor.LineNumbersOff, true
+	}
+	return g.blank
+}
+
+// adopt makes the placeholder of g a tab once it has been typed in.
+func (a *app) adopt(g *group) {
+	b := g.blank
+	if b == nil || b.st.Buffer.Version() == 0 {
+		return
+	}
+	g.blank = nil
+	b.st.LineNumbers, b.st.NoFolding = editor.LineNumbersOn, false
+	g.docs = append(g.docs, b)
+	a.show(b)
 }
 
 // place is where the keyboard focus is: an editor of a group. A doc moved
@@ -243,7 +266,7 @@ func (a *app) focusGroup(gi int) {
 		a.show(d)
 		return
 	}
-	a.focus, a.focused = gi, place{}
+	a.focus, a.focused = gi, place{g, g.placeholder()}
 }
 
 // touch puts d first in the order tabs were last used.
@@ -264,7 +287,7 @@ func (a *app) syncFocus(ctrlHeld bool) {
 	if gi := slices.Index(a.groups, p.g); gi >= 0 {
 		a.focus = gi
 	}
-	if a.cycle == nil && (len(a.mru) == 0 || a.mru[0] != p.d) {
+	if a.cycle == nil && p.d != p.g.blank && (len(a.mru) == 0 || a.mru[0] != p.d) {
 		a.touch(p.d)
 	}
 }

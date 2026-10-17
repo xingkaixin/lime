@@ -114,12 +114,12 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		a.focusGroup(gi)
 		a.open(files)
 	}
+	a.adopt(g)
 	col.Children(func() {
 		a.tabBar(c, g, gi)
 		d := g.current()
 		if d == nil {
-			ui.Box(c).Grow(1).FillWidth().OnClick(func() { a.focusGroup(gi) })
-			return
+			d = g.placeholder()
 		}
 		d.st.Theme = s.editorTheme()
 		d.st.SoftWrap = a.set.WordWrap
@@ -133,7 +133,8 @@ func (a *app) groupView(c *ui.Context, gi int) {
 // (dragTab).
 func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 	a.makeWay(g)
-	bar := ui.Row(c).FillWidth().Height(34).Shrink(0).AlignItems(ui.Stretch).Background(a.scheme.chrome().bg)
+	// Pressing a tab leaves the keyboard in the editor, as in Sublime Text.
+	bar := ui.Row(c).FillWidth().Height(34).Shrink(0).AlignItems(ui.Stretch).Background(a.scheme.chrome().bg).KeepFocus()
 	g.bar = bar.LayoutBounds()
 	bar.Children(func() {
 		for i, d := range g.docs {
