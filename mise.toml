@@ -1,2 +1,25 @@
 [tools]
 go = "1.27.2"
+
+[tasks."build:darwin-arm64"]
+run = "go tool mygo build -platform darwin/arm64"
+
+[tasks."build:darwin-amd64"]
+run = "go tool mygo build -platform darwin/amd64"
+
+[tasks."build:windows-arm64"]
+run = "go tool mygo build -platform windows/arm64"
+
+[tasks."build:windows-amd64"]
+run = "go tool mygo build -platform windows/amd64"
+
+[tasks."build:linux-arm64"]
+run = "go tool mygo build -platform linux/arm64"
+
+[tasks."build:linux-amd64"]
+run = "go tool mygo build -platform linux/amd64"
+
+# One mygo invocation: parallel Windows builds would clash on the .syso
+# files mygo writes into cmd/lime.
+[tasks."build:all"]
+run = "go tool mygo build -platform darwin/arm64,darwin/amd64,windows/arm64,windows/amd64,linux/arm64,linux/amd64"
