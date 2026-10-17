@@ -249,6 +249,54 @@ func TestPanels(t *testing.T) {
 	}
 }
 
+// A click anywhere on a folder's row in the side bar opens or closes it,
+// and one on a file's opens the file.
+func TestSideBar(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "src", "main.go")
+	os.MkdirAll(filepath.Dir(main), 0o755)
+	os.WriteFile(main, []byte("package main\n"), 0o644)
+	a := newApp("")
+	a.addFolder(dir)
+	tt := ui.NewTester(a.view, 800, 500)
+	if tt.HasText("main.go") {
+		t.Fatal("src shows open")
+	}
+	if err := tt.Click("src"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("main.go"); err != nil {
+		t.Fatalf("a click on src: %v", err)
+	}
+	if d := a.current(); d == nil || d.path != main {
+		t.Fatal("a click on main.go leaves it closed")
+	}
+	if err := tt.Click("src"); err != nil || *a.proj.isOpen(filepath.Dir(main), false) {
+		t.Fatalf("a second click on src leaves it open: %v", err)
+	}
+}
+
+// Files take their icons as Zed gives them, and every icon parses.
+func TestIcons(t *testing.T) {
+	for name, want := range map[string]string{
+		"main.go": "go", "go.mod": "go-mod", ".gitignore": "git", "Gemfile.lock": "ruby-gem-lock",
+		"Makefile": "makefile", "app.component.ts": "angular-component", "notes": "_file", "a.unknown": "_file",
+	} {
+		if fileIcon(name) != icon(want) {
+			t.Errorf("%s: want %s", name, want)
+		}
+	}
+	m := iconMap()
+	for _, names := range []map[string]string{m.Stems, m.Suffixes} {
+		for _, name := range names {
+			b, err := iconFiles.ReadFile("icons/" + name + ".svg")
+			if _, perr := ui.ParseSVG(b); err != nil || perr != nil {
+				t.Errorf("%s: %v %v", name, err, perr)
+			}
+		}
+	}
+}
+
 // Hot exit: the next run brings back the windows, their tabs, the unsaved
 // text over the file on disk, and the layout.
 func TestHotExit(t *testing.T) {
