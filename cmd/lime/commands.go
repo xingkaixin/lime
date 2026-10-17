@@ -127,6 +127,10 @@ func makeCommands() []command {
 		edit("delete_to_eol", "", editor.DeleteToLineEnd),
 		edit("delete_to_bol", "", editor.DeleteToLineStart),
 		edit("show_at_center", "", editor.ScrollCursorCenter),
+		edit("find_next", "", editor.FindNext),
+		edit("find_prev", "", editor.FindPrevious),
+		edit("find_under_expand", "", editor.SelectNext),
+		edit("find_all_under", "", editor.SelectAllMatches),
 		{id: "find_under_expand_skip", run: withDoc(func(_ *app, d *doc) { skipNext(d.st) })},
 	}
 	for i := range 9 {
