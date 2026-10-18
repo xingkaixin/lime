@@ -3,5 +3,6 @@
   "identifier": "me.xingkaixin.lime",
   "version": "0.1.0",
   "main": "./cmd/lime",
-  "out": "build"
+  "out": "build",
+  "i18n": { "dir": "locales", "source": "en" }
 }

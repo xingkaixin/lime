@@ -1,0 +1,403 @@
+package main
+
+import (
+	"slices"
+
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/i18n"
+	"github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
+
+	"lime/locales"
+)
+
+// prefs is the settings dialog of a window. Its changes show at once, and
+// settings.json keeps them.
+type prefs struct {
+	open    bool
+	page    string
+	offset  ui.Point // where its title band dragged it, from the window's center
+	preview *editor.State
+}
+
+const (
+	pageGeneral    = "general"
+	pageAppearance = "appearance"
+	pageFonts      = "fonts"
+)
+
+const (
+	prefsW, prefsH = 720, 500
+	prefsSideW     = 180
+	prefsBandH     = 48
+	prefsControlW  = 200
+)
+
+var (
+	generalIcon    = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 4.5h6M11.5 4.5h2M2.5 8h2M7.5 8h6M2.5 11.5h7M12.5 11.5h1"/><circle cx="10" cy="4.5" r="1.5"/><circle cx="6" cy="8" r="1.5"/><circle cx="11" cy="11.5" r="1.5"/></svg>`))
+	appearanceIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.75"/><path d="M8 2.25a5.75 5.75 0 0 1 0 11.5z" fill="currentColor" stroke="none"/></svg>`))
+	fontsIcon      = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12.5 5.25 3.5 8.5 12.5M3.2 9.5h4.1"/><circle cx="11.75" cy="10.25" r="2.25"/><path d="M14 8v4.5"/></svg>`))
+	systemIcon     = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="3" width="12" height="8.5" rx="1.5"/><path d="M5.5 14h5M8 11.5V14"/></svg>`))
+	lightIcon      = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2.75"/><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05"/></svg>`))
+	darkIcon       = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M13.25 9.6A5.5 5.5 0 1 1 6.4 2.75a4.5 4.5 0 0 0 6.85 6.85z"/></svg>`))
+	closeIcon      = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>`))
+	checkIcon      = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>`))
+	minusIcon      = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 8h8"/></svg>`))
+	plusIcon       = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 8h8M8 4v8"/></svg>`))
+)
+
+const previewText = `// saveSettings keeps the settings in settings.json.
+func (l *lime) saveSettings() {
+	b, err := json.MarshalIndent(l.set, "", "\t")
+	if err != nil {
+		return
+	}
+	os.WriteFile(path, b, 0o644)
+}
+`
+
+func (a *app) showSettings() {
+	p := &a.prefs
+	p.open = true
+	if p.page == "" {
+		p.page = pageGeneral
+	}
+	// The system's fonts take a while to list the first time.
+	go ui.FontFamilies()
+}
+
+// fontLists are the families of the font settings, the system's font
+// first, whose name the view says.
+type fontLists struct{ all, monoFirst []string }
+
+func (l *lime) fontNames(monoFirst bool) []string {
+	if l.fonts == nil {
+		all, mono, rest := []string{""}, []string{""}, []string(nil)
+		for _, f := range ui.FontFamilies() {
+			all = append(all, f.Name)
+			if f.Monospaced {
+				mono = append(mono, f.Name)
+			} else {
+				rest = append(rest, f.Name)
+			}
+		}
+		l.fonts = &fontLists{all: all, monoFirst: append(mono, rest...)}
+	}
+	if monoFirst {
+		return l.fonts.monoFirst
+	}
+	return l.fonts.all
+}
+
+func (a *app) settingsView(c *ui.Context) {
+	p := &a.prefs
+	if !p.open {
+		return
+	}
+	ch := a.scheme.chrome()
+	w, h := c.Size()
+	pw, ph := min(prefsW, w-32), min(prefsH, h-32)
+	mx, my := (w-pw)/2, (h-ph)/2
+	p.offset.X, p.offset.Y = max(-mx, min(p.offset.X, mx)), max(-my, min(p.offset.Y, my))
+	dim := float32(0.25)
+	if a.scheme.dark {
+		dim = 0.45
+	}
+	ui.DialogBase(c, &p.open, func(backdrop, panel ui.Element) {
+		backdrop.Background(black.Alpha(dim))
+		panel.Row().Width(pw).Height(ph).Radius(10).Border(1, ch.line).Background(ch.panel).Clip().
+			Shadow(0, 8, 28, 0, black.Alpha(0.35)).Translate(p.offset.X, p.offset.Y).Label(locales.SettingsTitle())
+		ui.Column(c).Width(prefsSideW).FillHeight().Shrink(0).Background(ch.bg).BorderWidth(0, 1, 0, 0).BorderColor(ch.line).Children(func() {
+			a.dragBand(ui.Row(c)).Padding(0, 18).Children(func() {
+				ui.Text(c, locales.SettingsTitle()).FontSize(13).Bold()
+			})
+			ui.Sidebar(c, &p.page, func() {
+				ui.SidebarItem(c, pageGeneral, generalIcon, locales.SettingsGeneral())
+				ui.SidebarItem(c, pageAppearance, appearanceIcon, locales.SettingsAppearance())
+				ui.SidebarItem(c, pageFonts, fontsIcon, locales.SettingsFonts())
+			}).Grow(1).FillWidth().Padding(0, 8).Background(ui.Transparent).Label(locales.SettingsTitle())
+		})
+		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
+			a.dragBand(ui.Row(c)).Padding(0, 12, 0, 24).Justify(ui.SpaceBetween).Children(func() {
+				ui.Text(c, a.pageTitle()).FontSize(15).Bold()
+				btn := ui.ButtonBase(c).Width(28).Height(28).Radius(6).Center().Transition(colorFade).
+					Label(locales.SettingsClose()).OnClick(func() { p.open = false })
+				if btn.Hovered() {
+					btn.Background(ch.hover)
+				}
+				btn.Children(func() { ui.Icon(c, closeIcon).Size(14, 14).TextColor(ch.muted) })
+			})
+			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+				ui.Column(c).FillWidth().Padding(4, 24, 24).Gap(20).Children(func() {
+					switch p.page {
+					case pageAppearance:
+						a.appearancePage(c)
+					case pageFonts:
+						a.fontsPage(c)
+					default:
+						a.generalPage(c)
+					}
+				})
+			})
+		})
+	})
+}
+
+// dragBand makes e the band along the top of the dialog, by which the
+// pointer drags it.
+func (a *app) dragBand(e ui.Element) ui.Element {
+	if dx, dy, ok := e.Dragged(); ok {
+		a.prefs.offset.X += dx
+		a.prefs.offset.Y += dy
+	}
+	return e.FillWidth().Height(prefsBandH).Shrink(0).AlignItems(ui.Center)
+}
+
+func (a *app) pageTitle() string {
+	switch a.prefs.page {
+	case pageAppearance:
+		return locales.SettingsAppearance()
+	case pageFonts:
+		return locales.SettingsFonts()
+	}
+	return locales.SettingsGeneral()
+}
+
+// settingsGroup holds rows of settings in a box, lines between them.
+func (a *app) settingsGroup(c *ui.Context, rows func()) {
+	ch := a.scheme.chrome()
+	ui.Column(c).FillWidth().Gap(1).Radius(8).Border(1, ch.line).Background(ch.panel.Mix(ch.text, 0.02)).
+		Dividers(1, ch.line).Children(rows)
+}
+
+// settingsRow is a setting: its label and what it does, and its control.
+func (a *app) settingsRow(c *ui.Context, label, detail string, control func()) {
+	ch := a.scheme.chrome()
+	ui.Row(c).FillWidth().MinHeight(52).Padding(10, 14).Gap(16).AlignItems(ui.Center).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+			ui.Text(c, label).FontSize(13)
+			ui.Text(c, detail).FontSize(12).TextColor(ch.muted)
+		})
+		control()
+	})
+}
+
+func (a *app) heading(c *ui.Context, title string, inUse bool) {
+	ch := a.scheme.chrome()
+	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, title).FontSize(13).Bold()
+		if inUse {
+			ui.Text(c, locales.SettingsInUse()).FontSize(11).Padding(1, 6).Radius(4).Background(a.scheme.accent.Alpha(0.16)).TextColor(ch.text)
+		}
+	})
+}
+
+func (a *app) generalPage(c *ui.Context) {
+	a.settingsGroup(c, func() {
+		a.settingsRow(c, locales.SettingsLanguage(), locales.SettingsLanguageDesc(), func() {
+			tags := mygo.App.Languages()
+			options := []string{locales.SettingsFollowSystem()}
+			for _, t := range tags {
+				options = append(options, i18n.Autonym(t))
+			}
+			choice := options[0]
+			if i := slices.Index(tags, a.set.locale()); i >= 0 {
+				choice = options[i+1]
+			}
+			if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsLanguage()).Changed() {
+				tag := followSystem
+				if i := slices.Index(options, choice); i > 0 {
+					tag = tags[i-1]
+				}
+				a.l.setLanguage(tag)
+			}
+		})
+	})
+	if a.l.dir == "" {
+		return
+	}
+	a.settingsGroup(c, func() {
+		a.settingsRow(c, locales.SettingsFile(), locales.SettingsFileDesc(), func() {
+			a.button(c, locales.SettingsOpenFile(), func() {
+				a.prefs.open = false
+				a.l.saveSettings()
+				a.open([]string{settingsPath(a.l.dir)})
+			})
+		})
+	})
+}
+
+func (a *app) button(c *ui.Context, label string, click func()) {
+	ch := a.scheme.chrome()
+	btn := ui.ButtonBase(c).Height(28).Padding(0, 12).Shrink(0).Radius(6).Border(1, ch.line).Background(ch.panel).
+		Transition(colorFade).Label(label).OnClick(click)
+	if btn.Hovered() {
+		btn.Background(ch.panel.Mix(ch.text, 0.06))
+	}
+	btn.Children(func() { ui.Text(c, label).FontSize(13) })
+}
+
+var modes = []string{followSystem, lightMode, darkMode}
+
+func (a *app) appearancePage(c *ui.Context) {
+	ch := a.scheme.chrome()
+	a.settingsGroup(c, func() {
+		a.settingsRow(c, locales.SettingsMode(), locales.SettingsModeDesc(), func() {
+			at := max(slices.Index(modes, a.set.Appearance), 0)
+			seg := ui.SegmentedBase(c, &at, len(modes))
+			seg.Track.Gap(2).Padding(2).Shrink(0).Radius(7).Background(ch.bg).Border(1, ch.line).Label(locales.SettingsMode()).Children(func() {
+				labels := []string{locales.SettingsSystem(), locales.Light(), locales.Dark()}
+				for i, ic := range []*ui.SVG{systemIcon, lightIcon, darkIcon} {
+					s := seg.Segment(i).Height(24).Padding(0, 10).Gap(6).Radius(5).AlignItems(ui.Center).Label(labels[i])
+					fg := ch.muted
+					if i == at {
+						fg = ch.text
+						bg := ch.panel
+						if a.scheme.dark {
+							bg = ch.panel.Mix(ch.text, 0.14)
+						}
+						s.Background(bg).Shadow(0, 1, 2, 0, black.Alpha(0.15))
+					}
+					s.Children(func() {
+						ui.Icon(c, ic).Size(14, 14).TextColor(fg)
+						ui.Text(c, labels[i]).FontSize(12).TextColor(fg)
+					})
+				}
+			})
+			if seg.Track.Changed() {
+				a.set.Appearance = modes[at]
+				a.l.saveSettings()
+			}
+		})
+	})
+	a.themes(c, false)
+	a.themes(c, true)
+}
+
+// themes lists the schemes of the dark or the light appearance, to choose
+// its theme from.
+func (a *app) themes(c *ui.Context, dark bool) {
+	ch := a.scheme.chrome()
+	title := locales.SettingsLightTheme()
+	if dark {
+		title = locales.SettingsDarkTheme()
+	}
+	chosen := a.set.theme(dark)
+	ui.Column(c).FillWidth().Gap(10).Children(func() {
+		a.heading(c, title, a.scheme.dark == dark)
+		ui.Grid(c).FillWidth().Columns(4).Gap(12).Children(func() {
+			for _, sc := range schemes {
+				if sc.dark != dark {
+					continue
+				}
+				on := sc == chosen
+				card := ui.ButtonBase(c.Key(sc.name)).Column().Radius(8).Border(1, ch.line).Background(ch.panel).Clip().
+					Label(sc.name).OnClick(func() {
+					if dark {
+						a.set.DarkTheme = sc.name
+					} else {
+						a.set.LightTheme = sc.name
+					}
+					a.l.saveSettings()
+				})
+				if on {
+					card.BorderColor(a.scheme.accent).Shadow(0, 0, 0, 1, a.scheme.accent)
+				}
+				card.Children(func() { a.themeCard(c, sc, on) })
+			}
+		})
+	})
+}
+
+// themeCard draws sc as lines of code in its colors, and its name.
+func (a *app) themeCard(c *ui.Context, sc *scheme, on bool) {
+	ch := a.scheme.chrome()
+	tok := func(k editor.TokenKind) ui.Color { return sc.tokens[k].Color }
+	lines := [][]struct {
+		color ui.Color
+		w     float32
+	}{
+		{{tok(editor.TokenKeyword), 14}, {tok(editor.TokenFunction), 34}},
+		{{tok(editor.TokenType), 20}, {tok(editor.TokenString), 28}},
+		{{tok(editor.TokenComment), 44}},
+	}
+	ui.Column(c).FillWidth().Height(58).Padding(12, 10).Gap(7).Background(sc.bg).BorderWidth(0, 0, 1, 0).BorderColor(ch.line).Children(func() {
+		for _, l := range lines {
+			ui.Row(c).Gap(4).Children(func() {
+				for _, t := range l {
+					ui.Box(c).Width(t.w).Height(4).Radius(2).Background(t.color)
+				}
+			})
+		}
+		if on {
+			ui.Box(c).Absolute().Top(6).Right(6).Width(16).Height(16).Radius(8).Center().Background(a.scheme.accent).Children(func() {
+				ui.Icon(c, checkIcon).Size(10, 10).TextColor(ui.RGB(255, 255, 255))
+			})
+		}
+	})
+	ui.Text(c, sc.name).FontSize(12).Padding(7, 10).SingleLine().Ellipsis("…")
+}
+
+func (a *app) fontsPage(c *ui.Context) {
+	ch := a.scheme.chrome()
+	a.settingsGroup(c, func() {
+		a.settingsRow(c, locales.SettingsUIFont(), locales.SettingsUIFontDesc(), func() {
+			a.fontChoice(c, &a.set.UIFont, locales.SettingsUIFont(), locales.SettingsSystemDefault(), false)
+		})
+		a.settingsRow(c, locales.SettingsContentFont(), locales.SettingsContentFontDesc(), func() {
+			a.fontChoice(c, &a.set.ContentFont, locales.SettingsContentFont(), locales.SettingsSystemMono(), true)
+		})
+		a.settingsRow(c, locales.SettingsFontSize(), locales.SettingsFontSizeDesc(), func() { a.fontSizeControl(c) })
+	})
+	p := &a.prefs
+	if p.preview == nil {
+		buf := editor.NewBuffer(previewText)
+		buf.SetLanguage(editor.LanguageFor("main.go"))
+		p.preview = &editor.State{Buffer: buf, ReadOnly: true, NoActiveLine: true, NoFolding: true}
+	}
+	st := p.preview
+	st.Theme, st.Font.Family, st.Font.Size = a.scheme.editorTheme(), a.set.ContentFont, a.set.FontSize
+	ui.Column(c).FillWidth().Gap(10).Children(func() {
+		a.heading(c, locales.SettingsPreview(), false)
+		ui.Column(c).FillWidth().Height(150).PaddingY(8).Radius(8).Border(1, ch.line).Background(a.scheme.bg).Clip().Children(func() {
+			editor.View(c.Key("preview"), st).Grow(1).FillWidth().MinHeight(0)
+		})
+	})
+}
+
+// fontChoice chooses the family *family names among the system's, ""
+// being the system's font, which system names.
+func (a *app) fontChoice(c *ui.Context, family *string, label, system string, monoFirst bool) {
+	names := a.l.fontNames(monoFirst)
+	names[0] = system
+	choice := *family
+	if choice == "" {
+		choice = system
+	}
+	if ui.Combobox(c, &choice, names).Width(prefsControlW).Shrink(0).Label(label).Changed() {
+		if choice == system {
+			choice = ""
+		}
+		*family = choice
+		a.l.saveSettings()
+	}
+}
+
+func (a *app) fontSizeControl(c *ui.Context) {
+	ch := a.scheme.chrome()
+	step := func(ic *ui.SVG, label string, by float32) {
+		btn := ui.ButtonBase(c).Width(28).Height(26).Center().Transition(colorFade).Label(label).
+			OnClick(func() { a.setFontSize(a.set.FontSize + by) })
+		if btn.Hovered() {
+			btn.Background(ch.panel.Mix(ch.text, 0.06))
+		}
+		btn.Children(func() { ui.Icon(c, ic).Size(12, 12).TextColor(ch.text) })
+	}
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Radius(6).Border(1, ch.line).Background(ch.panel).Clip().Children(func() {
+		step(minusIcon, locales.SettingsSmaller(), -1)
+		ui.Box(c).Width(40).Height(26).Center().BorderWidth(0, 1, 0, 1).BorderColor(ch.line).Children(func() {
+			ui.Textf(c, "%g", a.set.FontSize).FontSize(13).FontFeatures("tnum")
+		})
+		step(plusIcon, locales.SettingsLarger(), 1)
+	})
+}

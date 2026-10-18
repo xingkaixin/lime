@@ -239,15 +239,16 @@ func TestPanels(t *testing.T) {
 		t.Fatalf("Set Syntax: Markdown: %v", l)
 	}
 
+	shown, before := a.scheme, *a.set
 	a.showSchemes()
 	tt.Frame()
 	tt.Key(0, ui.KeyDown)
-	if a.set.ColorScheme != "GitHub Dark" {
-		t.Fatalf("moving in the color schemes shows %s", a.set.ColorScheme)
+	if next := schemes[(slices.Index(schemes, shown)+1)%len(schemes)]; a.scheme != next {
+		t.Fatalf("moving in the color schemes shows %s, want %s", a.scheme.name, next.name)
 	}
 	tt.Key(0, ui.KeyEscape)
-	if a.set.ColorScheme != autoScheme || a.panel != nil {
-		t.Fatalf("Escape keeps %s", a.set.ColorScheme)
+	if *a.set != before || a.scheme != shown || a.panel != nil {
+		t.Fatalf("Escape keeps %s", a.scheme.name)
 	}
 
 	proj := filepath.Join(dir, "lime.sublime-project")
@@ -435,5 +436,22 @@ func TestHotExit(t *testing.T) {
 	}
 	if len(g1) != 1 || g1[0].path != "" || g1[0].st.Buffer.String() != "draft" || !g1[0].dirty() {
 		t.Fatalf("the untitled tab: %d tabs", len(g1))
+	}
+}
+
+// The color scheme of older settings becomes the appearance and the theme
+// that show it.
+func TestMigrateColorScheme(t *testing.T) {
+	for _, tc := range []struct{ old, appearance, light, dark string }{
+		{"Auto", followSystem, "GitHub Light", "GitHub Dark"},
+		{"Monokai", darkMode, "GitHub Light", "Monokai"},
+		{"Celeste", lightMode, "Celeste", "GitHub Dark"},
+	} {
+		dir := t.TempDir()
+		os.WriteFile(settingsPath(dir), []byte(`{"color_scheme": "`+tc.old+`"}`), 0o644)
+		s := loadSettings(dir)
+		if s.Appearance != tc.appearance || s.LightTheme != tc.light || s.DarkTheme != tc.dark || s.ColorScheme != "" {
+			t.Errorf("%s: %+v", tc.old, s)
+		}
 	}
 }

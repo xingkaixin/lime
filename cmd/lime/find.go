@@ -6,6 +6,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+
+	"lime/locales"
 )
 
 // finding is what Sublime Text's find panel keeps across the editors of
@@ -147,25 +149,25 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 	bar.Children(func() {
 		row(func() {
 			ui.Row(c).Gap(2).Shrink(0).Children(func() {
-				toggle(f.Regexp(), ".*", "Regular expression")
-				toggle(f.CaseSensitive(), "Aa", "Case sensitive")
-				toggle(f.WholeWord(), "ab", "Whole word")
-				toggle(f.InSelection(), "[ ]", "In selection")
+				toggle(f.Regexp(), ".*", locales.FindRegex())
+				toggle(f.CaseSensitive(), "Aa", locales.FindCaseSensitive())
+				toggle(f.WholeWord(), "ab", locales.FindWholeWord())
+				toggle(f.InSelection(), "[ ]", locales.FindInSelection())
 			})
-			f.QueryInput(field(f.Query(), "Find"))
+			f.QueryInput(field(f.Query(), locales.Find()))
 			slot(ui.Text(c, f.Status())).FontSize(12).TextColor(ch.muted).FontFeatures("tnum").
 				SingleLine().Ellipsis("…").Role(ui.RoleStatus)
-			button("Find", f.Next)
-			button("Find Prev", f.Previous)
-			button("Find All", f.SelectAll)
+			button(locales.Find(), f.Next)
+			button(locales.FindPrevious(), f.Previous)
+			button(locales.FindAll(), f.SelectAll)
 		})
 		if f.Replacing() {
 			row(func() {
 				ui.Box(c).Width(4*findToggleW + 3*2).Shrink(0)
-				f.ReplacementInput(field(f.Replacement(), "Replace"))
+				f.ReplacementInput(field(f.Replacement(), locales.Replace()))
 				slot(ui.Box(c))
-				button("Replace", f.Replace)
-				button("Replace All", f.ReplaceAll)
+				button(locales.Replace(), f.Replace)
+				button(locales.ReplaceAll(), f.ReplaceAll)
 				slot(ui.Box(c))
 			}).Transition(findRowMotion)
 		}

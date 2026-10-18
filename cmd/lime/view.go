@@ -7,20 +7,24 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+
+	"lime/locales"
 )
 
 func (a *app) view(c *ui.Context) {
 	a.syncThemeSource()
 	// The window's theme follows the system here, before SetTheme, which
-	// Auto goes by.
-	s := resolveScheme(a.set.ColorScheme, c.Theme().Dark)
+	// the appearance goes by while it follows the system.
+	s := a.set.scheme(c.Theme().Dark)
 	// Another color scheme shows at once, as the editor's colors do,
 	// rather than fading the colors around them.
 	if s != a.scheme {
 		c.DisableAnimations()
 	}
 	a.scheme = s
-	c.SetTheme(a.scheme.uiTheme(c.Theme()))
+	th := a.scheme.uiTheme(c.Theme())
+	th.Font = a.set.UIFont
+	c.SetTheme(th)
 	a.syncFocus(c.Modifiers()&ui.Ctrl != 0)
 	if t := a.drag; t != nil {
 		if gi, _ := a.locate(t.d); gi < 0 {
@@ -53,6 +57,7 @@ func (a *app) view(c *ui.Context) {
 		a.draggedTab(c)
 	})
 	a.panelView(c)
+	a.settingsView(c)
 }
 
 func (a *app) sideBarShown() bool { return a.set.SideBar && len(a.proj.folders) > 0 }
@@ -75,19 +80,20 @@ func titleBand(c *ui.Context) float32 {
 	return 0
 }
 
-// themeSource is the appearance of the window's title bar for a scheme.
-func themeSource(name string) mygo.ThemeSource {
-	switch s := schemeNamed(name); {
-	case s == nil:
-		return mygo.ThemeSystem
-	case s.dark:
+// themeSource is the appearance of the window's title bar for an
+// appearance of the settings.
+func themeSource(appearance string) mygo.ThemeSource {
+	switch appearance {
+	case lightMode:
+		return mygo.ThemeLight
+	case darkMode:
 		return mygo.ThemeDark
 	}
-	return mygo.ThemeLight
+	return mygo.ThemeSystem
 }
 
 func (a *app) syncThemeSource() {
-	if src := themeSource(a.set.ColorScheme); src != a.l.themeSource && a.win != nil {
+	if src := themeSource(a.set.Appearance); src != a.l.themeSource && a.win != nil {
 		a.l.themeSource = src
 		mygo.Theme.SetSource(src)
 	}
@@ -159,7 +165,7 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		}
 		d.st.Theme = s.editorTheme()
 		d.st.SoftWrap = a.set.WordWrap
-		d.st.Font.Size = a.set.FontSize
+		d.st.Font.Family, d.st.Font.Size = a.set.ContentFont, a.set.FontSize
 		d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
 		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
 		a.input(e, d)
@@ -206,7 +212,7 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 			// Along the window's top, the room past the tabs is the title bar,
 			// which drags the window. Elsewhere a double click there opens a
 			// new tab, as in Sublime Text.
-			rest := ui.Box(c).Grow(1).Label("Tab bar")
+			rest := ui.Box(c).Grow(1).Label(locales.TabBar())
 			if band > 0 {
 				rest.DragWindow()
 			} else if rest.DoubleClicked() {
@@ -220,7 +226,7 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 func (a *app) newTabButton(c *ui.Context, gi int) {
 	ch := a.shell(c)
 	btn := ui.Box(c).Width(24).Height(24).Shrink(0).AlignSelf(ui.Center).MarginStart(4).Radius(4).Center().
-		Transition(ui.ElementTransition{Position: true, Colors: true}).Label("New File").Tooltip("New File").OnClick(func() {
+		Transition(ui.ElementTransition{Position: true, Colors: true}).Label(locales.MenuNewFile()).Tooltip(locales.MenuNewFile()).OnClick(func() {
 		a.focusGroup(gi)
 		a.newFile()
 	})
@@ -275,7 +281,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 		if d.dirty() && !hovered {
 			glyph = "●"
 		}
-		btn := ui.Box(c).Width(18).Height(18).Radius(4).Center().Transition(colorFade).Label("Close " + d.name()).OnClick(func() { a.closeDoc(d) })
+		btn := ui.Box(c).Width(18).Height(18).Radius(4).Center().Transition(colorFade).Label(locales.TabClose(d.name())).OnClick(func() { a.closeDoc(d) })
 		if btn.Hovered() {
 			btn.Background(ch.muted.Alpha(0.2))
 		}
@@ -292,12 +298,12 @@ func (a *app) statusBar(c *ui.Context) {
 	if d != nil {
 		st := d.st
 		if n := len(st.Selections()); n > 1 {
-			left = fmt.Sprintf("%d selection regions", n)
+			left = locales.StatusSelections(n)
 		} else {
 			pos := st.CursorPos()
 			line := st.Buffer.Line(pos.Line)
 			col := utf8.RuneCountInString(line[:min(pos.Col, len(line))]) + 1
-			left = fmt.Sprintf("Line %d, Column %d", pos.Line+1, col)
+			left = locales.StatusPosition(pos.Line+1, col)
 		}
 	}
 	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6, 0, 12).Gap(16).AlignItems(ui.Center).Background(ch.bg).Children(func() {
@@ -314,7 +320,7 @@ func (a *app) statusBar(c *ui.Context) {
 func (a *app) syntaxButton(c *ui.Context, d *doc) {
 	ch := a.shell(c)
 	lang := d.st.Buffer.Language()
-	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Transition(colorFade).Label("Syntax: " + syntaxName(lang))
+	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Transition(colorFade).Label(locales.StatusSyntax(syntaxName(lang)))
 	if btn.Hovered() {
 		btn.Background(ch.hover)
 	}

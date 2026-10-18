@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"iter"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+
+	"lime/locales"
 )
 
 // doc is a file open in a tab.
@@ -33,7 +34,7 @@ type doc struct {
 
 func (d *doc) name() string {
 	if d.path == "" {
-		return "untitled"
+		return locales.Untitled()
 	}
 	return filepath.Base(d.path)
 }
@@ -137,14 +138,17 @@ type place struct {
 // size.
 type layout struct {
 	name       string
+	label      func(locales.Messages) string
 	cols, rows int
 }
 
 func (l layout) id() string { return "layout " + l.name }
 
 var layouts = []layout{
-	{"Single", 1, 1}, {"Columns: 2", 2, 1}, {"Columns: 3", 3, 1}, {"Columns: 4", 4, 1},
-	{"Grid: 4", 2, 2}, {"Rows: 2", 1, 2}, {"Rows: 3", 1, 3},
+	{"Single", locales.Messages.LayoutSingle, 1, 1}, {"Columns: 2", locales.Messages.LayoutColumns2, 2, 1},
+	{"Columns: 3", locales.Messages.LayoutColumns3, 3, 1}, {"Columns: 4", locales.Messages.LayoutColumns4, 4, 1},
+	{"Grid: 4", locales.Messages.LayoutGrid4, 2, 2}, {"Rows: 2", locales.Messages.LayoutRows2, 1, 2},
+	{"Rows: 3", locales.Messages.LayoutRows3, 1, 3},
 }
 
 func layoutOf(cols, rows int) layout {
@@ -166,8 +170,9 @@ type lime struct {
 
 	themeSource mygo.ThemeSource
 	menuState   string
-	sessionKey  string // of the session last kept
-	sessionGen  uint64 // numbers the sessions taken to write
+	fonts       *fontLists // listed as the font settings first show
+	sessionKey  string     // of the session last kept
+	sessionGen  uint64     // numbers the sessions taken to write
 	writing     sync.Mutex
 	written     uint64 // the number of the session last written
 	quitting    bool   // the session is kept and the windows close
@@ -197,6 +202,7 @@ type app struct {
 	proj    project
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
+	prefs   prefs
 }
 
 func newLime(dir string) *lime { return &lime{dir: dir, set: loadSettings(dir)} }
@@ -207,7 +213,7 @@ func newApp(dir string) *app { return newLime(dir).newWindow() }
 // newWindow adds a window, which makeWindow opens.
 func (l *lime) newWindow() *app {
 	a := &app{l: l, set: &l.set, layout: layouts[0], groups: []*group{{active: -1}}}
-	a.scheme = resolveScheme(l.set.ColorScheme, true)
+	a.scheme = l.set.scheme(true)
 	l.wins = append(l.wins, a)
 	if l.last == nil {
 		l.last = a
@@ -379,7 +385,7 @@ func (a *app) open(paths []string) {
 		}
 		text, err := readText(p)
 		if err != nil {
-			go mygo.Dialog.Error("Unable to open "+filepath.Base(p), err.Error())
+			go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(p)), err.Error())
 			continue
 		}
 		a.add(p, text)
@@ -443,8 +449,11 @@ func (a *app) write(d *doc, path string) error {
 		mode = fi.Mode().Perm()
 	}
 	if err := os.WriteFile(path, b.Bytes(), mode); err != nil {
-		go mygo.Dialog.Error("Unable to save "+filepath.Base(path), err.Error())
+		go mygo.Dialog.Error(locales.DialogUnableToSave(filepath.Base(path)), err.Error())
 		return err
+	}
+	if a.l.dir != "" && path == settingsPath(a.l.dir) {
+		a.l.reloadSettings()
 	}
 	if path != d.path {
 		d.path = path
@@ -513,8 +522,8 @@ func (a *app) closeDoc(d *doc) {
 		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
 			Parent:  a.win,
 			Type:    mygo.MessageQuestion,
-			Message: fmt.Sprintf("Save changes to %s before closing?", name),
-			Buttons: []string{"Save", "Don't Save", "Cancel"},
+			Message: locales.DialogSaveChanges(name),
+			Buttons: []string{locales.ButtonSave(), locales.ButtonDontSave(), locales.ButtonCancel()},
 		})
 		switch res.Button {
 		case 0:
@@ -731,8 +740,8 @@ func (a *app) closing(e *mygo.CloseEvent) {
 		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
 			Parent:  a.win,
 			Type:    mygo.MessageQuestion,
-			Message: fmt.Sprintf("Save changes to %d files before closing the window?", n),
-			Buttons: []string{"Save", "Don't Save", "Cancel"},
+			Message: locales.DialogSaveWindowChanges(n),
+			Buttons: []string{locales.ButtonSave(), locales.ButtonDontSave(), locales.ButtonCancel()},
 		})
 		switch res.Button {
 		case 0:
@@ -763,7 +772,7 @@ func (l *lime) quit(e interface{ PreventDefault() }) {
 	l.saveSettings()
 	if err := l.saveSession(); err != nil {
 		e.PreventDefault()
-		go mygo.Dialog.Error("Unable to keep the open files", err.Error())
+		go mygo.Dialog.Error(locales.DialogUnableToKeepFiles(), err.Error())
 		return
 	}
 	l.quitting = true
