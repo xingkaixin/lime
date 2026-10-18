@@ -126,6 +126,7 @@ func (a *app) renamed(from, to string) {
 	for i, f := range a.proj.folders {
 		a.proj.folders[i] = moved(f, from, to)
 	}
+	a.proj.jump = true
 	a.refreshFolders()
 }
 

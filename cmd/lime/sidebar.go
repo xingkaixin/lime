@@ -45,6 +45,9 @@ type project struct {
 	dirs    map[string][]os.DirEntry // folders read, for the side bar
 	files   []string                 // the folders' files, for Goto Anything
 	gen     int                      // counts the indexings, for the last to win
+	// jump has the side bar show the next frame without motion: another
+	// project or a rename replaced the rows' paths, not their places.
+	jump bool
 }
 
 // projectFile is a .sublime-project file, of which Lime reads the folders.
@@ -198,7 +201,7 @@ func (a *app) openProject(path string) error {
 		return err
 	}
 	a.closeProject()
-	a.proj.path = path
+	a.proj.path, a.proj.jump = path, true
 	for _, f := range pf.Folders {
 		p := filepath.FromSlash(f.Path)
 		if !filepath.IsAbs(p) {
@@ -273,6 +276,10 @@ func (a *app) promptSaveProject() {
 }
 
 func (a *app) sideBar(c *ui.Context) {
+	if a.proj.jump {
+		c.DisableAnimations()
+		a.proj.jump = false
+	}
 	ch := a.shell(c)
 	cur := a.current()
 	ui.Column(c).Fill().Background(ch.bg).ContextMenu(a.projectMenu).Children(func() {
@@ -294,6 +301,11 @@ func (a *app) sideBar(c *ui.Context) {
 // each level indents by, as Sublime Text's side bar does.
 const treeIcon, treeGap = 16, 6
 
+// treeMotion slides the rows of the side bar as folders above them open
+// and close, and fades their hover. What a folder holds grows in and
+// collapses as one block, which the rows below follow.
+var treeMotion = ui.ElementTransition{Position: true, Colors: true, Enter: &ui.Motion{Collapse: true}, Exit: &ui.Motion{Collapse: true}}
+
 // treeDir shows dir, and what it holds while open. A click anywhere on its
 // row opens or closes it.
 func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
@@ -307,24 +319,30 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 	if !*open {
 		return
 	}
-	for _, e := range a.proj.list(dir) {
-		p := filepath.Join(dir, e.Name())
-		if e.IsDir() {
-			a.treeDir(c, p, depth+1, cur)
-			continue
+	// Keyed dir/, apart from dir's row.
+	ui.Column(c.Key(dir + string(filepath.Separator))).FillWidth().Transition(treeMotion).Children(func() {
+		for _, e := range a.proj.list(dir) {
+			p := filepath.Join(dir, e.Name())
+			if e.IsDir() {
+				a.treeDir(c, p, depth+1, cur)
+				continue
+			}
+			a.treeRow(c, p, depth+1, fileIcon(e.Name()), a.scheme.chrome().muted, cur != nil && cur.path == p).
+				OnClick(func() { a.open([]string{p}) }).
+				ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
 		}
-		a.treeRow(c, p, depth+1, fileIcon(e.Name()), a.scheme.chrome().muted, cur != nil && cur.path == p).
-			OnClick(func() { a.open([]string{p}) }).
-			ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
-	}
+	})
 }
 
 func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui.Color, selected bool) ui.Element {
 	t := c.Theme()
 	name := filepath.Base(path)
+	motion := treeMotion
+	// The selection shows at once, as its text turns AccentText at once.
+	motion.Colors = !selected
 	row := ui.Row(c.Key(path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Radius(t.Radius).
-		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected)
+		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected).Transition(motion)
 	if selected {
 		tint = t.AccentText
 	} else if row.Hovered() {

@@ -322,6 +322,7 @@ func TestSideBar(t *testing.T) {
 	if err := tt.Click("src"); err != nil {
 		t.Fatal(err)
 	}
+	tt.Advance(time.Second) // src's files grow in
 	if err := tt.Click("main.go"); err != nil {
 		t.Fatalf("a click on src: %v", err)
 	}
