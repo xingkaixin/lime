@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
@@ -68,6 +69,7 @@ func TestTabs(t *testing.T) {
 	}
 	a.newFile()
 	tt.Frame()
+	tt.Advance(time.Second)
 	tt.Key(ui.Cmd, ui.Key1)
 	if a.current().path != p {
 		t.Fatalf("Cmd+1: tab %d", a.group().active)
@@ -93,6 +95,7 @@ func TestTabs(t *testing.T) {
 	}
 	a.remove(a.current())
 	tt.Frame()
+	tt.Advance(time.Second)
 	if err := tt.Click("New File"); err != nil {
 		t.Fatal(err)
 	}

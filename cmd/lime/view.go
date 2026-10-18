@@ -53,6 +53,9 @@ func (a *app) sideBarShown() bool { return a.set.SideBar && len(a.proj.folders) 
 
 const tabBarHeight = 34
 
+// tabMinW is the width tabs shrink to before they no longer fit.
+const tabMinW = 72
+
 // controlsGap is the room left after the window controls.
 const controlsGap = 12
 
@@ -174,11 +177,21 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 		}
 		// Pressing a tab leaves the keyboard in the editor, as in Sublime Text.
 		bar := ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch).KeepFocus()
+		// A bar that the layout resized, as a split's divider dragged does,
+		// moves its tabs at once instead of trailing behind.
+		if b := bar.LayoutBounds(); b.W != g.bar.W {
+			c.DisableAnimations()
+		}
 		g.bar = bar.LayoutBounds()
 		bar.Children(func() {
 			// Tabs that do not fit go out of sight before the new tab button
-			// does.
-			ui.Row(c).Shrink(1).MinWidth(0).AlignItems(ui.Stretch).ClipX().Children(func() {
+			// does. Tabs that fit are not clipped: the row shrinks at once as
+			// one closes, and would cut off those still sliding into place.
+			tabs := ui.Row(c).Shrink(1).MinWidth(0).AlignItems(ui.Stretch)
+			if tabs.LayoutBounds().W < float32(len(g.docs))*tabMinW {
+				tabs.ClipX()
+			}
+			tabs.Children(func() {
 				for i, d := range g.docs {
 					a.tab(c, g, i, d, i == g.active, gi == a.focus)
 				}
@@ -201,7 +214,7 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 func (a *app) newTabButton(c *ui.Context, gi int) {
 	ch := a.shell(c)
 	btn := ui.Box(c).Width(24).Height(24).Shrink(0).AlignSelf(ui.Center).MarginStart(4).Radius(4).Center().
-		Label("New File").Tooltip("New File").OnClick(func() {
+		Transition(ui.ElementTransition{Position: true}).Label("New File").Tooltip("New File").OnClick(func() {
 		a.focusGroup(gi)
 		a.newFile()
 	})
@@ -213,9 +226,18 @@ func (a *app) newTabButton(c *ui.Context, gi int) {
 	})
 }
 
+// tabMotion slides and resizes the tabs that make way for one dragged,
+// opened or closed, which grows in or collapses away.
+var tabMotion = ui.ElementTransition{
+	Position: true,
+	Size:     true,
+	Enter:    &ui.Motion{Collapse: true},
+	Exit:     &ui.Motion{Collapse: true},
+}
+
 func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) {
 	ch := a.shell(c)
-	row := ui.Row(c.Key(key(d))).AlignItems(ui.Center).Gap(6).Padding(0, 6, 0, 14).Width(200).Shrink(1).MinWidth(72)
+	row := ui.Row(c.Key(key(d))).Transition(tabMotion).AlignItems(ui.Center).Gap(6).Padding(0, 6, 0, 14).Width(200).Shrink(1).MinWidth(tabMinW)
 	if i == 0 {
 		g.tabW = row.LayoutBounds().W
 	}
