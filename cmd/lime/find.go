@@ -101,7 +101,7 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 			FontSize(13).Background(sc.bg).Border(1, ch.line).Radius(3)
 	}
 	toggle := func(on *bool, label, tip string) {
-		b := ui.ToggleBase(c, on).Width(findToggleW).Height(24).Center().Radius(3).Label(tip).Tooltip(tip).KeepFocus()
+		b := ui.ToggleBase(c, on).Width(findToggleW).Height(24).Center().Radius(3).Transition(colorFade).Label(tip).Tooltip(tip).KeepFocus()
 		fg := ch.muted
 		switch {
 		case *on:
@@ -115,7 +115,7 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 	slot := func(e ui.Element) ui.Element { return e.Width(findSlotW).Shrink(1).MinWidth(findSlotMin) }
 	button := func(label string, run func()) {
 		b := slot(ui.ButtonBase(c)).Height(24).Center().Radius(3).Background(ch.panel).Border(1, ch.line).
-			Label(label).KeepFocus().OnClick(run)
+			Transition(colorFade).Label(label).KeepFocus().OnClick(run)
 		if b.Hovered() {
 			b.Background(ch.hover)
 		}
