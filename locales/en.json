@@ -61,6 +61,10 @@
   "menuNewFolder": "New Folder…",
   "menuDeleteFolder": "Delete Folder",
   "menuRemoveFolder": "Remove Folder from Project",
+  "menuCloseTab": "Close Tab",
+  "menuCloseUnmodifiedTabs": "Close Unmodified Tabs",
+  "menuCloseDeletedTabs": "Close Tabs With Deleted Files",
+  "menuOpenFile": "Open File…",
 
   "layoutSingle": "Single",
   "layoutColumns2": "Columns: 2",

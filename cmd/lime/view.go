@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo"
@@ -204,7 +205,8 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 				tabs.ClipX()
 			}
 			tabs.Children(func() {
-				for i, d := range g.docs {
+				// A tab's menu closes tabs as the loop builds them.
+				for i, d := range slices.Clone(g.docs) {
 					a.tab(c, g, i, d, i == g.active, gi == a.focus)
 				}
 			})
@@ -274,7 +276,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 	case hovered:
 		bg = ch.hover
 	}
-	row.Background(bg).Label(d.name()).OnClick(func() { a.show(d) })
+	row.Background(bg).Label(d.name()).OnClick(func() { a.show(d) }).ContextMenu(func(m *ui.Menu) { a.tabMenu(m, g, d) })
 	row.Children(func() {
 		ui.Text(c, d.name()).FontSize(12).TextColor(fg).SingleLine().Ellipsis("…").Grow(1).Shrink(1).MinWidth(0)
 		glyph := "×"

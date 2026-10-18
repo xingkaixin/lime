@@ -61,6 +61,10 @@
   "menuNewFolder": "新建文件夹…",
   "menuDeleteFolder": "删除文件夹",
   "menuRemoveFolder": "从项目中移除文件夹",
+  "menuCloseTab": "关闭标签页",
+  "menuCloseUnmodifiedTabs": "关闭未修改的标签页",
+  "menuCloseDeletedTabs": "关闭文件已删除的标签页",
+  "menuOpenFile": "打开文件…",
 
   "layoutSingle": "单栏",
   "layoutColumns2": "两列",

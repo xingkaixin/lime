@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,8 +15,49 @@ import (
 	"lime/locales"
 )
 
-// The side bar's context menus, as Sublime Text's: of a file, of a folder,
-// and of the side bar around them.
+// The context menus, as Sublime Text's: of a tab, and in the side bar of
+// a file, of a folder, and of the side bar around them.
+
+// tabMenu is the menu of the tab of d in g.
+func (a *app) tabMenu(m *ui.Menu, g *group, d *doc) {
+	if m.Item(locales.MenuCloseTab()).Chosen() {
+		a.closeDoc(d)
+	}
+	m.Separator()
+	if m.Item(locales.MenuCloseUnmodifiedTabs()).Chosen() {
+		a.closeTabs(g, func(*doc) bool { return true })
+	}
+	if m.Item(locales.MenuCloseDeletedTabs()).Chosen() {
+		a.closeTabs(g, (*doc).deleted)
+	}
+	m.Separator()
+	if m.Item(locales.MenuNewFile()).Chosen() {
+		a.focusGroup(slices.Index(a.groups, g))
+		a.newFile()
+	}
+	if m.Item(locales.MenuOpenFile()).Chosen() {
+		a.focusGroup(slices.Index(a.groups, g))
+		a.promptOpen()
+	}
+}
+
+// closeTabs closes the tabs of g without changes that match.
+func (a *app) closeTabs(g *group, match func(*doc) bool) {
+	for _, d := range slices.Clone(g.docs) {
+		if !d.dirty() && match(d) {
+			a.remove(d)
+		}
+	}
+}
+
+// deleted reports whether d's file is no longer on disk.
+func (d *doc) deleted() bool {
+	if d.path == "" {
+		return false
+	}
+	_, err := os.Stat(d.path)
+	return errors.Is(err, fs.ErrNotExist)
+}
 
 func (a *app) fileMenu(c *ui.Context, m *ui.Menu, path string) {
 	if m.Item(locales.MenuRename()).Chosen() {

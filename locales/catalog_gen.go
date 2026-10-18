@@ -624,6 +624,46 @@ func (msgs Messages) MenuRemoveFolder() string {
 	return Catalog.Format(msgs.locale, "menuRemoveFolder", nil)
 }
 
+// MenuCloseTab says "Close Tab"
+// in the language the app shows.
+func MenuCloseTab() string { return In(i18n.Locale()).MenuCloseTab() }
+
+// MenuCloseTab says "Close Tab"
+// in the language of msgs.
+func (msgs Messages) MenuCloseTab() string {
+	return Catalog.Format(msgs.locale, "menuCloseTab", nil)
+}
+
+// MenuCloseUnmodifiedTabs says "Close Unmodified Tabs"
+// in the language the app shows.
+func MenuCloseUnmodifiedTabs() string { return In(i18n.Locale()).MenuCloseUnmodifiedTabs() }
+
+// MenuCloseUnmodifiedTabs says "Close Unmodified Tabs"
+// in the language of msgs.
+func (msgs Messages) MenuCloseUnmodifiedTabs() string {
+	return Catalog.Format(msgs.locale, "menuCloseUnmodifiedTabs", nil)
+}
+
+// MenuCloseDeletedTabs says "Close Tabs With Deleted Files"
+// in the language the app shows.
+func MenuCloseDeletedTabs() string { return In(i18n.Locale()).MenuCloseDeletedTabs() }
+
+// MenuCloseDeletedTabs says "Close Tabs With Deleted Files"
+// in the language of msgs.
+func (msgs Messages) MenuCloseDeletedTabs() string {
+	return Catalog.Format(msgs.locale, "menuCloseDeletedTabs", nil)
+}
+
+// MenuOpenFile says "Open File…"
+// in the language the app shows.
+func MenuOpenFile() string { return In(i18n.Locale()).MenuOpenFile() }
+
+// MenuOpenFile says "Open File…"
+// in the language of msgs.
+func (msgs Messages) MenuOpenFile() string {
+	return Catalog.Format(msgs.locale, "menuOpenFile", nil)
+}
+
 // LayoutSingle says "Single"
 // in the language the app shows.
 func LayoutSingle() string { return In(i18n.Locale()).LayoutSingle() }
