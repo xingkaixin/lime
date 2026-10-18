@@ -322,6 +322,39 @@ func TestSideBar(t *testing.T) {
 	}
 }
 
+// Renaming a folder from its menu moves the tabs of its files, and it
+// stays open.
+func TestRenameFolder(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "src", "main.go")
+	os.MkdirAll(filepath.Dir(main), 0o755)
+	os.WriteFile(main, []byte("package main\n"), 0o644)
+	a := newApp("")
+	a.addFolder(dir)
+	a.open([]string{main})
+	*a.proj.isOpen(filepath.Dir(main), false) = true
+	tt := ui.NewTester(a.view, 800, 500)
+	if err := tt.RightClick("src"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Rename…"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Type("lib")
+	tt.Key(0, ui.KeyEnter)
+	lib := filepath.Join(dir, "lib")
+	if _, err := os.Stat(filepath.Join(lib, "main.go")); err != nil {
+		t.Fatal(err)
+	}
+	if d := a.current(); d.path != filepath.Join(lib, "main.go") {
+		t.Fatalf("the tab shows %s", d.path)
+	}
+	if !*a.proj.isOpen(lib, false) {
+		t.Fatal("lib shows closed")
+	}
+}
+
 // Files take their icons as Zed gives them, and every icon parses.
 func TestIcons(t *testing.T) {
 	for name, want := range map[string]string{

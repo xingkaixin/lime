@@ -31,6 +31,10 @@ type panel struct {
 	sel         int
 	start       int // the row selected first
 	reveal      bool
+	// submit makes the panel Sublime Text's input panel, without a list:
+	// Enter gives it the query, which prompt captions.
+	submit func(query string)
+	prompt string
 }
 
 const maxShown = 100
@@ -67,9 +71,12 @@ func (a *app) movePanel(step int) {
 func (a *app) pickPanel() {
 	p := a.panel
 	a.panel = nil
-	if p.sel < len(p.shown) && p.shown[p.sel].pick != nil {
+	switch {
+	case p.submit != nil:
+		p.submit(p.query)
+	case p.sel < len(p.shown) && p.shown[p.sel].pick != nil:
 		p.shown[p.sel].pick()
-	} else if p.cancel != nil {
+	case p.cancel != nil:
 		p.cancel()
 	}
 }
@@ -326,8 +333,14 @@ func (a *app) panelView(c *ui.Context) {
 		box.OnShortcut(0, ui.KeyUp, func() { a.movePanel(-1) })
 		box.OnShortcut(0, ui.KeyDown, func() { a.movePanel(1) })
 		box.Children(func() {
+			if p.submit != nil {
+				ui.Text(c, p.prompt).FontSize(12).TextColor(ch.muted).Padding(0, 2)
+			}
 			ui.TextInput(c, &p.query).AutoFocus().Placeholder(p.placeholder).FillWidth().Label("Quick panel").
 				OnSubmit(a.pickPanel)
+			if p.submit != nil {
+				return
+			}
 			p.refresh()
 			if len(p.shown) == 0 {
 				ui.Text(c, "No matches").FontSize(12).TextColor(ch.muted).Padding(6, 10)
