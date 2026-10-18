@@ -12,8 +12,8 @@ import (
 func (a *app) view(c *ui.Context) {
 	a.syncThemeSource()
 	// The window's theme follows the system here, before SetTheme, which
-	// Auto goes by.
-	s := resolveScheme(a.set.ColorScheme, c.Theme().Dark)
+	// the appearance goes by while it follows the system.
+	s := a.set.scheme(c.Theme().Dark)
 	// Another color scheme shows at once, as the editor's colors do,
 	// rather than fading the colors around them.
 	if s != a.scheme {
@@ -75,19 +75,20 @@ func titleBand(c *ui.Context) float32 {
 	return 0
 }
 
-// themeSource is the appearance of the window's title bar for a scheme.
-func themeSource(name string) mygo.ThemeSource {
-	switch s := schemeNamed(name); {
-	case s == nil:
-		return mygo.ThemeSystem
-	case s.dark:
+// themeSource is the appearance of the window's title bar for an
+// appearance of the settings.
+func themeSource(appearance string) mygo.ThemeSource {
+	switch appearance {
+	case lightMode:
+		return mygo.ThemeLight
+	case darkMode:
 		return mygo.ThemeDark
 	}
-	return mygo.ThemeLight
+	return mygo.ThemeSystem
 }
 
 func (a *app) syncThemeSource() {
-	if src := themeSource(a.set.ColorScheme); src != a.l.themeSource && a.win != nil {
+	if src := themeSource(a.set.Appearance); src != a.l.themeSource && a.win != nil {
 		a.l.themeSource = src
 		mygo.Theme.SetSource(src)
 	}

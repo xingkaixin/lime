@@ -207,7 +207,7 @@ func newApp(dir string) *app { return newLime(dir).newWindow() }
 // newWindow adds a window, which makeWindow opens.
 func (l *lime) newWindow() *app {
 	a := &app{l: l, set: &l.set, layout: layouts[0], groups: []*group{{active: -1}}}
-	a.scheme = resolveScheme(l.set.ColorScheme, true)
+	a.scheme = l.set.scheme(true)
 	l.wins = append(l.wins, a)
 	if l.last == nil {
 		l.last = a

@@ -241,21 +241,18 @@ func (a *app) showCommandPalette() {
 
 // showSchemes lists the color schemes, each showing as it is selected.
 func (a *app) showSchemes() {
-	before := a.set.ColorScheme
+	before := *a.set
 	var items []item
 	start := 0
-	for i, name := range schemeNames() {
-		if name == before {
+	for i, sc := range schemes {
+		if sc == a.scheme {
 			start = i
 		}
-		detail := "Follows the system: GitHub Dark or GitHub Light"
-		if s := schemeNamed(name); s != nil {
-			detail = map[bool]string{true: "Dark", false: "Light"}[s.dark]
-		}
+		detail := map[bool]string{true: "Dark", false: "Light"}[sc.dark]
 		items = append(items, item{
-			label: name, detail: detail,
-			pick:    func() { a.setScheme(name) },
-			preview: func() { a.set.ColorScheme = name },
+			label: sc.name, detail: detail,
+			pick:    func() { a.setScheme(sc) },
+			preview: func() { a.set.showScheme(sc, a.scheme.dark) },
 		})
 	}
 	a.openPanel(&panel{
@@ -267,20 +264,12 @@ func (a *app) showSchemes() {
 			}
 			return shown
 		},
-		cancel: func() { a.set.ColorScheme = before },
+		cancel: func() { *a.set = before },
 	})
 }
 
-func schemeNames() []string {
-	names := []string{autoScheme}
-	for _, s := range schemes {
-		names = append(names, s.name)
-	}
-	return names
-}
-
-func (a *app) setScheme(name string) {
-	a.set.ColorScheme = name
+func (a *app) setScheme(sc *scheme) {
+	a.set.showScheme(sc, a.scheme.dark)
 	a.l.saveSettings()
 }
 

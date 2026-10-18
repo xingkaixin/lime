@@ -23,10 +23,6 @@ type scheme struct {
 	code *editor.Theme
 }
 
-// autoScheme follows the system's appearance, as Sublime's "auto" color
-// scheme does, with GitHub's schemes.
-const autoScheme = "Auto"
-
 var schemes = []*scheme{
 	{
 		name: "GitHub Dark", dark: true,
@@ -142,16 +138,19 @@ func schemeNamed(name string) *scheme {
 	return nil
 }
 
-// resolveScheme returns the scheme a setting names, systemDark choosing
-// for autoScheme.
-func resolveScheme(name string, systemDark bool) *scheme {
-	if s := schemeNamed(name); s != nil {
-		return s
+// scheme returns the scheme the windows show: the theme of the
+// appearance, systemDark choosing while it follows the system. A theme
+// that is not one of the schemes of its appearance gives way to GitHub's.
+func (s *settings) scheme(systemDark bool) *scheme {
+	dark := s.Appearance == darkMode || s.Appearance != lightMode && systemDark
+	name, fallback := s.LightTheme, "GitHub Light"
+	if dark {
+		name, fallback = s.DarkTheme, "GitHub Dark"
 	}
-	if systemDark {
-		return schemeNamed("GitHub Dark")
+	if sc := schemeNamed(name); sc != nil && sc.dark == dark {
+		return sc
 	}
-	return schemeNamed("GitHub Light")
+	return schemeNamed(fallback)
 }
 
 var black = ui.RGB(0, 0, 0)

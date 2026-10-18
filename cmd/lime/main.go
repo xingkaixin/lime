@@ -48,11 +48,11 @@ func (l *lime) newMenu() *mygo.Menu {
 	for _, lo := range layouts {
 		layoutItems = append(layoutItems, l.check(lo.name, lo.id(), mygo.MenuItemRadio))
 	}
-	for _, name := range schemeNames() {
-		it := l.check(name, "scheme "+name, mygo.MenuItemRadio)
+	for _, sc := range schemes {
+		it := l.check(sc.name, "scheme "+sc.name, mygo.MenuItemRadio)
 		it.Click = func(_ *mygo.MenuItem, w *mygo.Window) {
 			if a := l.at(w); a != nil {
-				a.win.Update(func() { a.setScheme(name) })
+				a.win.Update(func() { a.setScheme(sc) })
 			}
 		}
 		schemeItems = append(schemeItems, it)
@@ -133,7 +133,7 @@ func (a *app) syncMenu() {
 	if l.menu == nil || l.last != a {
 		return
 	}
-	state := fmt.Sprint(a.set.SideBar, a.set.WordWrap, a.layout.name, a.set.ColorScheme)
+	state := fmt.Sprint(a.set.SideBar, a.set.WordWrap, a.layout.name, a.scheme.name)
 	if state == l.menuState {
 		return
 	}
@@ -146,7 +146,7 @@ func (a *app) syncMenu() {
 	check("toggle_side_bar", a.set.SideBar)
 	check("toggle_word_wrap", a.set.WordWrap)
 	check(a.layout.id(), true)
-	check("scheme "+a.set.ColorScheme, true)
+	check("scheme "+a.scheme.name, true)
 }
 
 // makeWindow opens the window of a, at r unless r is empty, the first
@@ -177,7 +177,7 @@ func main() {
 	if len(l.wins) == 0 {
 		l.newWindow()
 	}
-	l.themeSource = themeSource(l.set.ColorScheme)
+	l.themeSource = themeSource(l.set.Appearance)
 	mygo.Theme.SetSource(l.themeSource)
 	var paths []string
 	for _, arg := range os.Args[1:] {
