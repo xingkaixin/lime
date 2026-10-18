@@ -34,7 +34,11 @@ func (a *app) view(c *ui.Context) {
 		a.open(files)
 	}
 	root.Children(func() {
-		if a.set.SideBar && len(a.proj.folders) > 0 {
+		if a.sideBarShown() {
+			// The window controls sit over the side bar's top.
+			if w := c.TitleBar().Left; w > 0 {
+				a.set.SideBarWidth = max(a.set.SideBarWidth, w+controlsGap)
+			}
 			ui.Split(c, &a.set.SideBarWidth, func() { a.sideBar(c) }, func() { a.groupsView(c) }).Grow(1).FillWidth().MinHeight(0)
 		} else {
 			a.groupsView(c)
@@ -43,6 +47,23 @@ func (a *app) view(c *ui.Context) {
 		a.draggedTab(c)
 	})
 	a.panelView(c)
+}
+
+func (a *app) sideBarShown() bool { return a.set.SideBar && len(a.proj.folders) > 0 }
+
+const tabBarHeight = 34
+
+// controlsGap is the room left after the window controls.
+const controlsGap = 12
+
+// titleBand is the height of the band along the window's top that the
+// window controls sit in, over the side bar and the top groups' tab bars;
+// zero where the window has its own title bar, or in full screen.
+func titleBand(c *ui.Context) float32 {
+	if h := c.TitleBar().Height; h > 0 {
+		return max(h, tabBarHeight)
+	}
+	return 0
 }
 
 // themeSource is the appearance of the window's title bar for a scheme.
@@ -140,18 +161,35 @@ func (a *app) groupView(c *ui.Context, gi int) {
 // (dragTab).
 func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 	a.makeWay(g)
-	// Pressing a tab leaves the keyboard in the editor, as in Sublime Text.
-	bar := ui.Row(c).FillWidth().Height(34).Shrink(0).AlignItems(ui.Stretch).Background(a.shell(c).bg).KeepFocus()
-	g.bar = bar.LayoutBounds()
-	bar.Children(func() {
-		for i, d := range g.docs {
-			a.tab(c, g, i, d, i == g.active, gi == a.focus)
+	var band float32
+	if gi < a.layout.cols {
+		band = titleBand(c)
+	}
+	ui.Row(c).FillWidth().Height(max(band, tabBarHeight)).Shrink(0).AlignItems(ui.Stretch).Background(a.shell(c).bg).Children(func() {
+		// Without the side bar, the window controls sit before the first
+		// group's tabs, apart from them and outside the bar that dragged
+		// tabs measure.
+		if w := c.TitleBar().Left; gi == 0 && w > 0 && !a.sideBarShown() {
+			ui.Box(c).Width(w + controlsGap).Shrink(0).DragWindow()
 		}
-		// A double click past the tabs opens a new one, as in Sublime Text.
-		if ui.Box(c).Grow(1).Label("Tab bar").DoubleClicked() {
-			a.focusGroup(gi)
-			a.newFile()
-		}
+		// Pressing a tab leaves the keyboard in the editor, as in Sublime Text.
+		bar := ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch).KeepFocus()
+		g.bar = bar.LayoutBounds()
+		bar.Children(func() {
+			for i, d := range g.docs {
+				a.tab(c, g, i, d, i == g.active, gi == a.focus)
+			}
+			// Along the window's top, the room past the tabs is the title bar,
+			// which drags the window. Elsewhere a double click there opens a
+			// new tab, as in Sublime Text.
+			rest := ui.Box(c).Grow(1).Label("Tab bar")
+			if band > 0 {
+				rest.DragWindow()
+			} else if rest.DoubleClicked() {
+				a.focusGroup(gi)
+				a.newFile()
+			}
+		})
 	})
 }
 

@@ -276,6 +276,9 @@ func (a *app) sideBar(c *ui.Context) {
 	ch := a.shell(c)
 	cur := a.current()
 	ui.Column(c).Fill().Background(ch.bg).ContextMenu(a.projectMenu).Children(func() {
+		if band := titleBand(c); band > 0 {
+			ui.Box(c).FillWidth().Height(band).Shrink(0).DragWindow()
+		}
 		ui.Text(c, "FOLDERS").FontSize(11).TextColor(ch.muted).Padding(10, 14, 6)
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {

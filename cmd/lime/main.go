@@ -160,7 +160,7 @@ func (a *app) makeWindow(r mygo.Rectangle) {
 		o.X, o.Y, o.Width, o.Height = r.X, r.Y, r.Width, r.Height
 	}
 	if runtime.GOOS == "darwin" {
-		o.Vibrancy = mygo.VibrancySidebar
+		o.Vibrancy, o.TitleBarStyle = mygo.VibrancySidebar, mygo.TitleBarHidden
 	}
 	a.win = mygo.NewWindow(o)
 	a.win.OnFocus(func() {
