@@ -19,6 +19,8 @@ type settings struct {
 	Appearance   string  `json:"appearance"`
 	LightTheme   string  `json:"light_theme"`
 	DarkTheme    string  `json:"dark_theme"`
+	UIFont       string  `json:"ui_font"`      // "" is the system's
+	ContentFont  string  `json:"content_font"` // "" is the system's monospaced font
 	FontSize     float32 `json:"font_size"`
 	WordWrap     bool    `json:"word_wrap"`
 	SideBar      bool    `json:"side_bar"`
@@ -118,6 +120,22 @@ func (l *lime) saveSettings() {
 	}
 	os.MkdirAll(l.dir, 0o755)
 	os.WriteFile(settingsPath(l.dir), b, 0o644)
+}
+
+// setLanguage shows the language of tag, or the system's for
+// followSystem, and keeps it.
+func (l *lime) setLanguage(tag string) {
+	l.set.Language = tag
+	l.saveSettings()
+	mygo.App.SetLocale(l.set.locale())
+}
+
+// reloadSettings reads settings.json again once it is saved in a tab,
+// which the settings kept later would write over.
+func (l *lime) reloadSettings() {
+	l.set = loadSettings(l.dir)
+	mygo.App.SetLocale(l.set.locale())
+	l.redraw()
 }
 
 // redraw builds the windows anew, for a change they share.

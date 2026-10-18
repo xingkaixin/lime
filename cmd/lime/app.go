@@ -170,8 +170,9 @@ type lime struct {
 
 	themeSource mygo.ThemeSource
 	menuState   string
-	sessionKey  string // of the session last kept
-	sessionGen  uint64 // numbers the sessions taken to write
+	fonts       *fontLists // listed as the font settings first show
+	sessionKey  string     // of the session last kept
+	sessionGen  uint64     // numbers the sessions taken to write
 	writing     sync.Mutex
 	written     uint64 // the number of the session last written
 	quitting    bool   // the session is kept and the windows close
@@ -201,6 +202,7 @@ type app struct {
 	proj    project
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
+	prefs   prefs
 }
 
 func newLime(dir string) *lime { return &lime{dir: dir, set: loadSettings(dir)} }
@@ -449,6 +451,9 @@ func (a *app) write(d *doc, path string) error {
 	if err := os.WriteFile(path, b.Bytes(), mode); err != nil {
 		go mygo.Dialog.Error(locales.DialogUnableToSave(filepath.Base(path)), err.Error())
 		return err
+	}
+	if a.l.dir != "" && path == settingsPath(a.l.dir) {
+		a.l.reloadSettings()
 	}
 	if path != d.path {
 		d.path = path

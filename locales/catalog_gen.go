@@ -1583,3 +1583,303 @@ func ReplaceAll() string { return In(i18n.Locale()).ReplaceAll() }
 func (msgs Messages) ReplaceAll() string {
 	return Catalog.Format(msgs.locale, "replaceAll", nil)
 }
+
+// MenuSettings says "Settings…"
+// in the language the app shows.
+func MenuSettings() string { return In(i18n.Locale()).MenuSettings() }
+
+// MenuSettings says "Settings…"
+// in the language of msgs.
+func (msgs Messages) MenuSettings() string {
+	return Catalog.Format(msgs.locale, "menuSettings", nil)
+}
+
+// CmdSettings says "Preferences: Settings"
+// in the language the app shows.
+func CmdSettings() string { return In(i18n.Locale()).CmdSettings() }
+
+// CmdSettings says "Preferences: Settings"
+// in the language of msgs.
+func (msgs Messages) CmdSettings() string {
+	return Catalog.Format(msgs.locale, "cmdSettings", nil)
+}
+
+// SettingsTitle says "Settings"
+// in the language the app shows.
+func SettingsTitle() string { return In(i18n.Locale()).SettingsTitle() }
+
+// SettingsTitle says "Settings"
+// in the language of msgs.
+func (msgs Messages) SettingsTitle() string {
+	return Catalog.Format(msgs.locale, "settingsTitle", nil)
+}
+
+// SettingsGeneral says "General"
+// in the language the app shows.
+func SettingsGeneral() string { return In(i18n.Locale()).SettingsGeneral() }
+
+// SettingsGeneral says "General"
+// in the language of msgs.
+func (msgs Messages) SettingsGeneral() string {
+	return Catalog.Format(msgs.locale, "settingsGeneral", nil)
+}
+
+// SettingsAppearance says "Appearance"
+// in the language the app shows.
+func SettingsAppearance() string { return In(i18n.Locale()).SettingsAppearance() }
+
+// SettingsAppearance says "Appearance"
+// in the language of msgs.
+func (msgs Messages) SettingsAppearance() string {
+	return Catalog.Format(msgs.locale, "settingsAppearance", nil)
+}
+
+// SettingsFonts says "Fonts"
+// in the language the app shows.
+func SettingsFonts() string { return In(i18n.Locale()).SettingsFonts() }
+
+// SettingsFonts says "Fonts"
+// in the language of msgs.
+func (msgs Messages) SettingsFonts() string {
+	return Catalog.Format(msgs.locale, "settingsFonts", nil)
+}
+
+// SettingsClose says "Close"
+// in the language the app shows.
+func SettingsClose() string { return In(i18n.Locale()).SettingsClose() }
+
+// SettingsClose says "Close"
+// in the language of msgs.
+func (msgs Messages) SettingsClose() string {
+	return Catalog.Format(msgs.locale, "settingsClose", nil)
+}
+
+// SettingsLanguage says "Language"
+// in the language the app shows.
+func SettingsLanguage() string { return In(i18n.Locale()).SettingsLanguage() }
+
+// SettingsLanguage says "Language"
+// in the language of msgs.
+func (msgs Messages) SettingsLanguage() string {
+	return Catalog.Format(msgs.locale, "settingsLanguage", nil)
+}
+
+// SettingsLanguageDesc says "Follow System uses your preferred language"
+// in the language the app shows.
+func SettingsLanguageDesc() string { return In(i18n.Locale()).SettingsLanguageDesc() }
+
+// SettingsLanguageDesc says "Follow System uses your preferred language"
+// in the language of msgs.
+func (msgs Messages) SettingsLanguageDesc() string {
+	return Catalog.Format(msgs.locale, "settingsLanguageDesc", nil)
+}
+
+// SettingsFollowSystem says "Follow System"
+// in the language the app shows.
+func SettingsFollowSystem() string { return In(i18n.Locale()).SettingsFollowSystem() }
+
+// SettingsFollowSystem says "Follow System"
+// in the language of msgs.
+func (msgs Messages) SettingsFollowSystem() string {
+	return Catalog.Format(msgs.locale, "settingsFollowSystem", nil)
+}
+
+// SettingsFile says "Settings File"
+// in the language the app shows.
+func SettingsFile() string { return In(i18n.Locale()).SettingsFile() }
+
+// SettingsFile says "Settings File"
+// in the language of msgs.
+func (msgs Messages) SettingsFile() string {
+	return Catalog.Format(msgs.locale, "settingsFile", nil)
+}
+
+// SettingsFileDesc says "All settings are saved to settings.json"
+// in the language the app shows.
+func SettingsFileDesc() string { return In(i18n.Locale()).SettingsFileDesc() }
+
+// SettingsFileDesc says "All settings are saved to settings.json"
+// in the language of msgs.
+func (msgs Messages) SettingsFileDesc() string {
+	return Catalog.Format(msgs.locale, "settingsFileDesc", nil)
+}
+
+// SettingsOpenFile says "Open in Editor"
+// in the language the app shows.
+func SettingsOpenFile() string { return In(i18n.Locale()).SettingsOpenFile() }
+
+// SettingsOpenFile says "Open in Editor"
+// in the language of msgs.
+func (msgs Messages) SettingsOpenFile() string {
+	return Catalog.Format(msgs.locale, "settingsOpenFile", nil)
+}
+
+// SettingsMode says "Color Mode"
+// in the language the app shows.
+func SettingsMode() string { return In(i18n.Locale()).SettingsMode() }
+
+// SettingsMode says "Color Mode"
+// in the language of msgs.
+func (msgs Messages) SettingsMode() string {
+	return Catalog.Format(msgs.locale, "settingsMode", nil)
+}
+
+// SettingsModeDesc says "Follow System switches between light and dark with the system"
+// in the language the app shows.
+func SettingsModeDesc() string { return In(i18n.Locale()).SettingsModeDesc() }
+
+// SettingsModeDesc says "Follow System switches between light and dark with the system"
+// in the language of msgs.
+func (msgs Messages) SettingsModeDesc() string {
+	return Catalog.Format(msgs.locale, "settingsModeDesc", nil)
+}
+
+// SettingsSystem says "System"
+// in the language the app shows.
+func SettingsSystem() string { return In(i18n.Locale()).SettingsSystem() }
+
+// SettingsSystem says "System"
+// in the language of msgs.
+func (msgs Messages) SettingsSystem() string {
+	return Catalog.Format(msgs.locale, "settingsSystem", nil)
+}
+
+// SettingsLightTheme says "Light Theme"
+// in the language the app shows.
+func SettingsLightTheme() string { return In(i18n.Locale()).SettingsLightTheme() }
+
+// SettingsLightTheme says "Light Theme"
+// in the language of msgs.
+func (msgs Messages) SettingsLightTheme() string {
+	return Catalog.Format(msgs.locale, "settingsLightTheme", nil)
+}
+
+// SettingsDarkTheme says "Dark Theme"
+// in the language the app shows.
+func SettingsDarkTheme() string { return In(i18n.Locale()).SettingsDarkTheme() }
+
+// SettingsDarkTheme says "Dark Theme"
+// in the language of msgs.
+func (msgs Messages) SettingsDarkTheme() string {
+	return Catalog.Format(msgs.locale, "settingsDarkTheme", nil)
+}
+
+// SettingsInUse says "In Use"
+// in the language the app shows.
+func SettingsInUse() string { return In(i18n.Locale()).SettingsInUse() }
+
+// SettingsInUse says "In Use"
+// in the language of msgs.
+func (msgs Messages) SettingsInUse() string {
+	return Catalog.Format(msgs.locale, "settingsInUse", nil)
+}
+
+// SettingsUIFont says "Interface Font"
+// in the language the app shows.
+func SettingsUIFont() string { return In(i18n.Locale()).SettingsUIFont() }
+
+// SettingsUIFont says "Interface Font"
+// in the language of msgs.
+func (msgs Messages) SettingsUIFont() string {
+	return Catalog.Format(msgs.locale, "settingsUIFont", nil)
+}
+
+// SettingsUIFontDesc says "Side bar, tab bar and panels"
+// in the language the app shows.
+func SettingsUIFontDesc() string { return In(i18n.Locale()).SettingsUIFontDesc() }
+
+// SettingsUIFontDesc says "Side bar, tab bar and panels"
+// in the language of msgs.
+func (msgs Messages) SettingsUIFontDesc() string {
+	return Catalog.Format(msgs.locale, "settingsUIFontDesc", nil)
+}
+
+// SettingsContentFont says "Content Font"
+// in the language the app shows.
+func SettingsContentFont() string { return In(i18n.Locale()).SettingsContentFont() }
+
+// SettingsContentFont says "Content Font"
+// in the language of msgs.
+func (msgs Messages) SettingsContentFont() string {
+	return Catalog.Format(msgs.locale, "settingsContentFont", nil)
+}
+
+// SettingsContentFontDesc says "Text in the editor"
+// in the language the app shows.
+func SettingsContentFontDesc() string { return In(i18n.Locale()).SettingsContentFontDesc() }
+
+// SettingsContentFontDesc says "Text in the editor"
+// in the language of msgs.
+func (msgs Messages) SettingsContentFontDesc() string {
+	return Catalog.Format(msgs.locale, "settingsContentFontDesc", nil)
+}
+
+// SettingsFontSize says "Font Size"
+// in the language the app shows.
+func SettingsFontSize() string { return In(i18n.Locale()).SettingsFontSize() }
+
+// SettingsFontSize says "Font Size"
+// in the language of msgs.
+func (msgs Messages) SettingsFontSize() string {
+	return Catalog.Format(msgs.locale, "settingsFontSize", nil)
+}
+
+// SettingsFontSizeDesc says "Size of the content font"
+// in the language the app shows.
+func SettingsFontSizeDesc() string { return In(i18n.Locale()).SettingsFontSizeDesc() }
+
+// SettingsFontSizeDesc says "Size of the content font"
+// in the language of msgs.
+func (msgs Messages) SettingsFontSizeDesc() string {
+	return Catalog.Format(msgs.locale, "settingsFontSizeDesc", nil)
+}
+
+// SettingsSmaller says "Decrease font size"
+// in the language the app shows.
+func SettingsSmaller() string { return In(i18n.Locale()).SettingsSmaller() }
+
+// SettingsSmaller says "Decrease font size"
+// in the language of msgs.
+func (msgs Messages) SettingsSmaller() string {
+	return Catalog.Format(msgs.locale, "settingsSmaller", nil)
+}
+
+// SettingsLarger says "Increase font size"
+// in the language the app shows.
+func SettingsLarger() string { return In(i18n.Locale()).SettingsLarger() }
+
+// SettingsLarger says "Increase font size"
+// in the language of msgs.
+func (msgs Messages) SettingsLarger() string {
+	return Catalog.Format(msgs.locale, "settingsLarger", nil)
+}
+
+// SettingsPreview says "Preview"
+// in the language the app shows.
+func SettingsPreview() string { return In(i18n.Locale()).SettingsPreview() }
+
+// SettingsPreview says "Preview"
+// in the language of msgs.
+func (msgs Messages) SettingsPreview() string {
+	return Catalog.Format(msgs.locale, "settingsPreview", nil)
+}
+
+// SettingsSystemDefault says "System Default"
+// in the language the app shows.
+func SettingsSystemDefault() string { return In(i18n.Locale()).SettingsSystemDefault() }
+
+// SettingsSystemDefault says "System Default"
+// in the language of msgs.
+func (msgs Messages) SettingsSystemDefault() string {
+	return Catalog.Format(msgs.locale, "settingsSystemDefault", nil)
+}
+
+// SettingsSystemMono says "System Monospace"
+// in the language the app shows.
+func SettingsSystemMono() string { return In(i18n.Locale()).SettingsSystemMono() }
+
+// SettingsSystemMono says "System Monospace"
+// in the language of msgs.
+func (msgs Messages) SettingsSystemMono() string {
+	return Catalog.Format(msgs.locale, "settingsSystemMono", nil)
+}

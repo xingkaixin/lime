@@ -22,7 +22,9 @@ func (a *app) view(c *ui.Context) {
 		c.DisableAnimations()
 	}
 	a.scheme = s
-	c.SetTheme(a.scheme.uiTheme(c.Theme()))
+	th := a.scheme.uiTheme(c.Theme())
+	th.Font = a.set.UIFont
+	c.SetTheme(th)
 	a.syncFocus(c.Modifiers()&ui.Ctrl != 0)
 	if t := a.drag; t != nil {
 		if gi, _ := a.locate(t.d); gi < 0 {
@@ -55,6 +57,7 @@ func (a *app) view(c *ui.Context) {
 		a.draggedTab(c)
 	})
 	a.panelView(c)
+	a.settingsView(c)
 }
 
 func (a *app) sideBarShown() bool { return a.set.SideBar && len(a.proj.folders) > 0 }
@@ -162,7 +165,7 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		}
 		d.st.Theme = s.editorTheme()
 		d.st.SoftWrap = a.set.WordWrap
-		d.st.Font.Size = a.set.FontSize
+		d.st.Font.Family, d.st.Font.Size = a.set.ContentFont, a.set.FontSize
 		d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
 		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
 		a.input(e, d)

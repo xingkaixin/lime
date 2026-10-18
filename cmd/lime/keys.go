@@ -188,6 +188,7 @@ var appKeys = func() []appKey {
 		k(cmd, ui.KeyMinus, "decrease_font_size"),
 		k(cmd, ui.KeyF, "show_panel find"), k(cmd, ui.KeyI, "show_panel find"), k(cmd|sh, ui.KeyI, "show_panel find"),
 		k(cmd, ui.KeyE, "slurp_find_string"), k(cmd, ui.KeyD, "find_under_expand"),
+		k(cmd, ui.KeyComma, "show_settings"),
 
 		ch(0, ui.KeyB, "toggle_side_bar"),
 		ch(0, ui.KeyU, "upper_case"), ch(0, ui.KeyL, "lower_case"), ch(0, ui.KeyD, "find_under_expand_skip"),

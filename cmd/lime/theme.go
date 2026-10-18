@@ -139,10 +139,14 @@ func schemeNamed(name string) *scheme {
 }
 
 // scheme returns the scheme the windows show: the theme of the
-// appearance, systemDark choosing while it follows the system. A theme
-// that is not one of the schemes of its appearance gives way to GitHub's.
+// appearance, systemDark choosing while it follows the system.
 func (s *settings) scheme(systemDark bool) *scheme {
-	dark := s.Appearance == darkMode || s.Appearance != lightMode && systemDark
+	return s.theme(s.Appearance == darkMode || s.Appearance != lightMode && systemDark)
+}
+
+// theme returns the theme of the dark or the light appearance. A theme
+// that is not one of the schemes of its appearance gives way to GitHub's.
+func (s *settings) theme(dark bool) *scheme {
 	name, fallback := s.LightTheme, "GitHub Light"
 	if dark {
 		name, fallback = s.DarkTheme, "GitHub Dark"

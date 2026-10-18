@@ -60,9 +60,23 @@ func (l *lime) newMenu() *mygo.Menu {
 		}
 		schemeItems = append(schemeItems, it)
 	}
+	// Settings go in the app's menu on macOS, and in File elsewhere.
+	settingsItem := l.menuItem(locales.MenuSettings(), "show_settings")
+	appMenu := &mygo.MenuItem{Role: mygo.RoleAppMenu}
+	var fileSettings []*mygo.MenuItem
+	if mac {
+		appMenu.Submenu = []*mygo.MenuItem{
+			{Role: mygo.RoleAbout}, mygo.Separator(), settingsItem, mygo.Separator(),
+			{Role: mygo.RoleServices}, mygo.Separator(),
+			{Role: mygo.RoleHide}, {Role: mygo.RoleHideOthers}, {Role: mygo.RoleUnhide}, mygo.Separator(),
+			{Role: mygo.RoleQuit},
+		}
+	} else {
+		fileSettings = []*mygo.MenuItem{mygo.Separator(), settingsItem}
+	}
 	return mygo.NewMenu([]*mygo.MenuItem{
-		{Role: mygo.RoleAppMenu},
-		{Label: locales.MenuFile(), Submenu: []*mygo.MenuItem{
+		appMenu,
+		{Label: locales.MenuFile(), Submenu: append([]*mygo.MenuItem{
 			l.menuItem(locales.MenuNewFile(), "new_file"),
 			l.menuItem(locales.MenuNewWindow(), "new_window"),
 			l.menuItem(locales.MenuOpen(), "prompt_open"),
@@ -75,7 +89,7 @@ func (l *lime) newMenu() *mygo.Menu {
 			mygo.Separator(),
 			l.menuItem(locales.MenuCloseFile(), "close"),
 			l.menuItem(locales.MenuCloseWindow(), "close_window"),
-		}},
+		}, fileSettings...)},
 		{Role: mygo.RoleEditMenu},
 		{Label: locales.MenuFind(), Submenu: []*mygo.MenuItem{
 			l.menuItem(locales.MenuFindEllipsis(), "show_panel find"),
