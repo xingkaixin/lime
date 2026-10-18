@@ -25,13 +25,20 @@ func (a *app) view(c *ui.Context) {
 	a.syncTitle()
 	a.syncMenu()
 
-	ch := a.scheme.chrome()
+	ch := a.shell(c)
+	if c.Vibrancy() {
+		c.Root().Background(ui.Transparent)
+	}
 	root := ui.Column(c).Fill().Background(ch.bg)
 	if files := root.DroppedFiles(); files != nil {
 		a.open(files)
 	}
 	root.Children(func() {
-		if a.set.SideBar && len(a.proj.folders) > 0 {
+		if a.sideBarShown() {
+			// The window controls sit over the side bar's top.
+			if w := c.TitleBar().Left; w > 0 {
+				a.set.SideBarWidth = max(a.set.SideBarWidth, w+controlsGap)
+			}
 			ui.Split(c, &a.set.SideBarWidth, func() { a.sideBar(c) }, func() { a.groupsView(c) }).Grow(1).FillWidth().MinHeight(0)
 		} else {
 			a.groupsView(c)
@@ -40,6 +47,23 @@ func (a *app) view(c *ui.Context) {
 		a.draggedTab(c)
 	})
 	a.panelView(c)
+}
+
+func (a *app) sideBarShown() bool { return a.set.SideBar && len(a.proj.folders) > 0 }
+
+const tabBarHeight = 34
+
+// controlsGap is the room left after the window controls.
+const controlsGap = 12
+
+// titleBand is the height of the band along the window's top that the
+// window controls sit in, over the side bar and the top groups' tab bars;
+// zero where the window has its own title bar, or in full screen.
+func titleBand(c *ui.Context) float32 {
+	if h := c.TitleBar().Height; h > 0 {
+		return max(h, tabBarHeight)
+	}
+	return 0
 }
 
 // themeSource is the appearance of the window's title bar for a scheme.
@@ -109,7 +133,10 @@ func splits(c *ui.Context, p []float32, vertical bool, pane func(i int)) {
 func (a *app) groupView(c *ui.Context, gi int) {
 	g := a.groups[gi]
 	s := a.scheme
-	col := ui.Column(c.Key(key(g))).Fill().MinWidth(0).MinHeight(0).Background(s.bg)
+	col := ui.Column(c.Key(key(g))).Fill().MinWidth(0).MinHeight(0)
+	if !c.Vibrancy() {
+		col.Background(s.bg)
+	}
 	if files := col.DroppedFiles(); files != nil {
 		a.focusGroup(gi)
 		a.open(files)
@@ -134,23 +161,60 @@ func (a *app) groupView(c *ui.Context, gi int) {
 // (dragTab).
 func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 	a.makeWay(g)
-	// Pressing a tab leaves the keyboard in the editor, as in Sublime Text.
-	bar := ui.Row(c).FillWidth().Height(34).Shrink(0).AlignItems(ui.Stretch).Background(a.scheme.chrome().bg).KeepFocus()
-	g.bar = bar.LayoutBounds()
-	bar.Children(func() {
-		for i, d := range g.docs {
-			a.tab(c, g, i, d, i == g.active, gi == a.focus)
+	var band float32
+	if gi < a.layout.cols {
+		band = titleBand(c)
+	}
+	ui.Row(c).FillWidth().Height(max(band, tabBarHeight)).Shrink(0).AlignItems(ui.Stretch).Background(a.shell(c).bg).Children(func() {
+		// Without the side bar, the window controls sit before the first
+		// group's tabs, apart from them and outside the bar that dragged
+		// tabs measure.
+		if w := c.TitleBar().Left; gi == 0 && w > 0 && !a.sideBarShown() {
+			ui.Box(c).Width(w + controlsGap).Shrink(0).DragWindow()
 		}
-		// A double click past the tabs opens a new one, as in Sublime Text.
-		if ui.Box(c).Grow(1).Label("Tab bar").DoubleClicked() {
-			a.focusGroup(gi)
-			a.newFile()
-		}
+		// Pressing a tab leaves the keyboard in the editor, as in Sublime Text.
+		bar := ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch).KeepFocus()
+		g.bar = bar.LayoutBounds()
+		bar.Children(func() {
+			// Tabs that do not fit go out of sight before the new tab button
+			// does.
+			ui.Row(c).Shrink(1).MinWidth(0).AlignItems(ui.Stretch).ClipX().Children(func() {
+				for i, d := range g.docs {
+					a.tab(c, g, i, d, i == g.active, gi == a.focus)
+				}
+			})
+			a.newTabButton(c, gi)
+			// Along the window's top, the room past the tabs is the title bar,
+			// which drags the window. Elsewhere a double click there opens a
+			// new tab, as in Sublime Text.
+			rest := ui.Box(c).Grow(1).Label("Tab bar")
+			if band > 0 {
+				rest.DragWindow()
+			} else if rest.DoubleClicked() {
+				a.focusGroup(gi)
+				a.newFile()
+			}
+		})
+	})
+}
+
+func (a *app) newTabButton(c *ui.Context, gi int) {
+	ch := a.shell(c)
+	btn := ui.Box(c).Width(24).Height(24).Shrink(0).AlignSelf(ui.Center).MarginStart(4).Radius(4).Center().
+		Label("New File").Tooltip("New File").OnClick(func() {
+		a.focusGroup(gi)
+		a.newFile()
+	})
+	if btn.Hovered() {
+		btn.Background(ch.hover)
+	}
+	btn.Children(func() {
+		ui.Text(c, "+").FontSize(16).TextColor(ch.muted)
 	})
 }
 
 func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) {
-	s, ch := a.scheme, a.scheme.chrome()
+	ch := a.shell(c)
 	row := ui.Row(c.Key(key(d))).AlignItems(ui.Center).Gap(6).Padding(0, 6, 0, 14).Width(200).Shrink(1).MinWidth(72)
 	if i == 0 {
 		g.tabW = row.LayoutBounds().W
@@ -163,9 +227,9 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 	bg, fg := ch.bg, ch.muted
 	switch {
 	case active && focused:
-		bg, fg = s.bg, ch.text
+		bg, fg = ch.tab, ch.text
 	case active:
-		bg = s.bg
+		bg = ch.tab
 	case hovered:
 		bg = ch.hover
 	}
@@ -187,7 +251,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 }
 
 func (a *app) statusBar(c *ui.Context) {
-	ch := a.scheme.chrome()
+	ch := a.shell(c)
 	d := a.current()
 	var left string
 	if d != nil {
@@ -213,7 +277,7 @@ func (a *app) statusBar(c *ui.Context) {
 // syntaxButton shows the syntax of d and changes it from a menu, as
 // Sublime Text's status bar does.
 func (a *app) syntaxButton(c *ui.Context, d *doc) {
-	ch := a.scheme.chrome()
+	ch := a.shell(c)
 	lang := d.st.Buffer.Language()
 	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Label("Syntax: " + syntaxName(lang))
 	if btn.Hovered() {
