@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
@@ -14,8 +15,9 @@ type finding struct {
 	query, replace             string
 	caseSens, wholeWord, regex bool
 	replacing                  bool
-	pending                    bool   // the current editor's panel takes them as it next shows
-	seen                       string // the query of the current editor's panel, as last read
+	pending                    bool      // the current editor's panel takes them as it next shows
+	seen                       string    // the query of the current editor's panel, as last read
+	rowsAt                     time.Time // when the current editor's panel last showed or hid the replace row
 }
 
 // showFind opens the find panel of the current editor, with the replace
@@ -66,6 +68,16 @@ const (
 	findSlotW   = 84
 	findSlotMin = 48
 	findQueryW  = 120
+
+	findMotionTime = 200 * time.Millisecond
+)
+
+// The find panel fades in sliding up and out sliding down, and its replace
+// row opens and closes. Colors alone keeps the editor's resizing, as a
+// divider dragged, from animating them: Enter and Exit play regardless.
+var (
+	findBarMotion = ui.ElementTransition{Duration: findMotionTime, Colors: true, Enter: &ui.Motion{Y: 8}, Exit: &ui.Motion{Y: 8}}
+	findRowMotion = ui.ElementTransition{Duration: findMotionTime, Colors: true, Enter: &ui.Motion{Collapse: true}, Exit: &ui.Motion{Collapse: true}}
 )
 
 // findBar builds the find panel of d's editor as Sublime Text's, along
@@ -80,6 +92,9 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 		s.pending, s.seen = false, *f.Query()
 		*f.Replacement() = s.replace
 		*f.CaseSensitive(), *f.WholeWord(), *f.Regexp() = s.caseSens, s.wholeWord, s.regex
+		if f.Replacing() != s.replacing {
+			s.rowsAt = c.Now()
+		}
 		f.SetReplacing(s.replacing)
 	default:
 		// Only a query typed in the panel replaces the window's: Quick Add
@@ -96,6 +111,12 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 	// to the bottom, and Top and Right take back the editor's offsets.
 	bar.Attach(ui.AnchorBottomLeft, ui.AnchorBottomLeft).Top(0).Right(0).WidthPercent(100).
 		Gap(6).Padding(6, 8).Background(ch.bg).BorderWidth(1, 0, 0, 0).BorderColor(ch.line)
+	motion := findBarMotion
+	if c.Now().Sub(s.rowsAt) < findMotionTime {
+		// Only the replace row showing or hiding grows and shrinks the panel.
+		motion.Position, motion.Size = true, true
+	}
+	bar.Transition(motion)
 	field := func(value *string, label string) ui.Element {
 		return ui.TextInputBase(c, value).Grow(1).MinWidth(findQueryW).Height(24).Padding(0, 8).Placeholder(label).Label(label).
 			FontSize(13).Background(sc.bg).Border(1, ch.line).Radius(3)
@@ -121,7 +142,7 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 		}
 		b.Children(func() { ui.Text(c, label).FontSize(12).TextColor(ch.text).SingleLine().Ellipsis("…") })
 	}
-	row := func(fill func()) { ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(fill) }
+	row := func(fill func()) ui.Element { return ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(fill) }
 
 	bar.Children(func() {
 		row(func() {
@@ -146,7 +167,7 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 				button("Replace", f.Replace)
 				button("Replace All", f.ReplaceAll)
 				slot(ui.Box(c))
-			})
+			}).Transition(findRowMotion)
 		}
 	})
 }
