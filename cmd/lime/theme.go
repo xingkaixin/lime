@@ -157,10 +157,10 @@ func resolveScheme(name string, systemDark bool) *scheme {
 var black = ui.RGB(0, 0, 0)
 
 // chrome holds the colors around the editor: tab bars, the side bar, the
-// status bar, the quick panel.
+// status bar, the quick panel. tab is the active tab's background.
 type chrome struct {
-	bg, hover, line, panel ui.Color
-	text, muted            ui.Color
+	bg, hover, line, panel, tab ui.Color
+	text, muted                 ui.Color
 }
 
 func (s *scheme) chrome() chrome {
@@ -175,9 +175,19 @@ func (s *scheme) chrome() chrome {
 		panel = s.bg
 	}
 	return chrome{
-		bg: shade(0.2, 0.05), hover: shade(0.1, 0.025), line: shade(0.38, 0.13), panel: panel,
+		bg: shade(0.2, 0.05), hover: shade(0.1, 0.025), line: shade(0.38, 0.13), panel: panel, tab: s.bg,
 		text: s.fg, muted: s.fg.Mix(s.bg, 0.4),
 	}
+}
+
+// shell is the chrome of the side bar, the tab bars and the status bar,
+// which leave the window's material showing where it shows.
+func (a *app) shell(c *ui.Context) chrome {
+	ch := a.scheme.chrome()
+	if c.Vibrancy() {
+		ch.bg, ch.hover, ch.tab = ui.Transparent, ch.text.Alpha(0.08), ch.tab.Alpha(0.5)
+	}
+	return ch
 }
 
 // uiTheme is the window's theme for the scheme: the widgets of the side

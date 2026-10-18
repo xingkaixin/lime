@@ -25,7 +25,10 @@ func (a *app) view(c *ui.Context) {
 	a.syncTitle()
 	a.syncMenu()
 
-	ch := a.scheme.chrome()
+	ch := a.shell(c)
+	if c.Vibrancy() {
+		c.Root().Background(ui.Transparent)
+	}
 	root := ui.Column(c).Fill().Background(ch.bg)
 	if files := root.DroppedFiles(); files != nil {
 		a.open(files)
@@ -109,7 +112,10 @@ func splits(c *ui.Context, p []float32, vertical bool, pane func(i int)) {
 func (a *app) groupView(c *ui.Context, gi int) {
 	g := a.groups[gi]
 	s := a.scheme
-	col := ui.Column(c.Key(key(g))).Fill().MinWidth(0).MinHeight(0).Background(s.bg)
+	col := ui.Column(c.Key(key(g))).Fill().MinWidth(0).MinHeight(0)
+	if !c.Vibrancy() {
+		col.Background(s.bg)
+	}
 	if files := col.DroppedFiles(); files != nil {
 		a.focusGroup(gi)
 		a.open(files)
@@ -135,7 +141,7 @@ func (a *app) groupView(c *ui.Context, gi int) {
 func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 	a.makeWay(g)
 	// Pressing a tab leaves the keyboard in the editor, as in Sublime Text.
-	bar := ui.Row(c).FillWidth().Height(34).Shrink(0).AlignItems(ui.Stretch).Background(a.scheme.chrome().bg).KeepFocus()
+	bar := ui.Row(c).FillWidth().Height(34).Shrink(0).AlignItems(ui.Stretch).Background(a.shell(c).bg).KeepFocus()
 	g.bar = bar.LayoutBounds()
 	bar.Children(func() {
 		for i, d := range g.docs {
@@ -150,7 +156,7 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 }
 
 func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) {
-	s, ch := a.scheme, a.scheme.chrome()
+	ch := a.shell(c)
 	row := ui.Row(c.Key(key(d))).AlignItems(ui.Center).Gap(6).Padding(0, 6, 0, 14).Width(200).Shrink(1).MinWidth(72)
 	if i == 0 {
 		g.tabW = row.LayoutBounds().W
@@ -163,9 +169,9 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 	bg, fg := ch.bg, ch.muted
 	switch {
 	case active && focused:
-		bg, fg = s.bg, ch.text
+		bg, fg = ch.tab, ch.text
 	case active:
-		bg = s.bg
+		bg = ch.tab
 	case hovered:
 		bg = ch.hover
 	}
@@ -187,7 +193,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 }
 
 func (a *app) statusBar(c *ui.Context) {
-	ch := a.scheme.chrome()
+	ch := a.shell(c)
 	d := a.current()
 	var left string
 	if d != nil {
@@ -213,7 +219,7 @@ func (a *app) statusBar(c *ui.Context) {
 // syntaxButton shows the syntax of d and changes it from a menu, as
 // Sublime Text's status bar does.
 func (a *app) syntaxButton(c *ui.Context, d *doc) {
-	ch := a.scheme.chrome()
+	ch := a.shell(c)
 	lang := d.st.Buffer.Language()
 	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Label("Syntax: " + syntaxName(lang))
 	if btn.Hovered() {
