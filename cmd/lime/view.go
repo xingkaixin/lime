@@ -176,9 +176,14 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 		bar := ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch).KeepFocus()
 		g.bar = bar.LayoutBounds()
 		bar.Children(func() {
-			for i, d := range g.docs {
-				a.tab(c, g, i, d, i == g.active, gi == a.focus)
-			}
+			// Tabs that do not fit go out of sight before the new tab button
+			// does.
+			ui.Row(c).Shrink(1).MinWidth(0).AlignItems(ui.Stretch).ClipX().Children(func() {
+				for i, d := range g.docs {
+					a.tab(c, g, i, d, i == g.active, gi == a.focus)
+				}
+			})
+			a.newTabButton(c, gi)
 			// Along the window's top, the room past the tabs is the title bar,
 			// which drags the window. Elsewhere a double click there opens a
 			// new tab, as in Sublime Text.
@@ -190,6 +195,21 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 				a.newFile()
 			}
 		})
+	})
+}
+
+func (a *app) newTabButton(c *ui.Context, gi int) {
+	ch := a.shell(c)
+	btn := ui.Box(c).Width(24).Height(24).Shrink(0).AlignSelf(ui.Center).MarginStart(4).Radius(4).Center().
+		Label("New File").Tooltip("New File").OnClick(func() {
+		a.focusGroup(gi)
+		a.newFile()
+	})
+	if btn.Hovered() {
+		btn.Background(ch.hover)
+	}
+	btn.Children(func() {
+		ui.Text(c, "+").FontSize(16).TextColor(ch.muted)
 	})
 }
 

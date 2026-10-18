@@ -92,6 +92,14 @@ func TestTabs(t *testing.T) {
 		t.Fatalf("double click on the tab bar: %d tabs", n)
 	}
 	a.remove(a.current())
+	tt.Frame()
+	if err := tt.Click("New File"); err != nil {
+		t.Fatal(err)
+	}
+	if n := a.docCount(); n != 2 || a.current().path != "" {
+		t.Fatalf("new tab button: %d tabs", n)
+	}
+	a.remove(a.current())
 
 	// The status bar's syntax menu sets the syntax.
 	tt.Frame()
