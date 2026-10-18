@@ -294,6 +294,11 @@ func (a *app) sideBar(c *ui.Context) {
 // each level indents by, as Sublime Text's side bar does.
 const treeIcon, treeGap = 16, 6
 
+// treeMotion slides the rows of the side bar as folders above them open
+// and close. What a folder holds grows in and collapses as one block,
+// which the rows below follow.
+var treeMotion = ui.ElementTransition{Position: true, Enter: &ui.Motion{Collapse: true}, Exit: &ui.Motion{Collapse: true}}
+
 // treeDir shows dir, and what it holds while open. A click anywhere on its
 // row opens or closes it.
 func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
@@ -307,16 +312,19 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 	if !*open {
 		return
 	}
-	for _, e := range a.proj.list(dir) {
-		p := filepath.Join(dir, e.Name())
-		if e.IsDir() {
-			a.treeDir(c, p, depth+1, cur)
-			continue
+	// Keyed dir/, apart from dir's row.
+	ui.Column(c.Key(dir + string(filepath.Separator))).FillWidth().Transition(treeMotion).Children(func() {
+		for _, e := range a.proj.list(dir) {
+			p := filepath.Join(dir, e.Name())
+			if e.IsDir() {
+				a.treeDir(c, p, depth+1, cur)
+				continue
+			}
+			a.treeRow(c, p, depth+1, fileIcon(e.Name()), a.scheme.chrome().muted, cur != nil && cur.path == p).
+				OnClick(func() { a.open([]string{p}) }).
+				ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
 		}
-		a.treeRow(c, p, depth+1, fileIcon(e.Name()), a.scheme.chrome().muted, cur != nil && cur.path == p).
-			OnClick(func() { a.open([]string{p}) }).
-			ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
-	}
+	})
 }
 
 func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui.Color, selected bool) ui.Element {
@@ -324,7 +332,7 @@ func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui
 	name := filepath.Base(path)
 	row := ui.Row(c.Key(path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Radius(t.Radius).
-		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected)
+		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected).Transition(treeMotion)
 	if selected {
 		tint = t.AccentText
 	} else if row.Hovered() {
