@@ -280,7 +280,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 			btn.Background(ch.muted.Alpha(0.2))
 		}
 		btn.Children(func() {
-			ui.Text(c, glyph).FontSize(12).TextColor(fg)
+			ui.Text(c, glyph).FontSize(12).TextColor(fg).ContentTransition(ui.ContentTransition{})
 		})
 	})
 }
