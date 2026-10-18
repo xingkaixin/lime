@@ -13,7 +13,13 @@ func (a *app) view(c *ui.Context) {
 	a.syncThemeSource()
 	// The window's theme follows the system here, before SetTheme, which
 	// Auto goes by.
-	a.scheme = resolveScheme(a.set.ColorScheme, c.Theme().Dark)
+	s := resolveScheme(a.set.ColorScheme, c.Theme().Dark)
+	// Another color scheme shows at once, as the editor's colors do,
+	// rather than fading the colors around them.
+	if s != a.scheme {
+		c.DisableAnimations()
+	}
+	a.scheme = s
 	c.SetTheme(a.scheme.uiTheme(c.Theme()))
 	a.syncFocus(c.Modifiers()&ui.Ctrl != 0)
 	if t := a.drag; t != nil {
@@ -214,7 +220,7 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 func (a *app) newTabButton(c *ui.Context, gi int) {
 	ch := a.shell(c)
 	btn := ui.Box(c).Width(24).Height(24).Shrink(0).AlignSelf(ui.Center).MarginStart(4).Radius(4).Center().
-		Transition(ui.ElementTransition{Position: true}).Label("New File").Tooltip("New File").OnClick(func() {
+		Transition(ui.ElementTransition{Position: true, Colors: true}).Label("New File").Tooltip("New File").OnClick(func() {
 		a.focusGroup(gi)
 		a.newFile()
 	})
@@ -225,6 +231,9 @@ func (a *app) newTabButton(c *ui.Context, gi int) {
 		ui.Text(c, "+").FontSize(16).TextColor(ch.muted)
 	})
 }
+
+// colorFade fades a control's colors as the pointer comes and goes.
+var colorFade = ui.ElementTransition{Colors: true}
 
 // tabMotion slides and resizes the tabs that make way for one dragged,
 // opened or closed, which grows in or collapses away.
@@ -237,7 +246,11 @@ var tabMotion = ui.ElementTransition{
 
 func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) {
 	ch := a.shell(c)
-	row := ui.Row(c.Key(key(d))).Transition(tabMotion).AlignItems(ui.Center).Gap(6).Padding(0, 6, 0, 14).Width(200).Shrink(1).MinWidth(tabMinW)
+	// The tab shown changes colors at once, as the editor does: only
+	// hovering fades them.
+	motion := tabMotion
+	motion.Colors = !active
+	row := ui.Row(c.Key(key(d))).Transition(motion).AlignItems(ui.Center).Gap(6).Padding(0, 6, 0, 14).Width(200).Shrink(1).MinWidth(tabMinW)
 	if i == 0 {
 		g.tabW = row.LayoutBounds().W
 	}
@@ -262,7 +275,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 		if d.dirty() && !hovered {
 			glyph = "●"
 		}
-		btn := ui.Box(c).Width(18).Height(18).Radius(4).Center().Label("Close " + d.name()).OnClick(func() { a.closeDoc(d) })
+		btn := ui.Box(c).Width(18).Height(18).Radius(4).Center().Transition(colorFade).Label("Close " + d.name()).OnClick(func() { a.closeDoc(d) })
 		if btn.Hovered() {
 			btn.Background(ch.muted.Alpha(0.2))
 		}
@@ -301,7 +314,7 @@ func (a *app) statusBar(c *ui.Context) {
 func (a *app) syntaxButton(c *ui.Context, d *doc) {
 	ch := a.shell(c)
 	lang := d.st.Buffer.Language()
-	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Label("Syntax: " + syntaxName(lang))
+	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Transition(colorFade).Label("Syntax: " + syntaxName(lang))
 	if btn.Hovered() {
 		btn.Background(ch.hover)
 	}
