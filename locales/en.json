@@ -1,0 +1,216 @@
+{
+  "@@locale": "en",
+
+  "untitled": "untitled",
+  "light": "Light",
+  "dark": "Dark",
+  "plainText": "Plain Text",
+  "buttonSave": "Save",
+  "buttonDontSave": "Don't Save",
+  "buttonCancel": "Cancel",
+  "buttonDelete": "Delete",
+
+  "menuFile": "File",
+  "menuNewFile": "New File",
+  "menuNewWindow": "New Window",
+  "menuOpen": "Open…",
+  "menuOpenFolder": "Open Folder…",
+  "menuReopenClosedFile": "Reopen Closed File",
+  "menuSave": "Save",
+  "menuSaveAs": "Save As…",
+  "menuSaveAll": "Save All",
+  "menuCloseFile": "Close File",
+  "menuCloseWindow": "Close Window",
+  "menuFind": "Find",
+  "menuFindEllipsis": "Find…",
+  "menuFindNext": "Find Next",
+  "menuFindPrevious": "Find Previous",
+  "menuReplace": "Replace…",
+  "menuQuickFindAll": "Quick Find All",
+  "menuQuickAddNext": "Quick Add Next",
+  "menuQuickSkipNext": "Quick Skip Next",
+  "menuUseSelectionForFind": "Use Selection for Find",
+  "menuView": "View",
+  "menuSideBar": "Side Bar",
+  "menuLayout": "Layout",
+  "menuGroups": "Groups",
+  "menuNewGroup": "New Group",
+  "menuCloseGroup": "Close Group",
+  "menuColorScheme": "Color Scheme",
+  "menuSyntax": "Syntax…",
+  "menuWordWrap": "Word Wrap",
+  "menuLargerFont": "Larger Font",
+  "menuSmallerFont": "Smaller Font",
+  "menuResetFontSize": "Reset Font Size",
+  "menuGoto": "Goto",
+  "menuGotoAnything": "Goto Anything…",
+  "menuGotoLine": "Goto Line…",
+  "menuCommandPalette": "Command Palette…",
+  "menuNextModification": "Next Modification",
+  "menuPreviousModification": "Previous Modification",
+  "menuProject": "Project",
+  "menuOpenProject": "Open Project…",
+  "menuSaveProjectAs": "Save Project As…",
+  "menuCloseProject": "Close Project",
+  "menuAddFolderToProject": "Add Folder to Project…",
+  "menuRefreshFolders": "Refresh Folders",
+  "menuRename": "Rename…",
+  "menuDeleteFile": "Delete File",
+  "menuRevealInFinder": "Reveal in Finder",
+  "menuCopyPath": "Copy Path",
+  "menuNewFolder": "New Folder…",
+  "menuDeleteFolder": "Delete Folder",
+  "menuRemoveFolder": "Remove Folder from Project",
+
+  "layoutSingle": "Single",
+  "layoutColumns2": "Columns: 2",
+  "layoutColumns3": "Columns: 3",
+  "layoutColumns4": "Columns: 4",
+  "layoutGrid4": "Grid: 4",
+  "layoutRows2": "Rows: 2",
+  "layoutRows3": "Rows: 3",
+
+  "cmdNewFile": "File: New File",
+  "cmdOpen": "File: Open…",
+  "cmdOpenFolder": "File: Open Folder…",
+  "cmdReopenClosedFile": "File: Reopen Closed File",
+  "cmdSave": "File: Save",
+  "cmdSaveAs": "File: Save As…",
+  "cmdSaveAll": "File: Save All",
+  "cmdClose": "File: Close",
+  "cmdNewWindow": "Window: New Window",
+  "cmdCloseWindow": "Window: Close",
+  "cmdGotoAnything": "Goto Anything",
+  "cmdGotoLine": "Goto Line",
+  "cmdToggleSideBar": "View: Toggle Side Bar",
+  "cmdToggleWordWrap": "Word Wrap: Toggle",
+  "cmdIncreaseFontSize": "Font: Increase",
+  "cmdDecreaseFontSize": "Font: Decrease",
+  "cmdResetFontSize": "Font: Reset",
+  "cmdSelectColorScheme": "UI: Select Color Scheme",
+  "cmdSetSyntax": "Set Syntax…",
+  "cmdNewPane": "Layout: New Pane",
+  "cmdClosePane": "Layout: Close Pane",
+  "cmdAddFolder": "Project: Add Folder…",
+  "cmdOpenProject": "Project: Open Project…",
+  "cmdSaveProjectAs": "Project: Save As…",
+  "cmdCloseProject": "Project: Close Project",
+  "cmdRefreshFolders": "Project: Refresh Folders",
+  "cmdUpperCase": "Convert Case: Upper Case",
+  "cmdLowerCase": "Convert Case: Lower Case",
+  "cmdTitleCase": "Convert Case: Title Case",
+  "cmdSortLines": "Sort Lines",
+  "cmdSortLinesCaseSensitive": "Sort Lines (Case Sensitive)",
+  "cmdReverseLines": "Permute Lines: Reverse",
+  "cmdUniqueLines": "Permute Lines: Unique",
+  "cmdToggleComment": "Toggle Comment",
+  "cmdToggleBlockComment": "Toggle Block Comment",
+  "cmdSplitSelection": "Selection: Split into Lines",
+  "cmdJoinLines": "Join Lines",
+  "cmdDuplicateLine": "Duplicate Line",
+  "cmdDeleteLine": "Delete Line",
+  "cmdSwapLineUp": "Swap Line Up",
+  "cmdSwapLineDown": "Swap Line Down",
+  "cmdTrimTrailingWhiteSpace": "Trim Trailing White Space",
+  "cmdFoldAll": "Code Folding: Fold All",
+  "cmdUnfoldAll": "Code Folding: Unfold All",
+  "cmdNextModification": "Goto Next Modification",
+  "cmdPreviousModification": "Goto Previous Modification",
+  "cmdRevertHunk": "Revert Diff Hunk",
+  "cmdLayout": "Layout: {name}",
+  "@cmdLayout": {
+    "description": "A layout in the command palette.",
+    "placeholders": { "name": { "type": "String", "example": "Columns: 2" } }
+  },
+  "cmdSetSyntaxTo": "Set Syntax: {name}",
+  "@cmdSetSyntaxTo": {
+    "description": "A syntax in the command palette.",
+    "placeholders": { "name": { "type": "String", "example": "Markdown" } }
+  },
+
+  "panelLabel": "Quick panel",
+  "panelCommandPalette": "Command Palette",
+  "panelSelectColorScheme": "Select Color Scheme",
+  "panelSetSyntax": "Set Syntax",
+  "panelNoMatches": "No matches",
+  "panelTypeLine": "Type a line number to go to",
+  "panelGoToLine": "Go to line {line, number, ::group-off}",
+  "@panelGoToLine": {
+    "placeholders": { "line": { "type": "int", "example": "42" } }
+  },
+  "promptNewName": "New Name:",
+  "promptFolderName": "Folder Name:",
+
+  "dialogUnableToOpen": "Unable to open {name}",
+  "@dialogUnableToOpen": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogUnableToSave": "Unable to save {name}",
+  "@dialogUnableToSave": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogUnableToRename": "Unable to rename {name}",
+  "@dialogUnableToRename": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogUnableToCreate": "Unable to create {name}",
+  "@dialogUnableToCreate": {
+    "placeholders": { "name": { "type": "String", "example": "src" } }
+  },
+  "dialogUnableToDelete": "Unable to delete {name}",
+  "@dialogUnableToDelete": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogUnableToKeepFiles": "Unable to keep the open files",
+  "dialogUnableToOpenProject": "Unable to open the project",
+  "dialogUnableToSaveProject": "Unable to save the project",
+  "dialogSaveChanges": "Save changes to {name} before closing?",
+  "@dialogSaveChanges": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogSaveWindowChanges": "{count, plural, one {Save changes to # file before closing the window?} other {Save changes to # files before closing the window?}}",
+  "@dialogSaveWindowChanges": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "dialogDelete": "Delete {name}?",
+  "@dialogDelete": {
+    "placeholders": { "name": { "type": "String", "example": "src" } }
+  },
+  "dialogDeleteFolder": "The folder and what it holds move to the Trash.",
+  "dialogUnsavedLost": "Unsaved changes are lost.",
+  "filterProject": "Sublime Project",
+
+  "sideBarFolders": "FOLDERS",
+  "tabBar": "Tab bar",
+  "tabClose": "Close {name}",
+  "@tabClose": {
+    "description": "The button closing a tab, to assistive technology.",
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "statusSelections": "{count, plural, one {# selection region} other {# selection regions}}",
+  "@statusSelections": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "statusPosition": "Line {line, number, ::group-off}, Column {column, number, ::group-off}",
+  "@statusPosition": {
+    "placeholders": {
+      "line": { "type": "int", "example": "12" },
+      "column": { "type": "int", "example": "5" }
+    }
+  },
+  "statusSyntax": "Syntax: {name}",
+  "@statusSyntax": {
+    "description": "The status bar's syntax button, to assistive technology.",
+    "placeholders": { "name": { "type": "String", "example": "Go" } }
+  },
+
+  "findRegex": "Regular expression",
+  "findCaseSensitive": "Case sensitive",
+  "findWholeWord": "Whole word",
+  "findInSelection": "In selection",
+  "find": "Find",
+  "findPrevious": "Find Prev",
+  "findAll": "Find All",
+  "replace": "Replace",
+  "replaceAll": "Replace All"
+}

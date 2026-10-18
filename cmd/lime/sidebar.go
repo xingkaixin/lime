@@ -10,6 +10,8 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+
+	"lime/locales"
 )
 
 // Sublime Text's default patterns of what folders leave out: of the side
@@ -238,17 +240,19 @@ func (a *app) saveProject(path string) error {
 	return nil
 }
 
-var projectFilter = []mygo.FileFilter{{Name: "Sublime Project", Extensions: []string{"sublime-project"}}}
+func projectFilter() []mygo.FileFilter {
+	return []mygo.FileFilter{{Name: locales.FilterProject(), Extensions: []string{"sublime-project"}}}
+}
 
 func (a *app) promptOpenProject() {
 	go func() {
-		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Filters: projectFilter})
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Filters: projectFilter()})
 		if err != nil || len(paths) == 0 {
 			return
 		}
 		a.win.Update(func() {
 			if err := a.openProject(paths[0]); err != nil {
-				go mygo.Dialog.Error("Unable to open the project", err.Error())
+				go mygo.Dialog.Error(locales.DialogUnableToOpenProject(), err.Error())
 			}
 		})
 	}()
@@ -263,13 +267,13 @@ func (a *app) promptSaveProject() {
 		name = a.proj.path
 	}
 	go func() {
-		p, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: a.win, DefaultPath: name, Filters: projectFilter})
+		p, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: a.win, DefaultPath: name, Filters: projectFilter()})
 		if err != nil || p == "" {
 			return
 		}
 		a.win.Update(func() {
 			if err := a.saveProject(p); err != nil {
-				go mygo.Dialog.Error("Unable to save the project", err.Error())
+				go mygo.Dialog.Error(locales.DialogUnableToSaveProject(), err.Error())
 			}
 		})
 	}()
@@ -286,7 +290,7 @@ func (a *app) sideBar(c *ui.Context) {
 		if band := titleBand(c); band > 0 {
 			ui.Box(c).FillWidth().Height(band).Shrink(0).DragWindow()
 		}
-		ui.Text(c, "FOLDERS").FontSize(11).TextColor(ch.muted).Padding(10, 14, 6)
+		ui.Text(c, locales.SideBarFolders()).FontSize(11).TextColor(ch.muted).Padding(10, 14, 6)
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
 				for _, f := range a.proj.folders {

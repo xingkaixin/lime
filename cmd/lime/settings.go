@@ -6,10 +6,14 @@ import (
 	"path/filepath"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/i18n"
 )
 
 // settings are what the app keeps between runs, in settings.json.
 type settings struct {
+	// Language is the tag of a language of the app's catalogs, as
+	// "zh-Hans", or followSystem.
+	Language string `json:"language"`
 	// Appearance is followSystem, lightMode or darkMode: whether the
 	// windows show LightTheme or DarkTheme.
 	Appearance   string  `json:"appearance"`
@@ -46,7 +50,7 @@ func settingsPath(dir string) string { return filepath.Join(dir, "settings.json"
 
 func loadSettings(dir string) settings {
 	s := settings{
-		Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
+		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220,
 	}
 	if dir != "" {
@@ -75,6 +79,15 @@ func (s *settings) migrate() {
 	default:
 		s.Appearance, s.LightTheme = lightMode, name
 	}
+}
+
+// locale is the language App.SetLocale shows for Language: "" follows
+// the system.
+func (s *settings) locale() string {
+	if s.Language == followSystem {
+		return ""
+	}
+	return i18n.Normalize(s.Language)
 }
 
 // showScheme makes sc the theme of its appearance, and shows that

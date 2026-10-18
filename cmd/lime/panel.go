@@ -1,21 +1,24 @@
 package main
 
 import (
-	"fmt"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+
+	"lime/locales"
 )
 
-// item is a row of the quick panel.
+// item is a row of the quick panel. A command's alias is its English
+// label, which a query matches in any language.
 type item struct {
-	label, detail, hint string
-	pick                func()
-	preview             func() // as the row is selected, a color scheme's
+	label, alias, detail, hint string
+	pick                       func()
+	preview                    func() // as the row is selected, a color scheme's
 }
 
 // panel is Sublime Text's quick panel: Goto Anything, the command
@@ -150,7 +153,11 @@ func byLabel(q string) func(it *item) (int, bool) {
 		if q == "" {
 			return 0, true
 		}
-		return fuzzy(q, it.label)
+		s, ok := fuzzy(q, it.label)
+		if as, aok := fuzzy(q, it.alias); aok && (!ok || as > s) {
+			return as, true
+		}
+		return s, ok
 	}
 }
 
@@ -175,9 +182,9 @@ func (a *app) gotoList(query string) []item {
 		if d == nil {
 			return nil
 		}
-		it := item{label: "Type a line number to go to", detail: d.name()}
+		it := item{label: locales.PanelTypeLine(), detail: d.name()}
 		if line > 0 {
-			it.label = fmt.Sprintf("Go to line %d", line)
+			it.label = locales.PanelGoToLine(line)
 			it.pick = func() { goToLine(d, line) }
 		}
 		return []item{it}
@@ -226,17 +233,19 @@ func goToLine(d *doc, line int) {
 }
 
 func (a *app) showCommandPalette() {
+	tx, en := locales.In(i18n.Locale()), locales.In("en")
 	var items []item
 	for i := range commands {
 		c := &commands[i]
-		if c.caption != "" {
-			items = append(items, item{label: c.caption, hint: c.keyText(), pick: func() { c.run(a) }})
+		if c.caption != nil {
+			items = append(items, item{label: c.caption(tx), alias: c.caption(en), hint: c.keyText(), pick: func() { c.run(a) }})
 		}
 	}
 	for _, l := range syntaxes() {
-		items = append(items, item{label: "Set Syntax: " + syntaxName(l), pick: func() { a.setSyntax(l) }})
+		name := syntaxName(l)
+		items = append(items, item{label: tx.CmdSetSyntaxTo(name), alias: en.CmdSetSyntaxTo(name), pick: func() { a.setSyntax(l) }})
 	}
-	a.openPanel(&panel{placeholder: "Command Palette", list: func(q string) []item { return ranked(items, byLabel(q)) }})
+	a.openPanel(&panel{placeholder: tx.PanelCommandPalette(), list: func(q string) []item { return ranked(items, byLabel(q)) }})
 }
 
 // showSchemes lists the color schemes, each showing as it is selected.
@@ -248,7 +257,10 @@ func (a *app) showSchemes() {
 		if sc == a.scheme {
 			start = i
 		}
-		detail := map[bool]string{true: "Dark", false: "Light"}[sc.dark]
+		detail := locales.Light()
+		if sc.dark {
+			detail = locales.Dark()
+		}
 		items = append(items, item{
 			label: sc.name, detail: detail,
 			pick:    func() { a.setScheme(sc) },
@@ -256,7 +268,7 @@ func (a *app) showSchemes() {
 		})
 	}
 	a.openPanel(&panel{
-		placeholder: "Select Color Scheme", start: start,
+		placeholder: locales.PanelSelectColorScheme(), start: start,
 		list: func(q string) []item {
 			shown := ranked(items, byLabel(q))
 			if len(shown) > 0 && q != "" {
@@ -278,7 +290,7 @@ func syntaxes() []*editor.Language { return append([]*editor.Language{nil}, edit
 
 func syntaxName(l *editor.Language) string {
 	if l == nil {
-		return "Plain Text"
+		return locales.PlainText()
 	}
 	return l.Name
 }
@@ -302,7 +314,7 @@ func (a *app) showSyntaxes() {
 		}
 		items = append(items, item{label: syntaxName(l), pick: func() { d.st.Buffer.SetLanguage(l) }})
 	}
-	a.openPanel(&panel{placeholder: "Set Syntax", start: start, list: func(q string) []item { return ranked(items, byLabel(q)) }})
+	a.openPanel(&panel{placeholder: locales.PanelSetSyntax(), start: start, list: func(q string) []item { return ranked(items, byLabel(q)) }})
 }
 
 func (a *app) panelView(c *ui.Context) {
@@ -325,14 +337,14 @@ func (a *app) panelView(c *ui.Context) {
 			if p.submit != nil {
 				ui.Text(c, p.prompt).FontSize(12).TextColor(ch.muted).Padding(0, 2)
 			}
-			ui.TextInput(c, &p.query).AutoFocus().Placeholder(p.placeholder).FillWidth().Label("Quick panel").
+			ui.TextInput(c, &p.query).AutoFocus().Placeholder(p.placeholder).FillWidth().Label(locales.PanelLabel()).
 				OnSubmit(a.pickPanel)
 			if p.submit != nil {
 				return
 			}
 			p.refresh()
 			if len(p.shown) == 0 {
-				ui.Text(c, "No matches").FontSize(12).TextColor(ch.muted).Padding(6, 10)
+				ui.Text(c, locales.PanelNoMatches()).FontSize(12).TextColor(ch.muted).Padding(6, 10)
 				return
 			}
 			ui.Scroll(c).FillWidth().MaxHeight(440).Children(func() {

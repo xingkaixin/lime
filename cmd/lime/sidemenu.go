@@ -10,61 +10,63 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+
+	"lime/locales"
 )
 
 // The side bar's context menus, as Sublime Text's: of a file, of a folder,
 // and of the side bar around them.
 
 func (a *app) fileMenu(c *ui.Context, m *ui.Menu, path string) {
-	if m.Item("Rename…").Chosen() {
+	if m.Item(locales.MenuRename()).Chosen() {
 		a.promptRename(path)
 	}
-	if m.Item("Delete File").Chosen() {
+	if m.Item(locales.MenuDeleteFile()).Chosen() {
 		a.trash(path, false)
 	}
-	if m.Item("Reveal in Finder").Chosen() {
+	if m.Item(locales.MenuRevealInFinder()).Chosen() {
 		mygo.Shell.ShowItemInFolder(path)
 	}
-	if m.Item("Copy Path").Chosen() {
+	if m.Item(locales.MenuCopyPath()).Chosen() {
 		c.Services().WriteClipboard(path)
 	}
 }
 
 func (a *app) folderMenu(c *ui.Context, m *ui.Menu, dir string, root bool) {
-	if m.Item("New File").Chosen() {
+	if m.Item(locales.MenuNewFile()).Chosen() {
 		a.add("", "").dir = dir
 	}
-	if m.Item("Rename…").Chosen() {
+	if m.Item(locales.MenuRename()).Chosen() {
 		a.promptRename(dir)
 	}
-	if m.Item("Open Folder…").Chosen() {
+	if m.Item(locales.MenuOpenFolder()).Chosen() {
 		mygo.Shell.OpenPath(dir)
 	}
-	if m.Item("Copy Path").Chosen() {
+	if m.Item(locales.MenuCopyPath()).Chosen() {
 		c.Services().WriteClipboard(dir)
 	}
 	m.Separator()
-	if m.Item("New Folder…").Chosen() {
+	if m.Item(locales.MenuNewFolder()).Chosen() {
 		a.promptNewFolder(dir)
 	}
-	if m.Item("Delete Folder").Chosen() {
+	if m.Item(locales.MenuDeleteFolder()).Chosen() {
 		a.trash(dir, true)
 	}
 	if !root {
 		return
 	}
 	m.Separator()
-	if m.Item("Remove Folder from Project").Chosen() {
+	if m.Item(locales.MenuRemoveFolder()).Chosen() {
 		a.proj.folders = slices.DeleteFunc(a.proj.folders, func(f string) bool { return f == dir })
 		a.indexFolders()
 	}
 }
 
 func (a *app) projectMenu(m *ui.Menu) {
-	if m.Item("Add Folder to Project…").Chosen() {
+	if m.Item(locales.MenuAddFolderToProject()).Chosen() {
 		a.promptAddFolder()
 	}
-	if m.Item("Refresh Folders").Chosen() {
+	if m.Item(locales.MenuRefreshFolders()).Chosen() {
 		a.refreshFolders()
 	}
 }
@@ -83,13 +85,13 @@ func moved(p, from, to string) string {
 }
 
 func (a *app) promptRename(path string) {
-	a.openPanel(&panel{prompt: "New Name:", query: filepath.Base(path), submit: func(name string) {
+	a.openPanel(&panel{prompt: locales.PromptNewName(), query: filepath.Base(path), submit: func(name string) {
 		if name == "" || name == filepath.Base(path) {
 			return
 		}
 		to := filepath.Join(filepath.Dir(path), name)
 		if err := renameNew(path, to); err != nil {
-			go mygo.Dialog.Error("Unable to rename "+filepath.Base(path), err.Error())
+			go mygo.Dialog.Error(locales.DialogUnableToRename(filepath.Base(path)), err.Error())
 			return
 		}
 		a.renamed(path, to)
@@ -131,12 +133,12 @@ func (a *app) renamed(from, to string) {
 }
 
 func (a *app) promptNewFolder(dir string) {
-	a.openPanel(&panel{prompt: "Folder Name:", submit: func(name string) {
+	a.openPanel(&panel{prompt: locales.PromptFolderName(), submit: func(name string) {
 		if name == "" {
 			return
 		}
 		if err := os.MkdirAll(filepath.Join(dir, name), 0o755); err != nil {
-			go mygo.Dialog.Error("Unable to create "+name, err.Error())
+			go mygo.Dialog.Error(locales.DialogUnableToCreate(name), err.Error())
 			return
 		}
 		*a.proj.isOpen(dir, true) = true
@@ -155,7 +157,7 @@ func (a *app) trash(path string, folder bool) {
 	}
 	del := func() {
 		if err := mygo.Shell.TrashItem(path); err != nil {
-			go mygo.Dialog.Error("Unable to delete "+filepath.Base(path), err.Error())
+			go mygo.Dialog.Error(locales.DialogUnableToDelete(filepath.Base(path)), err.Error())
 			return
 		}
 		for _, d := range docs {
@@ -167,10 +169,10 @@ func (a *app) trash(path string, folder bool) {
 	}
 	var detail []string
 	if folder {
-		detail = append(detail, "The folder and what it holds move to the Trash.")
+		detail = append(detail, locales.DialogDeleteFolder())
 	}
 	if slices.ContainsFunc(docs, (*doc).dirty) {
-		detail = append(detail, "Unsaved changes are lost.")
+		detail = append(detail, locales.DialogUnsavedLost())
 	}
 	if detail == nil {
 		del()
@@ -180,9 +182,9 @@ func (a *app) trash(path string, folder bool) {
 		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
 			Parent:  a.win,
 			Type:    mygo.MessageWarning,
-			Message: "Delete " + filepath.Base(path) + "?",
+			Message: locales.DialogDelete(filepath.Base(path)),
 			Detail:  strings.Join(detail, " "),
-			Buttons: []string{"Delete", "Cancel"},
+			Buttons: []string{locales.ButtonDelete(), locales.ButtonCancel()},
 		})
 		if res.Button == 0 {
 			a.win.Update(del)

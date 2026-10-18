@@ -13,7 +13,10 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
+
+	"lime/locales"
 )
 
 // menuItem runs the command named id in the focused window, showing its
@@ -46,7 +49,7 @@ func menuAccelerator(id string) string {
 func (l *lime) newMenu() *mygo.Menu {
 	var layoutItems, schemeItems []*mygo.MenuItem
 	for _, lo := range layouts {
-		layoutItems = append(layoutItems, l.check(lo.name, lo.id(), mygo.MenuItemRadio))
+		layoutItems = append(layoutItems, l.check(lo.label(locales.In(i18n.Locale())), lo.id(), mygo.MenuItemRadio))
 	}
 	for _, sc := range schemes {
 		it := l.check(sc.name, "scheme "+sc.name, mygo.MenuItemRadio)
@@ -59,68 +62,68 @@ func (l *lime) newMenu() *mygo.Menu {
 	}
 	return mygo.NewMenu([]*mygo.MenuItem{
 		{Role: mygo.RoleAppMenu},
-		{Label: "File", Submenu: []*mygo.MenuItem{
-			l.menuItem("New File", "new_file"),
-			l.menuItem("New Window", "new_window"),
-			l.menuItem("Open…", "prompt_open"),
-			l.menuItem("Open Folder…", "prompt_open_folder"),
-			l.menuItem("Reopen Closed File", "reopen_last_file"),
+		{Label: locales.MenuFile(), Submenu: []*mygo.MenuItem{
+			l.menuItem(locales.MenuNewFile(), "new_file"),
+			l.menuItem(locales.MenuNewWindow(), "new_window"),
+			l.menuItem(locales.MenuOpen(), "prompt_open"),
+			l.menuItem(locales.MenuOpenFolder(), "prompt_open_folder"),
+			l.menuItem(locales.MenuReopenClosedFile(), "reopen_last_file"),
 			mygo.Separator(),
-			l.menuItem("Save", "save"),
-			l.menuItem("Save As…", "prompt_save_as"),
-			l.menuItem("Save All", "save_all"),
+			l.menuItem(locales.MenuSave(), "save"),
+			l.menuItem(locales.MenuSaveAs(), "prompt_save_as"),
+			l.menuItem(locales.MenuSaveAll(), "save_all"),
 			mygo.Separator(),
-			l.menuItem("Close File", "close"),
-			l.menuItem("Close Window", "close_window"),
+			l.menuItem(locales.MenuCloseFile(), "close"),
+			l.menuItem(locales.MenuCloseWindow(), "close_window"),
 		}},
 		{Role: mygo.RoleEditMenu},
-		{Label: "Find", Submenu: []*mygo.MenuItem{
-			l.menuItem("Find…", "show_panel find"),
-			l.menuItem("Find Next", "find_next"),
-			l.menuItem("Find Previous", "find_prev"),
+		{Label: locales.MenuFind(), Submenu: []*mygo.MenuItem{
+			l.menuItem(locales.MenuFindEllipsis(), "show_panel find"),
+			l.menuItem(locales.MenuFindNext(), "find_next"),
+			l.menuItem(locales.MenuFindPrevious(), "find_prev"),
 			mygo.Separator(),
-			l.menuItem("Replace…", "show_panel replace"),
+			l.menuItem(locales.MenuReplace(), "show_panel replace"),
 			mygo.Separator(),
-			l.menuItem("Quick Find All", "find_all_under"),
-			l.menuItem("Quick Add Next", "find_under_expand"),
-			l.menuItem("Quick Skip Next", "find_under_expand_skip"),
+			l.menuItem(locales.MenuQuickFindAll(), "find_all_under"),
+			l.menuItem(locales.MenuQuickAddNext(), "find_under_expand"),
+			l.menuItem(locales.MenuQuickSkipNext(), "find_under_expand_skip"),
 			mygo.Separator(),
-			l.menuItem("Use Selection for Find", "slurp_find_string"),
+			l.menuItem(locales.MenuUseSelectionForFind(), "slurp_find_string"),
 		}},
-		{Label: "View", Submenu: []*mygo.MenuItem{
-			l.check("Side Bar", "toggle_side_bar", mygo.MenuItemCheckbox),
+		{Label: locales.MenuView(), Submenu: []*mygo.MenuItem{
+			l.check(locales.MenuSideBar(), "toggle_side_bar", mygo.MenuItemCheckbox),
 			mygo.Separator(),
-			{Label: "Layout", Submenu: layoutItems},
-			{Label: "Groups", Submenu: []*mygo.MenuItem{
-				l.menuItem("New Group", "new_pane"),
-				l.menuItem("Close Group", "close_pane"),
+			{Label: locales.MenuLayout(), Submenu: layoutItems},
+			{Label: locales.MenuGroups(), Submenu: []*mygo.MenuItem{
+				l.menuItem(locales.MenuNewGroup(), "new_pane"),
+				l.menuItem(locales.MenuCloseGroup(), "close_pane"),
 			}},
-			{Label: "Color Scheme", Submenu: schemeItems},
-			l.menuItem("Syntax…", "select_syntax"),
+			{Label: locales.MenuColorScheme(), Submenu: schemeItems},
+			l.menuItem(locales.MenuSyntax(), "select_syntax"),
 			mygo.Separator(),
-			l.check("Word Wrap", "toggle_word_wrap", mygo.MenuItemCheckbox),
+			l.check(locales.MenuWordWrap(), "toggle_word_wrap", mygo.MenuItemCheckbox),
 			mygo.Separator(),
-			l.menuItem("Larger Font", "increase_font_size"),
-			l.menuItem("Smaller Font", "decrease_font_size"),
-			l.menuItem("Reset Font Size", "reset_font_size"),
+			l.menuItem(locales.MenuLargerFont(), "increase_font_size"),
+			l.menuItem(locales.MenuSmallerFont(), "decrease_font_size"),
+			l.menuItem(locales.MenuResetFontSize(), "reset_font_size"),
 			mygo.Separator(),
 			{Role: mygo.RoleToggleFullScreen},
 		}},
-		{Label: "Goto", Submenu: []*mygo.MenuItem{
-			l.menuItem("Goto Anything…", "show_goto"),
-			l.menuItem("Goto Line…", "goto_line"),
-			l.menuItem("Command Palette…", "show_command_palette"),
+		{Label: locales.MenuGoto(), Submenu: []*mygo.MenuItem{
+			l.menuItem(locales.MenuGotoAnything(), "show_goto"),
+			l.menuItem(locales.MenuGotoLine(), "goto_line"),
+			l.menuItem(locales.MenuCommandPalette(), "show_command_palette"),
 			mygo.Separator(),
-			l.menuItem("Next Modification", "next_modification"),
-			l.menuItem("Previous Modification", "prev_modification"),
+			l.menuItem(locales.MenuNextModification(), "next_modification"),
+			l.menuItem(locales.MenuPreviousModification(), "prev_modification"),
 		}},
-		{Label: "Project", Submenu: []*mygo.MenuItem{
-			l.menuItem("Open Project…", "prompt_open_project"),
-			l.menuItem("Save Project As…", "save_project_as"),
-			l.menuItem("Close Project", "close_project"),
+		{Label: locales.MenuProject(), Submenu: []*mygo.MenuItem{
+			l.menuItem(locales.MenuOpenProject(), "prompt_open_project"),
+			l.menuItem(locales.MenuSaveProjectAs(), "save_project_as"),
+			l.menuItem(locales.MenuCloseProject(), "close_project"),
 			mygo.Separator(),
-			l.menuItem("Add Folder to Project…", "prompt_add_folder"),
-			l.menuItem("Refresh Folders", "refresh_folders"),
+			l.menuItem(locales.MenuAddFolderToProject(), "prompt_add_folder"),
+			l.menuItem(locales.MenuRefreshFolders(), "refresh_folders"),
 		}},
 		{Role: mygo.RoleWindowMenu},
 	})
@@ -179,6 +182,7 @@ func main() {
 	}
 	l.themeSource = themeSource(l.set.Appearance)
 	mygo.Theme.SetSource(l.themeSource)
+	mygo.App.SetLocale(l.set.locale())
 	var paths []string
 	for _, arg := range os.Args[1:] {
 		if !strings.HasPrefix(arg, "-") {
@@ -194,6 +198,15 @@ func main() {
 	mygo.App.WhenReady(func() {
 		l.menu = l.newMenu()
 		mygo.App.SetMenu(l.menu)
+		// The menu's labels are said once, in the language shown as it is
+		// made.
+		mygo.App.OnLocaleChanged(func(string) {
+			l.menu, l.menuState = l.newMenu(), ""
+			mygo.App.SetMenu(l.menu)
+			if l.last != nil {
+				l.last.syncMenu()
+			}
+		})
 		for _, a := range l.wins {
 			a.makeWindow(a.bounds)
 		}

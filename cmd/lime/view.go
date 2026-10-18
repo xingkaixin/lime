@@ -7,6 +7,8 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+
+	"lime/locales"
 )
 
 func (a *app) view(c *ui.Context) {
@@ -207,7 +209,7 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 			// Along the window's top, the room past the tabs is the title bar,
 			// which drags the window. Elsewhere a double click there opens a
 			// new tab, as in Sublime Text.
-			rest := ui.Box(c).Grow(1).Label("Tab bar")
+			rest := ui.Box(c).Grow(1).Label(locales.TabBar())
 			if band > 0 {
 				rest.DragWindow()
 			} else if rest.DoubleClicked() {
@@ -221,7 +223,7 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 func (a *app) newTabButton(c *ui.Context, gi int) {
 	ch := a.shell(c)
 	btn := ui.Box(c).Width(24).Height(24).Shrink(0).AlignSelf(ui.Center).MarginStart(4).Radius(4).Center().
-		Transition(ui.ElementTransition{Position: true, Colors: true}).Label("New File").Tooltip("New File").OnClick(func() {
+		Transition(ui.ElementTransition{Position: true, Colors: true}).Label(locales.MenuNewFile()).Tooltip(locales.MenuNewFile()).OnClick(func() {
 		a.focusGroup(gi)
 		a.newFile()
 	})
@@ -276,7 +278,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 		if d.dirty() && !hovered {
 			glyph = "●"
 		}
-		btn := ui.Box(c).Width(18).Height(18).Radius(4).Center().Transition(colorFade).Label("Close " + d.name()).OnClick(func() { a.closeDoc(d) })
+		btn := ui.Box(c).Width(18).Height(18).Radius(4).Center().Transition(colorFade).Label(locales.TabClose(d.name())).OnClick(func() { a.closeDoc(d) })
 		if btn.Hovered() {
 			btn.Background(ch.muted.Alpha(0.2))
 		}
@@ -293,12 +295,12 @@ func (a *app) statusBar(c *ui.Context) {
 	if d != nil {
 		st := d.st
 		if n := len(st.Selections()); n > 1 {
-			left = fmt.Sprintf("%d selection regions", n)
+			left = locales.StatusSelections(n)
 		} else {
 			pos := st.CursorPos()
 			line := st.Buffer.Line(pos.Line)
 			col := utf8.RuneCountInString(line[:min(pos.Col, len(line))]) + 1
-			left = fmt.Sprintf("Line %d, Column %d", pos.Line+1, col)
+			left = locales.StatusPosition(pos.Line+1, col)
 		}
 	}
 	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6, 0, 12).Gap(16).AlignItems(ui.Center).Background(ch.bg).Children(func() {
@@ -315,7 +317,7 @@ func (a *app) statusBar(c *ui.Context) {
 func (a *app) syntaxButton(c *ui.Context, d *doc) {
 	ch := a.shell(c)
 	lang := d.st.Buffer.Language()
-	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Transition(colorFade).Label("Syntax: " + syntaxName(lang))
+	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Transition(colorFade).Label(locales.StatusSyntax(syntaxName(lang)))
 	if btn.Hovered() {
 		btn.Background(ch.hover)
 	}
