@@ -275,7 +275,7 @@ func (a *app) promptSaveProject() {
 func (a *app) sideBar(c *ui.Context) {
 	ch := a.scheme.chrome()
 	cur := a.current()
-	ui.Column(c).Fill().Background(ch.bg).Children(func() {
+	ui.Column(c).Fill().Background(ch.bg).ContextMenu(a.projectMenu).Children(func() {
 		ui.Text(c, "FOLDERS").FontSize(11).TextColor(ch.muted).Padding(10, 14, 6)
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
@@ -299,7 +299,8 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 	if *open {
 		ic, tint = icon("_folder_open"), a.scheme.accent
 	}
-	a.treeRow(c, dir, depth, ic, tint, false).Expanded(*open).OnClick(func() { *open = !*open })
+	a.treeRow(c, dir, depth, ic, tint, false).Expanded(*open).OnClick(func() { *open = !*open }).
+		ContextMenu(func(m *ui.Menu) { a.folderMenu(c, m, dir, depth == 0) })
 	if !*open {
 		return
 	}
@@ -310,7 +311,8 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 			continue
 		}
 		a.treeRow(c, p, depth+1, fileIcon(e.Name()), a.scheme.chrome().muted, cur != nil && cur.path == p).
-			OnClick(func() { a.open([]string{p}) })
+			OnClick(func() { a.open([]string{p}) }).
+			ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
 	}
 }
 
