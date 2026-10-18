@@ -45,6 +45,9 @@ type project struct {
 	dirs    map[string][]os.DirEntry // folders read, for the side bar
 	files   []string                 // the folders' files, for Goto Anything
 	gen     int                      // counts the indexings, for the last to win
+	// jump has the side bar show the next frame without motion: another
+	// project or a rename replaced the rows' paths, not their places.
+	jump bool
 }
 
 // projectFile is a .sublime-project file, of which Lime reads the folders.
@@ -198,7 +201,7 @@ func (a *app) openProject(path string) error {
 		return err
 	}
 	a.closeProject()
-	a.proj.path = path
+	a.proj.path, a.proj.jump = path, true
 	for _, f := range pf.Folders {
 		p := filepath.FromSlash(f.Path)
 		if !filepath.IsAbs(p) {
@@ -273,6 +276,10 @@ func (a *app) promptSaveProject() {
 }
 
 func (a *app) sideBar(c *ui.Context) {
+	if a.proj.jump {
+		c.DisableAnimations()
+		a.proj.jump = false
+	}
 	ch := a.shell(c)
 	cur := a.current()
 	ui.Column(c).Fill().Background(ch.bg).ContextMenu(a.projectMenu).Children(func() {
