@@ -295,9 +295,9 @@ func (a *app) sideBar(c *ui.Context) {
 const treeIcon, treeGap = 16, 6
 
 // treeMotion slides the rows of the side bar as folders above them open
-// and close. What a folder holds grows in and collapses as one block,
-// which the rows below follow.
-var treeMotion = ui.ElementTransition{Position: true, Enter: &ui.Motion{Collapse: true}, Exit: &ui.Motion{Collapse: true}}
+// and close, and fades their hover. What a folder holds grows in and
+// collapses as one block, which the rows below follow.
+var treeMotion = ui.ElementTransition{Position: true, Colors: true, Enter: &ui.Motion{Collapse: true}, Exit: &ui.Motion{Collapse: true}}
 
 // treeDir shows dir, and what it holds while open. A click anywhere on its
 // row opens or closes it.
@@ -330,9 +330,12 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui.Color, selected bool) ui.Element {
 	t := c.Theme()
 	name := filepath.Base(path)
+	motion := treeMotion
+	// The selection shows at once, as its text turns AccentText at once.
+	motion.Colors = !selected
 	row := ui.Row(c.Key(path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Radius(t.Radius).
-		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected).Transition(treeMotion)
+		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected).Transition(motion)
 	if selected {
 		tint = t.AccentText
 	} else if row.Hovered() {
