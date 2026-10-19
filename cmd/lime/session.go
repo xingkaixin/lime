@@ -214,6 +214,11 @@ func (a *app) restore(s sessionWindow) {
 func restoreDoc(sd sessionDoc) *doc {
 	var disk string
 	if sd.Path != "" {
+		if k := fileKind(sd.Path); k != textDoc && sd.Text == nil {
+			d := newDoc(sd.Path, "")
+			d.kind = k
+			return d
+		}
 		text, err := readText(sd.Path)
 		if err != nil && sd.Text == nil {
 			return nil

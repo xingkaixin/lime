@@ -166,6 +166,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		d.st.SoftWrap = a.set.WordWrap
 		d.st.Font.Family, d.st.Font.Size = a.set.ContentFont, a.set.FontSize
 		d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
+		if d.kind != textDoc {
+			a.preview(c, gi, d)
+			return
+		}
 		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
 		a.input(e, d)
 	})
@@ -295,7 +299,10 @@ func (a *app) statusBar(c *ui.Context) {
 	ch := a.shell(c)
 	d := a.current()
 	var left string
-	if d != nil {
+	if d != nil && d.img != nil {
+		w, h := d.img.Size()
+		left = fmt.Sprintf("%d × %d", w, h)
+	} else if d != nil && d.kind == textDoc {
 		st := d.st
 		if n := len(st.Selections()); n > 1 {
 			left = locales.StatusSelections(n)
@@ -310,7 +317,7 @@ func (a *app) statusBar(c *ui.Context) {
 		a.sideBarButton(c)
 		ui.Text(c, left).FontSize(12).TextColor(ch.muted)
 		ui.Box(c).Grow(1)
-		if d != nil {
+		if d != nil && d.kind == textDoc {
 			a.syntaxButton(c, d)
 		}
 	})

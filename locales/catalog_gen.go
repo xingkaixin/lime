@@ -1504,6 +1504,16 @@ func (msgs Messages) SideBarDropFolder() string {
 	return Catalog.Format(msgs.locale, "sideBarDropFolder", nil)
 }
 
+// PreviewBinary says "This file is binary and can't be shown."
+// in the language the app shows.
+func PreviewBinary() string { return In(i18n.Locale()).PreviewBinary() }
+
+// PreviewBinary says "This file is binary and can't be shown."
+// in the language of msgs.
+func (msgs Messages) PreviewBinary() string {
+	return Catalog.Format(msgs.locale, "previewBinary", nil)
+}
+
 // TabBar says "Tab bar"
 // in the language the app shows.
 func TabBar() string { return In(i18n.Locale()).TabBar() }

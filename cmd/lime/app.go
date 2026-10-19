@@ -30,6 +30,10 @@ type doc struct {
 	// text with saved once a version.
 	checked  uint64
 	modified bool
+
+	kind    docKind
+	img     *ui.Bitmap // an imageDoc's image, once decoded
+	loading bool       // the image is decoding
 }
 
 func (d *doc) name() string {
@@ -381,6 +385,10 @@ func (a *app) open(paths []string) {
 		}
 		if d := a.docAt(p); d != nil {
 			a.show(d)
+			continue
+		}
+		if k := fileKind(p); k != textDoc {
+			a.add(p, "").kind = k
 			continue
 		}
 		text, err := readText(p)
