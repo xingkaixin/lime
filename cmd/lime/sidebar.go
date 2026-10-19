@@ -291,6 +291,10 @@ func (a *app) sideBar(c *ui.Context) {
 			ui.Box(c).FillWidth().Height(band).Shrink(0).DragWindow()
 		}
 		ui.Text(c, locales.SideBarFolders()).FontSize(11).TextColor(ch.muted).Padding(10, 14, 6)
+		if len(a.proj.folders) == 0 {
+			a.sideBarEmpty(c)
+			return
+		}
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
 				for _, f := range a.proj.folders {
@@ -298,6 +302,49 @@ func (a *app) sideBar(c *ui.Context) {
 				}
 			})
 		})
+	})
+}
+
+// sideBarEmpty asks for a folder, opened from its button or dropped on it.
+func (a *app) sideBarEmpty(c *ui.Context) {
+	ch := a.shell(c)
+	area := ui.Column(c).Grow(1).FillWidth().Margin(0, 8, 8).Padding(16).Gap(12).Center().Radius(c.Theme().Radius).
+		Transition(colorFade)
+	if files := area.DroppedFiles(); files != nil {
+		a.open(files)
+	}
+	if area.FileDragOver() {
+		area.Border(1, a.scheme.accent).Background(a.scheme.accent.Alpha(0.08))
+	}
+	area.Children(func() {
+		ui.Text(c, locales.SideBarDropFolder()).FontSize(12).TextColor(ch.muted).TextAlign(ui.Center)
+		a.button(c, locales.MenuOpenFolder(), a.promptAddFolder)
+	})
+}
+
+// sideBarIcon is the status bar's button for the side bar, drawn as the
+// file icons are.
+var sideBarIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+	<g fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round">
+		<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
+		<path d="M6 2.5v11" />
+	</g>
+</svg>`))
+
+// sideBarButton shows and hides the side bar, as Zed's status bar does.
+func (a *app) sideBarButton(c *ui.Context) {
+	ch := a.shell(c)
+	btn := ui.ButtonBase(c).Width(22).Height(20).Radius(4).Center().Transition(colorFade).
+		Label(locales.StatusSideBar()).Tooltip(locales.StatusSideBar()).OnClick(func() { a.run("toggle_side_bar") })
+	if btn.Hovered() {
+		btn.Background(ch.hover)
+	}
+	tint := ch.muted
+	if a.set.SideBar {
+		tint = ch.text
+	}
+	btn.Children(func() {
+		ui.Icon(c, sideBarIcon).Size(treeIcon, treeIcon).TextColor(tint)
 	})
 }
 

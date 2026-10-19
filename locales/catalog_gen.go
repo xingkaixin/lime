@@ -1494,6 +1494,16 @@ func (msgs Messages) SideBarFolders() string {
 	return Catalog.Format(msgs.locale, "sideBarFolders", nil)
 }
 
+// SideBarDropFolder says "Drop a folder here to open it"
+// in the language the app shows.
+func SideBarDropFolder() string { return In(i18n.Locale()).SideBarDropFolder() }
+
+// SideBarDropFolder says "Drop a folder here to open it"
+// in the language of msgs.
+func (msgs Messages) SideBarDropFolder() string {
+	return Catalog.Format(msgs.locale, "sideBarDropFolder", nil)
+}
+
 // TabBar says "Tab bar"
 // in the language the app shows.
 func TabBar() string { return In(i18n.Locale()).TabBar() }
@@ -1516,6 +1526,16 @@ func TabClose(name string) string { return In(i18n.Locale()).TabClose(name) }
 // The button closing a tab, to assistive technology.
 func (msgs Messages) TabClose(name string) string {
 	return Catalog.Format(msgs.locale, "tabClose", map[string]any{"name": name})
+}
+
+// StatusSideBar says "Show or Hide Side Bar"
+// in the language the app shows.
+func StatusSideBar() string { return In(i18n.Locale()).StatusSideBar() }
+
+// StatusSideBar says "Show or Hide Side Bar"
+// in the language of msgs.
+func (msgs Messages) StatusSideBar() string {
+	return Catalog.Format(msgs.locale, "statusSideBar", nil)
 }
 
 // StatusSelections says "{count, plural, one {# selection region} other {# selection regions}}"
