@@ -14,7 +14,7 @@ type command struct {
 	id      string
 	caption func(locales.Messages) string // nil keeps it out of the command palette
 	run     func(a *app)
-	ed      editor.Command // the editor's command it runs, for its key
+	ed      editor.Command // the editor's command it runs, whose keys the editor takes
 }
 
 func foldLevel(n int) string   { return "fold_by_level " + strconv.Itoa(n) }
@@ -53,6 +53,7 @@ func init() {
 	for i := range commands {
 		commandByID[commands[i].id] = &commands[i]
 	}
+	initKeys()
 }
 
 func makeCommands() []command {
@@ -127,6 +128,21 @@ func makeCommands() []command {
 		edit("next_modification", locales.Messages.CmdNextModification, editor.NextHunk),
 		edit("prev_modification", locales.Messages.CmdPreviousModification, editor.PreviousHunk),
 		edit("revert_hunk", locales.Messages.CmdRevertHunk, editor.RevertHunk),
+		edit("soft_undo", nil, editor.UndoSelection),
+		edit("soft_redo", nil, editor.RedoSelection),
+		edit("indent", nil, editor.Indent),
+		edit("unindent", nil, editor.Outdent),
+		edit("insert_line_after", nil, editor.NewlineBelow),
+		edit("insert_line_before", nil, editor.NewlineAbove),
+		edit("transpose", nil, editor.Transpose),
+		edit("select_line", nil, editor.SelectLine),
+		edit("expand_selection", nil, editor.SelectLarger),
+		edit("add_cursor_above", nil, editor.AddCursorAbove),
+		edit("add_cursor_below", nil, editor.AddCursorBelow),
+		edit("move_to_bracket", nil, editor.MoveToBracket),
+		edit("fold", nil, editor.Fold),
+		edit("unfold", nil, editor.Unfold),
+		edit("goto_definition", nil, editor.GoToDefinition),
 		edit("delete_to_eol", nil, editor.DeleteToLineEnd),
 		edit("delete_to_bol", nil, editor.DeleteToLineStart),
 		edit("show_at_center", nil, editor.ScrollCursorCenter),
@@ -163,27 +179,4 @@ func (a *app) run(id string) {
 	if c := commandByID[id]; c != nil {
 		c.run(a)
 	}
-}
-
-// key returns the first key of the command: the window's, else the
-// editor's.
-func (c *command) key() (appKey, bool) {
-	if k, ok := keyFor(c.id); ok {
-		return k, true
-	}
-	if c.ed != editor.NoCommand {
-		for _, b := range editorKeys {
-			if b.Command == c.ed {
-				return appKey{mods: b.Mods, key: b.Key}, true
-			}
-		}
-	}
-	return appKey{}, false
-}
-
-func (c *command) keyText() string {
-	if k, ok := c.key(); ok {
-		return k.String()
-	}
-	return ""
 }

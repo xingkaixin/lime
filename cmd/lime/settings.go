@@ -25,6 +25,9 @@ type settings struct {
 	WordWrap     bool    `json:"word_wrap"`
 	SideBar      bool    `json:"side_bar"`
 	SideBarWidth float32 `json:"side_bar_width"`
+	// Keys are the commands' keys the user changed, the one changed last
+	// last.
+	Keys []keyChange `json:"keys,omitempty"`
 
 	// ColorScheme is the one scheme older settings named, which
 	// loadSettings reads into Appearance and the themes.
@@ -134,8 +137,10 @@ func (l *lime) setLanguage(tag string) {
 // which the settings kept later would write over.
 func (l *lime) reloadSettings() {
 	l.set = loadSettings(l.dir)
+	l.keys = newKeymap(l.set.Keys)
 	mygo.App.SetLocale(l.set.locale())
 	l.redraw()
+	l.refreshMenu()
 }
 
 // redraw builds the windows anew, for a change they share.

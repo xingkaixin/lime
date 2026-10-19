@@ -162,7 +162,7 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		if d == nil {
 			d = g.placeholder()
 		}
-		d.st.Theme = s.editorTheme()
+		d.st.Theme, d.st.Bindings = s.editorTheme(), a.l.keys.editor
 		d.st.SoftWrap = a.set.WordWrap
 		d.st.Font.Family, d.st.Font.Size = a.set.ContentFont, a.set.FontSize
 		d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
@@ -350,8 +350,9 @@ func (a *app) syntaxButton(c *ui.Context, d *doc) {
 // shortcuts binds the window's keys: tabs, groups, panels, and the
 // chords after Cmd+K, which go before the editor's.
 func (a *app) shortcuts(c *ui.Context) {
+	keys := a.l.keys.window
 	if a.chord {
-		for _, k := range appKeys {
+		for _, k := range keys {
 			if k.chord {
 				c.OnShortcut(k.mods, k.key, func() {
 					a.chord = false
@@ -362,7 +363,7 @@ func (a *app) shortcuts(c *ui.Context) {
 		return
 	}
 	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.chord = true })
-	for _, k := range appKeys {
+	for _, k := range keys {
 		if !k.chord {
 			c.OnShortcut(k.mods, k.key, func() { a.run(k.id) })
 		}
