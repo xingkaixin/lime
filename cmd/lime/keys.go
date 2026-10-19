@@ -164,8 +164,8 @@ func sublimeOnly(keys []editor.Binding) []editor.Binding {
 	return keys
 }
 
-// appKey runs the command named id for a key of the window's: mods+key,
-// or the chord Cmd+K then+key when chord is set.
+// appKey is a key of the command named id: mods+key, or the chord Cmd+K
+// then mods+key when chord is set.
 type appKey struct {
 	mods  ui.Modifiers
 	key   ui.Key
@@ -173,6 +173,7 @@ type appKey struct {
 	id    string
 }
 
+// appKeys are the window's keys as Sublime Text has them.
 var appKeys = func() []appKey {
 	cmd, alt, ctrl, sh := ui.Cmd, ui.Alt, ui.Ctrl, ui.Shift
 	k := func(mods ui.Modifiers, key ui.Key, id string) appKey { return appKey{mods, key, false, id} }
@@ -234,16 +235,6 @@ var appKeys = func() []appKey {
 	}
 	return keys
 }()
-
-// keyFor returns the first key of the command named id.
-func keyFor(id string) (appKey, bool) {
-	for _, k := range appKeys {
-		if k.id == id {
-			return k, true
-		}
-	}
-	return appKey{}, false
-}
 
 // keyNames names keys for menus' accelerators and, on macOS, for showing.
 var keyNames = map[ui.Key][2]string{

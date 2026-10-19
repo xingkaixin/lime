@@ -171,6 +171,9 @@ type lime struct {
 	wins []*app
 	last *app // the window last focused, which the menu goes to
 	menu *mygo.Menu
+	keys *keymap
+
+	menuPaused bool // while a key is recorded
 
 	themeSource mygo.ThemeSource
 	menuState   string
@@ -209,7 +212,11 @@ type app struct {
 	prefs   prefs
 }
 
-func newLime(dir string) *lime { return &lime{dir: dir, set: loadSettings(dir)} }
+func newLime(dir string) *lime {
+	l := &lime{dir: dir, set: loadSettings(dir)}
+	l.keys = newKeymap(l.set.Keys)
+	return l
+}
 
 // newApp makes the app with one window, without opening it.
 func newApp(dir string) *app { return newLime(dir).newWindow() }

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -247,7 +248,7 @@ func TestPanels(t *testing.T) {
 		t.Fatalf("moving in the color schemes shows %s, want %s", a.scheme.name, next.name)
 	}
 	tt.Key(0, ui.KeyEscape)
-	if *a.set != before || a.scheme != shown || a.panel != nil {
+	if !reflect.DeepEqual(*a.set, before) || a.scheme != shown || a.panel != nil {
 		t.Fatalf("Escape keeps %s", a.scheme.name)
 	}
 

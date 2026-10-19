@@ -18,12 +18,17 @@ type prefs struct {
 	page    string
 	offset  ui.Point // where its title band dragged it, from the window's center
 	preview *editor.State
+
+	query     string // searches the commands of the shortcuts
+	conflicts bool   // lists the keys of two commands or more alone
+	rec       recording
 }
 
 const (
 	pageGeneral    = "general"
 	pageAppearance = "appearance"
 	pageFonts      = "fonts"
+	pageShortcuts  = "shortcuts"
 )
 
 const (
@@ -91,6 +96,9 @@ func (l *lime) fontNames(monoFirst bool) []string {
 
 func (a *app) settingsView(c *ui.Context) {
 	p := &a.prefs
+	if p.rec.id != "" && (!p.open || p.page != pageShortcuts) {
+		a.stopRecording()
+	}
 	if !p.open {
 		return
 	}
@@ -115,6 +123,7 @@ func (a *app) settingsView(c *ui.Context) {
 				ui.SidebarItem(c, pageGeneral, generalIcon, locales.SettingsGeneral())
 				ui.SidebarItem(c, pageAppearance, appearanceIcon, locales.SettingsAppearance())
 				ui.SidebarItem(c, pageFonts, fontsIcon, locales.SettingsFonts())
+				ui.SidebarItem(c, pageShortcuts, shortcutsIcon, locales.SettingsShortcuts())
 			}).Grow(1).FillWidth().Padding(0, 8).Background(ui.Transparent).Label(locales.SettingsTitle())
 		})
 		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
@@ -127,6 +136,9 @@ func (a *app) settingsView(c *ui.Context) {
 				}
 				btn.Children(func() { ui.Icon(c, closeIcon).Size(14, 14).TextColor(ch.muted) })
 			})
+			if p.page == pageShortcuts {
+				a.shortcutsBar(c)
+			}
 			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Padding(4, 24, 24).Gap(20).Children(func() {
 					switch p.page {
@@ -134,6 +146,8 @@ func (a *app) settingsView(c *ui.Context) {
 						a.appearancePage(c)
 					case pageFonts:
 						a.fontsPage(c)
+					case pageShortcuts:
+						a.shortcutsPage(c)
 					default:
 						a.generalPage(c)
 					}
@@ -159,6 +173,8 @@ func (a *app) pageTitle() string {
 		return locales.SettingsAppearance()
 	case pageFonts:
 		return locales.SettingsFonts()
+	case pageShortcuts:
+		return locales.SettingsShortcuts()
 	}
 	return locales.SettingsGeneral()
 }
@@ -167,7 +183,7 @@ func (a *app) pageTitle() string {
 func (a *app) settingsGroup(c *ui.Context, rows func()) {
 	ch := a.scheme.chrome()
 	ui.Column(c).FillWidth().Gap(1).Radius(8).Border(1, ch.line).Background(ch.panel.Mix(ch.text, 0.02)).
-		Dividers(1, ch.line).Children(rows)
+		Dividers(1, ch.line).Clip().Children(rows)
 }
 
 // settingsRow is a setting: its label and what it does, and its control.
@@ -183,13 +199,17 @@ func (a *app) settingsRow(c *ui.Context, label, detail string, control func()) {
 }
 
 func (a *app) heading(c *ui.Context, title string, inUse bool) {
-	ch := a.scheme.chrome()
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, title).FontSize(13).Bold()
 		if inUse {
-			ui.Text(c, locales.SettingsInUse()).FontSize(11).Padding(1, 6).Radius(4).Background(a.scheme.accent.Alpha(0.16)).TextColor(ch.text)
+			a.tag(c, locales.SettingsInUse())
 		}
 	})
+}
+
+// tag marks a heading or a row, as the theme in use.
+func (a *app) tag(c *ui.Context, text string) {
+	ui.Text(c, text).FontSize(11).Padding(1, 6).Radius(4).Background(a.scheme.accent.Alpha(0.16)).TextColor(a.scheme.chrome().text).Shrink(0)
 }
 
 func (a *app) generalPage(c *ui.Context) {
@@ -227,7 +247,7 @@ func (a *app) generalPage(c *ui.Context) {
 	})
 }
 
-func (a *app) button(c *ui.Context, label string, click func()) {
+func (a *app) button(c *ui.Context, label string, click func()) ui.Element {
 	ch := a.scheme.chrome()
 	btn := ui.ButtonBase(c).Height(28).Padding(0, 12).Shrink(0).Radius(6).Border(1, ch.line).Background(ch.panel).
 		Transition(colorFade).Label(label).OnClick(click)
@@ -235,6 +255,7 @@ func (a *app) button(c *ui.Context, label string, click func()) {
 		btn.Background(ch.panel.Mix(ch.text, 0.06))
 	}
 	btn.Children(func() { ui.Text(c, label).FontSize(13) })
+	return btn
 }
 
 var modes = []string{followSystem, lightMode, darkMode}

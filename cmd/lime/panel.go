@@ -238,7 +238,7 @@ func (a *app) showCommandPalette() {
 	for i := range commands {
 		c := &commands[i]
 		if c.caption != nil {
-			items = append(items, item{label: c.caption(tx), alias: c.caption(en), hint: c.keyText(), pick: func() { c.run(a) }})
+			items = append(items, item{label: c.caption(tx), alias: c.caption(en), hint: a.l.keys.text(c.id), pick: func() { c.run(a) }})
 		}
 	}
 	for _, l := range syntaxes() {

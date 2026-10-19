@@ -22,7 +22,7 @@ import (
 // menuItem runs the command named id in the focused window, showing its
 // key.
 func (l *lime) menuItem(label, id string) *mygo.MenuItem {
-	return &mygo.MenuItem{Label: label, Accelerator: menuAccelerator(id), Click: func(_ *mygo.MenuItem, w *mygo.Window) {
+	return &mygo.MenuItem{Label: label, Accelerator: l.menuKey(id), Click: func(_ *mygo.MenuItem, w *mygo.Window) {
 		if a := l.at(w); a != nil {
 			a.win.Update(func() { a.run(id) })
 		}
@@ -35,15 +35,6 @@ func (l *lime) check(label, id string, typ mygo.MenuItemType) *mygo.MenuItem {
 	it := l.menuItem(label, id)
 	it.ID, it.Type = id, typ
 	return it
-}
-
-func menuAccelerator(id string) string {
-	if c := commandByID[id]; c != nil {
-		if k, ok := c.key(); ok && !k.chord {
-			return accelerator(k.mods, k.key)
-		}
-	}
-	return ""
 }
 
 func (l *lime) newMenu() *mygo.Menu {
@@ -214,13 +205,7 @@ func main() {
 		mygo.App.SetMenu(l.menu)
 		// The menu's labels are said once, in the language shown as it is
 		// made.
-		mygo.App.OnLocaleChanged(func(string) {
-			l.menu, l.menuState = l.newMenu(), ""
-			mygo.App.SetMenu(l.menu)
-			if l.last != nil {
-				l.last.syncMenu()
-			}
-		})
+		mygo.App.OnLocaleChanged(func(string) { l.refreshMenu() })
 		for _, a := range l.wins {
 			a.makeWindow(a.bounds)
 		}

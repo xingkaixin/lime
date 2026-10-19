@@ -159,6 +159,9 @@ func (s *settings) theme(dark bool) *scheme {
 
 var black = ui.RGB(0, 0, 0)
 
+// danger is the color of what went wrong, as a key two commands have.
+func (s *scheme) danger() ui.Color { return s.tokens[editor.TokenDeleted].Color }
+
 // chrome holds the colors around the editor: tab bars, the side bar, the
 // status bar, the quick panel. tab is the active tab's background.
 type chrome struct {

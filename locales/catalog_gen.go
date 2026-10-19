@@ -1973,3 +1973,685 @@ func SettingsSystemMono() string { return In(i18n.Locale()).SettingsSystemMono()
 func (msgs Messages) SettingsSystemMono() string {
 	return Catalog.Format(msgs.locale, "settingsSystemMono", nil)
 }
+
+// SettingsShortcuts says "Shortcuts"
+// in the language the app shows.
+func SettingsShortcuts() string { return In(i18n.Locale()).SettingsShortcuts() }
+
+// SettingsShortcuts says "Shortcuts"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcuts() string {
+	return Catalog.Format(msgs.locale, "settingsShortcuts", nil)
+}
+
+// SettingsShortcutsSearch says "Search commands"
+// in the language the app shows.
+func SettingsShortcutsSearch() string { return In(i18n.Locale()).SettingsShortcutsSearch() }
+
+// SettingsShortcutsSearch says "Search commands"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutsSearch() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsSearch", nil)
+}
+
+// SettingsShortcutsResetAll says "Restore All Defaults"
+// in the language the app shows.
+func SettingsShortcutsResetAll() string { return In(i18n.Locale()).SettingsShortcutsResetAll() }
+
+// SettingsShortcutsResetAll says "Restore All Defaults"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutsResetAll() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsResetAll", nil)
+}
+
+// SettingsShortcutsResetAllConfirm says "Restore the default shortcuts of all commands?"
+// in the language the app shows.
+func SettingsShortcutsResetAllConfirm() string {
+	return In(i18n.Locale()).SettingsShortcutsResetAllConfirm()
+}
+
+// SettingsShortcutsResetAllConfirm says "Restore the default shortcuts of all commands?"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutsResetAllConfirm() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsResetAllConfirm", nil)
+}
+
+// SettingsShortcutsConflicts says "{count, plural, one {# shortcut is shared by commands; it runs the one set last} other {# shortcuts are shared by com…"
+// in the language the app shows.
+func SettingsShortcutsConflicts(count int) string {
+	return In(i18n.Locale()).SettingsShortcutsConflicts(count)
+}
+
+// SettingsShortcutsConflicts says "{count, plural, one {# shortcut is shared by commands; it runs the one set last} other {# shortcuts are shared by com…"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutsConflicts(count int) string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsConflicts", map[string]any{"count": count})
+}
+
+// SettingsShortcutsOnlyConflicts says "Show Conflicts"
+// in the language the app shows.
+func SettingsShortcutsOnlyConflicts() string {
+	return In(i18n.Locale()).SettingsShortcutsOnlyConflicts()
+}
+
+// SettingsShortcutsOnlyConflicts says "Show Conflicts"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutsOnlyConflicts() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsOnlyConflicts", nil)
+}
+
+// SettingsShortcutsShowAll says "Show All"
+// in the language the app shows.
+func SettingsShortcutsShowAll() string { return In(i18n.Locale()).SettingsShortcutsShowAll() }
+
+// SettingsShortcutsShowAll says "Show All"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutsShowAll() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsShowAll", nil)
+}
+
+// SettingsShortcutsCommands says "{count, plural, one {# command} other {# commands}}"
+// in the language the app shows.
+func SettingsShortcutsCommands(count int) string {
+	return In(i18n.Locale()).SettingsShortcutsCommands(count)
+}
+
+// SettingsShortcutsCommands says "{count, plural, one {# command} other {# commands}}"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutsCommands(count int) string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsCommands", map[string]any{"count": count})
+}
+
+// SettingsShortcutsResolve says "Remove or change the shortcut of either command to resolve a conflict."
+// in the language the app shows.
+func SettingsShortcutsResolve() string { return In(i18n.Locale()).SettingsShortcutsResolve() }
+
+// SettingsShortcutsResolve says "Remove or change the shortcut of either command to resolve a conflict."
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutsResolve() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsResolve", nil)
+}
+
+// SettingsShortcutsNone says "No commands match"
+// in the language the app shows.
+func SettingsShortcutsNone() string { return In(i18n.Locale()).SettingsShortcutsNone() }
+
+// SettingsShortcutsNone says "No commands match"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutsNone() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsNone", nil)
+}
+
+// SettingsShortcutModified says "Modified"
+// in the language the app shows.
+func SettingsShortcutModified() string { return In(i18n.Locale()).SettingsShortcutModified() }
+
+// SettingsShortcutModified says "Modified"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutModified() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutModified", nil)
+}
+
+// SettingsShortcutAdd says "Add Shortcut"
+// in the language the app shows.
+func SettingsShortcutAdd() string { return In(i18n.Locale()).SettingsShortcutAdd() }
+
+// SettingsShortcutAdd says "Add Shortcut"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutAdd() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutAdd", nil)
+}
+
+// SettingsShortcutReset says "Restore Default"
+// in the language the app shows.
+func SettingsShortcutReset() string { return In(i18n.Locale()).SettingsShortcutReset() }
+
+// SettingsShortcutReset says "Restore Default"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutReset() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutReset", nil)
+}
+
+// SettingsShortcutRemove says "Remove {key}"
+// in the language the app shows.
+//
+// The button taking a shortcut away from a command, to assistive
+// technology.
+func SettingsShortcutRemove(key string) string { return In(i18n.Locale()).SettingsShortcutRemove(key) }
+
+// SettingsShortcutRemove says "Remove {key}"
+// in the language of msgs.
+//
+// The button taking a shortcut away from a command, to assistive
+// technology.
+func (msgs Messages) SettingsShortcutRemove(key string) string {
+	return Catalog.Format(msgs.locale, "settingsShortcutRemove", map[string]any{"key": key})
+}
+
+// SettingsShortcutRecord says "Shortcut for {name}"
+// in the language the app shows.
+//
+// The field recording a shortcut, to assistive technology.
+func SettingsShortcutRecord(name string) string {
+	return In(i18n.Locale()).SettingsShortcutRecord(name)
+}
+
+// SettingsShortcutRecord says "Shortcut for {name}"
+// in the language of msgs.
+//
+// The field recording a shortcut, to assistive technology.
+func (msgs Messages) SettingsShortcutRecord(name string) string {
+	return Catalog.Format(msgs.locale, "settingsShortcutRecord", map[string]any{"name": name})
+}
+
+// SettingsShortcutPress says "Press shortcut…"
+// in the language the app shows.
+func SettingsShortcutPress() string { return In(i18n.Locale()).SettingsShortcutPress() }
+
+// SettingsShortcutPress says "Press shortcut…"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutPress() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutPress", nil)
+}
+
+// SettingsShortcutRecordHint says "Press a key combination, or {chord} then a key for a chord. Escape cancels."
+// in the language the app shows.
+func SettingsShortcutRecordHint(chord string) string {
+	return In(i18n.Locale()).SettingsShortcutRecordHint(chord)
+}
+
+// SettingsShortcutRecordHint says "Press a key combination, or {chord} then a key for a chord. Escape cancels."
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutRecordHint(chord string) string {
+	return Catalog.Format(msgs.locale, "settingsShortcutRecordHint", map[string]any{"chord": chord})
+}
+
+// SettingsShortcutChordHint says "Press the chord's second key. Escape cancels."
+// in the language the app shows.
+func SettingsShortcutChordHint() string { return In(i18n.Locale()).SettingsShortcutChordHint() }
+
+// SettingsShortcutChordHint says "Press the chord's second key. Escape cancels."
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutChordHint() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutChordHint", nil)
+}
+
+// SettingsShortcutNeedsModifier says "Add a modifier key, or use a function key."
+// in the language the app shows.
+func SettingsShortcutNeedsModifier() string { return In(i18n.Locale()).SettingsShortcutNeedsModifier() }
+
+// SettingsShortcutNeedsModifier says "Add a modifier key, or use a function key."
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutNeedsModifier() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutNeedsModifier", nil)
+}
+
+// SettingsShortcutReserved says "{key} is used by the system or the editor."
+// in the language the app shows.
+func SettingsShortcutReserved(key string) string {
+	return In(i18n.Locale()).SettingsShortcutReserved(key)
+}
+
+// SettingsShortcutReserved says "{key} is used by the system or the editor."
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutReserved(key string) string {
+	return Catalog.Format(msgs.locale, "settingsShortcutReserved", map[string]any{"key": key})
+}
+
+// SettingsShortcutTaken says "{key} is used by"
+// in the language the app shows.
+//
+// Heads the list of the commands a shortcut being set already runs.
+func SettingsShortcutTaken(key string) string { return In(i18n.Locale()).SettingsShortcutTaken(key) }
+
+// SettingsShortcutTaken says "{key} is used by"
+// in the language of msgs.
+//
+// Heads the list of the commands a shortcut being set already runs.
+func (msgs Messages) SettingsShortcutTaken(key string) string {
+	return Catalog.Format(msgs.locale, "settingsShortcutTaken", map[string]any{"key": key})
+}
+
+// SettingsShortcutReplaceOne says "Replace removes {key} from “{name}”"
+// in the language the app shows.
+func SettingsShortcutReplaceOne(key string, name string) string {
+	return In(i18n.Locale()).SettingsShortcutReplaceOne(key, name)
+}
+
+// SettingsShortcutReplaceOne says "Replace removes {key} from “{name}”"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutReplaceOne(key string, name string) string {
+	return Catalog.Format(msgs.locale, "settingsShortcutReplaceOne", map[string]any{"key": key, "name": name})
+}
+
+// SettingsShortcutReplaceMany says "Replace removes {key} from these commands"
+// in the language the app shows.
+func SettingsShortcutReplaceMany(key string) string {
+	return In(i18n.Locale()).SettingsShortcutReplaceMany(key)
+}
+
+// SettingsShortcutReplaceMany says "Replace removes {key} from these commands"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutReplaceMany(key string) string {
+	return Catalog.Format(msgs.locale, "settingsShortcutReplaceMany", map[string]any{"key": key})
+}
+
+// SettingsShortcutKeepBoth says "Keep Both"
+// in the language the app shows.
+func SettingsShortcutKeepBoth() string { return In(i18n.Locale()).SettingsShortcutKeepBoth() }
+
+// SettingsShortcutKeepBoth says "Keep Both"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutKeepBoth() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutKeepBoth", nil)
+}
+
+// SettingsShortcutReplace says "Replace"
+// in the language the app shows.
+func SettingsShortcutReplace() string { return In(i18n.Locale()).SettingsShortcutReplace() }
+
+// SettingsShortcutReplace says "Replace"
+// in the language of msgs.
+func (msgs Messages) SettingsShortcutReplace() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutReplace", nil)
+}
+
+// ShortcutGroupEdit says "Edit"
+// in the language the app shows.
+func ShortcutGroupEdit() string { return In(i18n.Locale()).ShortcutGroupEdit() }
+
+// ShortcutGroupEdit says "Edit"
+// in the language of msgs.
+func (msgs Messages) ShortcutGroupEdit() string {
+	return Catalog.Format(msgs.locale, "shortcutGroupEdit", nil)
+}
+
+// ShortcutGroupText says "Text"
+// in the language the app shows.
+func ShortcutGroupText() string { return In(i18n.Locale()).ShortcutGroupText() }
+
+// ShortcutGroupText says "Text"
+// in the language of msgs.
+func (msgs Messages) ShortcutGroupText() string {
+	return Catalog.Format(msgs.locale, "shortcutGroupText", nil)
+}
+
+// ShortcutGroupSelection says "Selection"
+// in the language the app shows.
+func ShortcutGroupSelection() string { return In(i18n.Locale()).ShortcutGroupSelection() }
+
+// ShortcutGroupSelection says "Selection"
+// in the language of msgs.
+func (msgs Messages) ShortcutGroupSelection() string {
+	return Catalog.Format(msgs.locale, "shortcutGroupSelection", nil)
+}
+
+// ShortcutGroupFolding says "Code Folding"
+// in the language the app shows.
+func ShortcutGroupFolding() string { return In(i18n.Locale()).ShortcutGroupFolding() }
+
+// ShortcutGroupFolding says "Code Folding"
+// in the language of msgs.
+func (msgs Messages) ShortcutGroupFolding() string {
+	return Catalog.Format(msgs.locale, "shortcutGroupFolding", nil)
+}
+
+// ShortcutGroupTabs says "Tabs"
+// in the language the app shows.
+func ShortcutGroupTabs() string { return In(i18n.Locale()).ShortcutGroupTabs() }
+
+// ShortcutGroupTabs says "Tabs"
+// in the language of msgs.
+func (msgs Messages) ShortcutGroupTabs() string {
+	return Catalog.Format(msgs.locale, "shortcutGroupTabs", nil)
+}
+
+// ShortcutGroupLayout says "Layout and Groups"
+// in the language the app shows.
+func ShortcutGroupLayout() string { return In(i18n.Locale()).ShortcutGroupLayout() }
+
+// ShortcutGroupLayout says "Layout and Groups"
+// in the language of msgs.
+func (msgs Messages) ShortcutGroupLayout() string {
+	return Catalog.Format(msgs.locale, "shortcutGroupLayout", nil)
+}
+
+// ShortcutSoftUndo says "Undo Selection"
+// in the language the app shows.
+func ShortcutSoftUndo() string { return In(i18n.Locale()).ShortcutSoftUndo() }
+
+// ShortcutSoftUndo says "Undo Selection"
+// in the language of msgs.
+func (msgs Messages) ShortcutSoftUndo() string {
+	return Catalog.Format(msgs.locale, "shortcutSoftUndo", nil)
+}
+
+// ShortcutSoftRedo says "Redo Selection"
+// in the language the app shows.
+func ShortcutSoftRedo() string { return In(i18n.Locale()).ShortcutSoftRedo() }
+
+// ShortcutSoftRedo says "Redo Selection"
+// in the language of msgs.
+func (msgs Messages) ShortcutSoftRedo() string {
+	return Catalog.Format(msgs.locale, "shortcutSoftRedo", nil)
+}
+
+// ShortcutIndent says "Indent"
+// in the language the app shows.
+func ShortcutIndent() string { return In(i18n.Locale()).ShortcutIndent() }
+
+// ShortcutIndent says "Indent"
+// in the language of msgs.
+func (msgs Messages) ShortcutIndent() string {
+	return Catalog.Format(msgs.locale, "shortcutIndent", nil)
+}
+
+// ShortcutUnindent says "Unindent"
+// in the language the app shows.
+func ShortcutUnindent() string { return In(i18n.Locale()).ShortcutUnindent() }
+
+// ShortcutUnindent says "Unindent"
+// in the language of msgs.
+func (msgs Messages) ShortcutUnindent() string {
+	return Catalog.Format(msgs.locale, "shortcutUnindent", nil)
+}
+
+// ShortcutInsertLineAfter says "Insert Line After"
+// in the language the app shows.
+func ShortcutInsertLineAfter() string { return In(i18n.Locale()).ShortcutInsertLineAfter() }
+
+// ShortcutInsertLineAfter says "Insert Line After"
+// in the language of msgs.
+func (msgs Messages) ShortcutInsertLineAfter() string {
+	return Catalog.Format(msgs.locale, "shortcutInsertLineAfter", nil)
+}
+
+// ShortcutInsertLineBefore says "Insert Line Before"
+// in the language the app shows.
+func ShortcutInsertLineBefore() string { return In(i18n.Locale()).ShortcutInsertLineBefore() }
+
+// ShortcutInsertLineBefore says "Insert Line Before"
+// in the language of msgs.
+func (msgs Messages) ShortcutInsertLineBefore() string {
+	return Catalog.Format(msgs.locale, "shortcutInsertLineBefore", nil)
+}
+
+// ShortcutTranspose says "Transpose"
+// in the language the app shows.
+func ShortcutTranspose() string { return In(i18n.Locale()).ShortcutTranspose() }
+
+// ShortcutTranspose says "Transpose"
+// in the language of msgs.
+func (msgs Messages) ShortcutTranspose() string {
+	return Catalog.Format(msgs.locale, "shortcutTranspose", nil)
+}
+
+// ShortcutDeleteToEnd says "Delete to End of Line"
+// in the language the app shows.
+func ShortcutDeleteToEnd() string { return In(i18n.Locale()).ShortcutDeleteToEnd() }
+
+// ShortcutDeleteToEnd says "Delete to End of Line"
+// in the language of msgs.
+func (msgs Messages) ShortcutDeleteToEnd() string {
+	return Catalog.Format(msgs.locale, "shortcutDeleteToEnd", nil)
+}
+
+// ShortcutDeleteToStart says "Delete to Start of Line"
+// in the language the app shows.
+func ShortcutDeleteToStart() string { return In(i18n.Locale()).ShortcutDeleteToStart() }
+
+// ShortcutDeleteToStart says "Delete to Start of Line"
+// in the language of msgs.
+func (msgs Messages) ShortcutDeleteToStart() string {
+	return Catalog.Format(msgs.locale, "shortcutDeleteToStart", nil)
+}
+
+// ShortcutSelectLine says "Select Line"
+// in the language the app shows.
+func ShortcutSelectLine() string { return In(i18n.Locale()).ShortcutSelectLine() }
+
+// ShortcutSelectLine says "Select Line"
+// in the language of msgs.
+func (msgs Messages) ShortcutSelectLine() string {
+	return Catalog.Format(msgs.locale, "shortcutSelectLine", nil)
+}
+
+// ShortcutExpandSelection says "Expand Selection"
+// in the language the app shows.
+func ShortcutExpandSelection() string { return In(i18n.Locale()).ShortcutExpandSelection() }
+
+// ShortcutExpandSelection says "Expand Selection"
+// in the language of msgs.
+func (msgs Messages) ShortcutExpandSelection() string {
+	return Catalog.Format(msgs.locale, "shortcutExpandSelection", nil)
+}
+
+// ShortcutAddCursorAbove says "Add Cursor Above"
+// in the language the app shows.
+func ShortcutAddCursorAbove() string { return In(i18n.Locale()).ShortcutAddCursorAbove() }
+
+// ShortcutAddCursorAbove says "Add Cursor Above"
+// in the language of msgs.
+func (msgs Messages) ShortcutAddCursorAbove() string {
+	return Catalog.Format(msgs.locale, "shortcutAddCursorAbove", nil)
+}
+
+// ShortcutAddCursorBelow says "Add Cursor Below"
+// in the language the app shows.
+func ShortcutAddCursorBelow() string { return In(i18n.Locale()).ShortcutAddCursorBelow() }
+
+// ShortcutAddCursorBelow says "Add Cursor Below"
+// in the language of msgs.
+func (msgs Messages) ShortcutAddCursorBelow() string {
+	return Catalog.Format(msgs.locale, "shortcutAddCursorBelow", nil)
+}
+
+// ShortcutMoveToBracket says "Jump to Matching Bracket"
+// in the language the app shows.
+func ShortcutMoveToBracket() string { return In(i18n.Locale()).ShortcutMoveToBracket() }
+
+// ShortcutMoveToBracket says "Jump to Matching Bracket"
+// in the language of msgs.
+func (msgs Messages) ShortcutMoveToBracket() string {
+	return Catalog.Format(msgs.locale, "shortcutMoveToBracket", nil)
+}
+
+// ShortcutSelectColorScheme says "Select Color Scheme"
+// in the language the app shows.
+func ShortcutSelectColorScheme() string { return In(i18n.Locale()).ShortcutSelectColorScheme() }
+
+// ShortcutSelectColorScheme says "Select Color Scheme"
+// in the language of msgs.
+func (msgs Messages) ShortcutSelectColorScheme() string {
+	return Catalog.Format(msgs.locale, "shortcutSelectColorScheme", nil)
+}
+
+// ShortcutScrollToCursor says "Scroll to Cursor"
+// in the language the app shows.
+func ShortcutScrollToCursor() string { return In(i18n.Locale()).ShortcutScrollToCursor() }
+
+// ShortcutScrollToCursor says "Scroll to Cursor"
+// in the language of msgs.
+func (msgs Messages) ShortcutScrollToCursor() string {
+	return Catalog.Format(msgs.locale, "shortcutScrollToCursor", nil)
+}
+
+// ShortcutFold says "Fold"
+// in the language the app shows.
+func ShortcutFold() string { return In(i18n.Locale()).ShortcutFold() }
+
+// ShortcutFold says "Fold"
+// in the language of msgs.
+func (msgs Messages) ShortcutFold() string {
+	return Catalog.Format(msgs.locale, "shortcutFold", nil)
+}
+
+// ShortcutUnfold says "Unfold"
+// in the language the app shows.
+func ShortcutUnfold() string { return In(i18n.Locale()).ShortcutUnfold() }
+
+// ShortcutUnfold says "Unfold"
+// in the language of msgs.
+func (msgs Messages) ShortcutUnfold() string {
+	return Catalog.Format(msgs.locale, "shortcutUnfold", nil)
+}
+
+// ShortcutFoldAll says "Fold All"
+// in the language the app shows.
+func ShortcutFoldAll() string { return In(i18n.Locale()).ShortcutFoldAll() }
+
+// ShortcutFoldAll says "Fold All"
+// in the language of msgs.
+func (msgs Messages) ShortcutFoldAll() string {
+	return Catalog.Format(msgs.locale, "shortcutFoldAll", nil)
+}
+
+// ShortcutUnfoldAll says "Unfold All"
+// in the language the app shows.
+func ShortcutUnfoldAll() string { return In(i18n.Locale()).ShortcutUnfoldAll() }
+
+// ShortcutUnfoldAll says "Unfold All"
+// in the language of msgs.
+func (msgs Messages) ShortcutUnfoldAll() string {
+	return Catalog.Format(msgs.locale, "shortcutUnfoldAll", nil)
+}
+
+// ShortcutFoldLevel says "Fold Level {level}"
+// in the language the app shows.
+func ShortcutFoldLevel(level int) string { return In(i18n.Locale()).ShortcutFoldLevel(level) }
+
+// ShortcutFoldLevel says "Fold Level {level}"
+// in the language of msgs.
+func (msgs Messages) ShortcutFoldLevel(level int) string {
+	return Catalog.Format(msgs.locale, "shortcutFoldLevel", map[string]any{"level": level})
+}
+
+// ShortcutGotoDefinition says "Goto Definition"
+// in the language the app shows.
+func ShortcutGotoDefinition() string { return In(i18n.Locale()).ShortcutGotoDefinition() }
+
+// ShortcutGotoDefinition says "Goto Definition"
+// in the language of msgs.
+func (msgs Messages) ShortcutGotoDefinition() string {
+	return Catalog.Format(msgs.locale, "shortcutGotoDefinition", nil)
+}
+
+// ShortcutNextTab says "Next Tab"
+// in the language the app shows.
+func ShortcutNextTab() string { return In(i18n.Locale()).ShortcutNextTab() }
+
+// ShortcutNextTab says "Next Tab"
+// in the language of msgs.
+func (msgs Messages) ShortcutNextTab() string {
+	return Catalog.Format(msgs.locale, "shortcutNextTab", nil)
+}
+
+// ShortcutPrevTab says "Previous Tab"
+// in the language the app shows.
+func ShortcutPrevTab() string { return In(i18n.Locale()).ShortcutPrevTab() }
+
+// ShortcutPrevTab says "Previous Tab"
+// in the language of msgs.
+func (msgs Messages) ShortcutPrevTab() string {
+	return Catalog.Format(msgs.locale, "shortcutPrevTab", nil)
+}
+
+// ShortcutNextTabInStack says "Next Recently Used Tab"
+// in the language the app shows.
+func ShortcutNextTabInStack() string { return In(i18n.Locale()).ShortcutNextTabInStack() }
+
+// ShortcutNextTabInStack says "Next Recently Used Tab"
+// in the language of msgs.
+func (msgs Messages) ShortcutNextTabInStack() string {
+	return Catalog.Format(msgs.locale, "shortcutNextTabInStack", nil)
+}
+
+// ShortcutPrevTabInStack says "Previous Recently Used Tab"
+// in the language the app shows.
+func ShortcutPrevTabInStack() string { return In(i18n.Locale()).ShortcutPrevTabInStack() }
+
+// ShortcutPrevTabInStack says "Previous Recently Used Tab"
+// in the language of msgs.
+func (msgs Messages) ShortcutPrevTabInStack() string {
+	return Catalog.Format(msgs.locale, "shortcutPrevTabInStack", nil)
+}
+
+// ShortcutSelectTab says "Select Tab {index}"
+// in the language the app shows.
+func ShortcutSelectTab(index int) string { return In(i18n.Locale()).ShortcutSelectTab(index) }
+
+// ShortcutSelectTab says "Select Tab {index}"
+// in the language of msgs.
+func (msgs Messages) ShortcutSelectTab(index int) string {
+	return Catalog.Format(msgs.locale, "shortcutSelectTab", map[string]any{"index": index})
+}
+
+// ShortcutSelectLastTab says "Select Last Tab"
+// in the language the app shows.
+func ShortcutSelectLastTab() string { return In(i18n.Locale()).ShortcutSelectLastTab() }
+
+// ShortcutSelectLastTab says "Select Last Tab"
+// in the language of msgs.
+func (msgs Messages) ShortcutSelectLastTab() string {
+	return Catalog.Format(msgs.locale, "shortcutSelectLastTab", nil)
+}
+
+// ShortcutFocusNextGroup says "Focus Next Group"
+// in the language the app shows.
+func ShortcutFocusNextGroup() string { return In(i18n.Locale()).ShortcutFocusNextGroup() }
+
+// ShortcutFocusNextGroup says "Focus Next Group"
+// in the language of msgs.
+func (msgs Messages) ShortcutFocusNextGroup() string {
+	return Catalog.Format(msgs.locale, "shortcutFocusNextGroup", nil)
+}
+
+// ShortcutFocusPrevGroup says "Focus Previous Group"
+// in the language the app shows.
+func ShortcutFocusPrevGroup() string { return In(i18n.Locale()).ShortcutFocusPrevGroup() }
+
+// ShortcutFocusPrevGroup says "Focus Previous Group"
+// in the language of msgs.
+func (msgs Messages) ShortcutFocusPrevGroup() string {
+	return Catalog.Format(msgs.locale, "shortcutFocusPrevGroup", nil)
+}
+
+// ShortcutMoveToNextGroup says "Move to Next Group"
+// in the language the app shows.
+func ShortcutMoveToNextGroup() string { return In(i18n.Locale()).ShortcutMoveToNextGroup() }
+
+// ShortcutMoveToNextGroup says "Move to Next Group"
+// in the language of msgs.
+func (msgs Messages) ShortcutMoveToNextGroup() string {
+	return Catalog.Format(msgs.locale, "shortcutMoveToNextGroup", nil)
+}
+
+// ShortcutMoveToPrevGroup says "Move to Previous Group"
+// in the language the app shows.
+func ShortcutMoveToPrevGroup() string { return In(i18n.Locale()).ShortcutMoveToPrevGroup() }
+
+// ShortcutMoveToPrevGroup says "Move to Previous Group"
+// in the language of msgs.
+func (msgs Messages) ShortcutMoveToPrevGroup() string {
+	return Catalog.Format(msgs.locale, "shortcutMoveToPrevGroup", nil)
+}
+
+// ShortcutFocusGroup says "Focus Group {index}"
+// in the language the app shows.
+func ShortcutFocusGroup(index int) string { return In(i18n.Locale()).ShortcutFocusGroup(index) }
+
+// ShortcutFocusGroup says "Focus Group {index}"
+// in the language of msgs.
+func (msgs Messages) ShortcutFocusGroup(index int) string {
+	return Catalog.Format(msgs.locale, "shortcutFocusGroup", map[string]any{"index": index})
+}
+
+// ShortcutMoveToGroup says "Move to Group {index}"
+// in the language the app shows.
+func ShortcutMoveToGroup(index int) string { return In(i18n.Locale()).ShortcutMoveToGroup(index) }
+
+// ShortcutMoveToGroup says "Move to Group {index}"
+// in the language of msgs.
+func (msgs Messages) ShortcutMoveToGroup(index int) string {
+	return Catalog.Format(msgs.locale, "shortcutMoveToGroup", map[string]any{"index": index})
+}
