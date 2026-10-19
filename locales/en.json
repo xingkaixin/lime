@@ -187,6 +187,7 @@
   "filterProject": "Sublime Project",
 
   "sideBarFolders": "FOLDERS",
+  "sideBarDropFolder": "Drop a folder here to open it",
   "tabBar": "Tab bar",
   "tabClose": "Close {name}",
   "@tabClose": {

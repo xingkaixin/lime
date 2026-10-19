@@ -152,6 +152,7 @@
   "filterProject": "Sublime 项目",
 
   "sideBarFolders": "文件夹",
+  "sideBarDropFolder": "将文件夹拖到这里打开",
   "tabBar": "标签栏",
   "tabClose": "关闭 {name}",
   "statusSelections": "{count, plural, other {# 个选区}}",

@@ -1494,6 +1494,16 @@ func (msgs Messages) SideBarFolders() string {
 	return Catalog.Format(msgs.locale, "sideBarFolders", nil)
 }
 
+// SideBarDropFolder says "Drop a folder here to open it"
+// in the language the app shows.
+func SideBarDropFolder() string { return In(i18n.Locale()).SideBarDropFolder() }
+
+// SideBarDropFolder says "Drop a folder here to open it"
+// in the language of msgs.
+func (msgs Messages) SideBarDropFolder() string {
+	return Catalog.Format(msgs.locale, "sideBarDropFolder", nil)
+}
+
 // TabBar says "Tab bar"
 // in the language the app shows.
 func TabBar() string { return In(i18n.Locale()).TabBar() }

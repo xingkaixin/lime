@@ -45,7 +45,7 @@ func (a *app) view(c *ui.Context) {
 		a.open(files)
 	}
 	root.Children(func() {
-		if a.sideBarShown() {
+		if a.set.SideBar {
 			// The window controls sit over the side bar's top.
 			if w := c.TitleBar().Left; w > 0 {
 				a.set.SideBarWidth = max(a.set.SideBarWidth, w+controlsGap)
@@ -60,8 +60,6 @@ func (a *app) view(c *ui.Context) {
 	a.panelView(c)
 	a.settingsView(c)
 }
-
-func (a *app) sideBarShown() bool { return a.set.SideBar && len(a.proj.folders) > 0 }
 
 const tabBarHeight = 34
 
@@ -185,7 +183,7 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 		// Without the side bar, the window controls sit before the first
 		// group's tabs, apart from them and outside the bar that dragged
 		// tabs measure.
-		if w := c.TitleBar().Left; gi == 0 && w > 0 && !a.sideBarShown() {
+		if w := c.TitleBar().Left; gi == 0 && w > 0 && !a.set.SideBar {
 			ui.Box(c).Width(w + controlsGap).Shrink(0).DragWindow()
 		}
 		// Pressing a tab leaves the keyboard in the editor, as in Sublime Text.
