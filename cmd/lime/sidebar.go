@@ -322,6 +322,32 @@ func (a *app) sideBarEmpty(c *ui.Context) {
 	})
 }
 
+// sideBarIcon is the status bar's button for the side bar, drawn as the
+// file icons are.
+var sideBarIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+	<g fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round">
+		<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
+		<path d="M6 2.5v11" />
+	</g>
+</svg>`))
+
+// sideBarButton shows and hides the side bar, as Zed's status bar does.
+func (a *app) sideBarButton(c *ui.Context) {
+	ch := a.shell(c)
+	btn := ui.ButtonBase(c).Width(22).Height(20).Radius(4).Center().Transition(colorFade).
+		Label(locales.StatusSideBar()).Tooltip(locales.StatusSideBar()).OnClick(func() { a.run("toggle_side_bar") })
+	if btn.Hovered() {
+		btn.Background(ch.hover)
+	}
+	tint := ch.muted
+	if a.set.SideBar {
+		tint = ch.text
+	}
+	btn.Children(func() {
+		ui.Icon(c, sideBarIcon).Size(treeIcon, treeIcon).TextColor(tint)
+	})
+}
+
 // treeIcon and treeGap size a row's icon and the room after it, which
 // each level indents by, as Sublime Text's side bar does.
 const treeIcon, treeGap = 16, 6

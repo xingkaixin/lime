@@ -194,6 +194,7 @@
     "description": "The button closing a tab, to assistive technology.",
     "placeholders": { "name": { "type": "String", "example": "main.go" } }
   },
+  "statusSideBar": "Show or Hide Side Bar",
   "statusSelections": "{count, plural, one {# selection region} other {# selection regions}}",
   "@statusSelections": {
     "placeholders": { "count": { "type": "int", "example": "3" } }

@@ -306,7 +306,8 @@ func (a *app) statusBar(c *ui.Context) {
 			left = locales.StatusPosition(pos.Line+1, col)
 		}
 	}
-	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6, 0, 12).Gap(16).AlignItems(ui.Center).Background(ch.bg).Children(func() {
+	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6).Gap(8).AlignItems(ui.Center).Background(ch.bg).Children(func() {
+		a.sideBarButton(c)
 		ui.Text(c, left).FontSize(12).TextColor(ch.muted)
 		ui.Box(c).Grow(1)
 		if d != nil {

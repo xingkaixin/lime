@@ -1528,6 +1528,16 @@ func (msgs Messages) TabClose(name string) string {
 	return Catalog.Format(msgs.locale, "tabClose", map[string]any{"name": name})
 }
 
+// StatusSideBar says "Show or Hide Side Bar"
+// in the language the app shows.
+func StatusSideBar() string { return In(i18n.Locale()).StatusSideBar() }
+
+// StatusSideBar says "Show or Hide Side Bar"
+// in the language of msgs.
+func (msgs Messages) StatusSideBar() string {
+	return Catalog.Format(msgs.locale, "statusSideBar", nil)
+}
+
 // StatusSelections says "{count, plural, one {# selection region} other {# selection regions}}"
 // in the language the app shows.
 func StatusSelections(count int) string { return In(i18n.Locale()).StatusSelections(count) }
