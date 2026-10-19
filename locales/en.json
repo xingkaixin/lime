@@ -252,5 +252,115 @@
   "settingsLarger": "Increase font size",
   "settingsPreview": "Preview",
   "settingsSystemDefault": "System Default",
-  "settingsSystemMono": "System Monospace"
+  "settingsSystemMono": "System Monospace",
+  "settingsShortcuts": "Shortcuts",
+  "settingsShortcutsSearch": "Search commands",
+  "settingsShortcutsResetAll": "Restore All Defaults",
+  "settingsShortcutsResetAllConfirm": "Restore the default shortcuts of all commands?",
+  "settingsShortcutsConflicts": "{count, plural, one {# shortcut is shared by commands; it runs the one set last} other {# shortcuts are shared by commands; each runs the one set last}}",
+  "@settingsShortcutsConflicts": {
+    "placeholders": { "count": { "type": "int", "example": "2" } }
+  },
+  "settingsShortcutsOnlyConflicts": "Show Conflicts",
+  "settingsShortcutsShowAll": "Show All",
+  "settingsShortcutsCommands": "{count, plural, one {# command} other {# commands}}",
+  "@settingsShortcutsCommands": {
+    "placeholders": { "count": { "type": "int", "example": "2" } }
+  },
+  "settingsShortcutsResolve": "Remove or change the shortcut of either command to resolve a conflict.",
+  "settingsShortcutsNone": "No commands match",
+  "settingsShortcutModified": "Modified",
+  "settingsShortcutAdd": "Add Shortcut",
+  "settingsShortcutReset": "Restore Default",
+  "settingsShortcutRemove": "Remove {key}",
+  "@settingsShortcutRemove": {
+    "description": "The button taking a shortcut away from a command, to assistive technology.",
+    "placeholders": { "key": { "type": "String", "example": "⇧⌘D" } }
+  },
+  "settingsShortcutRecord": "Shortcut for {name}",
+  "@settingsShortcutRecord": {
+    "description": "The field recording a shortcut, to assistive technology.",
+    "placeholders": { "name": { "type": "String", "example": "Word Wrap" } }
+  },
+  "settingsShortcutPress": "Press shortcut…",
+  "settingsShortcutRecordHint": "Press a key combination, or {chord} then a key for a chord. Escape cancels.",
+  "@settingsShortcutRecordHint": {
+    "placeholders": { "chord": { "type": "String", "example": "⌘K" } }
+  },
+  "settingsShortcutChordHint": "Press the chord's second key. Escape cancels.",
+  "settingsShortcutNeedsModifier": "Add a modifier key, or use a function key.",
+  "settingsShortcutReserved": "{key} is used by the system or the editor.",
+  "@settingsShortcutReserved": {
+    "placeholders": { "key": { "type": "String", "example": "⌘Q" } }
+  },
+  "settingsShortcutTaken": "{key} is used by",
+  "@settingsShortcutTaken": {
+    "description": "Heads the list of the commands a shortcut being set already runs.",
+    "placeholders": { "key": { "type": "String", "example": "⌘D" } }
+  },
+  "settingsShortcutReplaceOne": "Replace removes {key} from “{name}”",
+  "@settingsShortcutReplaceOne": {
+    "placeholders": {
+      "key": { "type": "String", "example": "⌘D" },
+      "name": { "type": "String", "example": "Quick Add Next" }
+    }
+  },
+  "settingsShortcutReplaceMany": "Replace removes {key} from these commands",
+  "@settingsShortcutReplaceMany": {
+    "placeholders": { "key": { "type": "String", "example": "⌘D" } }
+  },
+  "settingsShortcutKeepBoth": "Keep Both",
+  "settingsShortcutReplace": "Replace",
+  "shortcutGroupEdit": "Edit",
+  "shortcutGroupText": "Text",
+  "shortcutGroupSelection": "Selection",
+  "shortcutGroupFolding": "Code Folding",
+  "shortcutGroupTabs": "Tabs",
+  "shortcutGroupLayout": "Layout and Groups",
+  "shortcutSoftUndo": "Undo Selection",
+  "shortcutSoftRedo": "Redo Selection",
+  "shortcutIndent": "Indent",
+  "shortcutUnindent": "Unindent",
+  "shortcutInsertLineAfter": "Insert Line After",
+  "shortcutInsertLineBefore": "Insert Line Before",
+  "shortcutTranspose": "Transpose",
+  "shortcutDeleteToEnd": "Delete to End of Line",
+  "shortcutDeleteToStart": "Delete to Start of Line",
+  "shortcutSelectLine": "Select Line",
+  "shortcutExpandSelection": "Expand Selection",
+  "shortcutAddCursorAbove": "Add Cursor Above",
+  "shortcutAddCursorBelow": "Add Cursor Below",
+  "shortcutMoveToBracket": "Jump to Matching Bracket",
+  "shortcutSelectColorScheme": "Select Color Scheme",
+  "shortcutScrollToCursor": "Scroll to Cursor",
+  "shortcutFold": "Fold",
+  "shortcutUnfold": "Unfold",
+  "shortcutFoldAll": "Fold All",
+  "shortcutUnfoldAll": "Unfold All",
+  "shortcutFoldLevel": "Fold Level {level}",
+  "@shortcutFoldLevel": {
+    "placeholders": { "level": { "type": "int", "example": "2" } }
+  },
+  "shortcutGotoDefinition": "Goto Definition",
+  "shortcutNextTab": "Next Tab",
+  "shortcutPrevTab": "Previous Tab",
+  "shortcutNextTabInStack": "Next Recently Used Tab",
+  "shortcutPrevTabInStack": "Previous Recently Used Tab",
+  "shortcutSelectTab": "Select Tab {index}",
+  "@shortcutSelectTab": {
+    "placeholders": { "index": { "type": "int", "example": "3" } }
+  },
+  "shortcutSelectLastTab": "Select Last Tab",
+  "shortcutFocusNextGroup": "Focus Next Group",
+  "shortcutFocusPrevGroup": "Focus Previous Group",
+  "shortcutMoveToNextGroup": "Move to Next Group",
+  "shortcutMoveToPrevGroup": "Move to Previous Group",
+  "shortcutFocusGroup": "Focus Group {index}",
+  "@shortcutFocusGroup": {
+    "placeholders": { "index": { "type": "int", "example": "2" } }
+  },
+  "shortcutMoveToGroup": "Move to Group {index}",
+  "@shortcutMoveToGroup": {
+    "placeholders": { "index": { "type": "int", "example": "2" } }
+  }
 }
