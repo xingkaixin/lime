@@ -22,9 +22,10 @@ func focusGroup(i int) string  { return "focus_group " + strconv.Itoa(i) }
 func moveToGroup(i int) string { return "move_to_group " + strconv.Itoa(i) }
 func selectTab(i int) string   { return "select_by_index " + strconv.Itoa(i) }
 
+// withDoc runs fn on the current doc, when it shows text.
 func withDoc(fn func(a *app, d *doc)) func(a *app) {
 	return func(a *app) {
-		if d := a.current(); d != nil {
+		if d := a.current(); d != nil && d.kind == textDoc {
 			fn(a, d)
 		}
 	}

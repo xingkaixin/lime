@@ -188,6 +188,7 @@
 
   "sideBarFolders": "FOLDERS",
   "sideBarDropFolder": "Drop a folder here to open it",
+  "previewBinary": "This file is binary and can't be shown.",
   "tabBar": "Tab bar",
   "tabClose": "Close {name}",
   "@tabClose": {
