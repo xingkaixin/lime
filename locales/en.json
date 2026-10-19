@@ -62,6 +62,8 @@
   "menuDeleteFolder": "Delete Folder",
   "menuRemoveFolder": "Remove Folder from Project",
   "menuCloseTab": "Close Tab",
+  "menuCloseTabsToLeft": "Close Tabs to the Left",
+  "menuCloseTabsToRight": "Close Tabs to the Right",
   "menuCloseUnmodifiedTabs": "Close Unmodified Tabs",
   "menuCloseDeletedTabs": "Close Tabs With Deleted Files",
   "menuOpenFile": "Open File…",

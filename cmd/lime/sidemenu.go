@@ -20,15 +20,23 @@ import (
 
 // tabMenu is the menu of the tab of d in g.
 func (a *app) tabMenu(m *ui.Menu, g *group, d *doc) {
+	all := func(*doc) bool { return true }
 	if m.Item(locales.MenuCloseTab()).Chosen() {
 		a.closeDoc(d)
 	}
+	i := slices.Index(g.docs, d)
+	if m.Item(locales.MenuCloseTabsToLeft()).Disabled(i == 0).Chosen() {
+		a.closeTabs(g.docs[:i], all)
+	}
+	if m.Item(locales.MenuCloseTabsToRight()).Disabled(i == len(g.docs)-1).Chosen() {
+		a.closeTabs(g.docs[i+1:], all)
+	}
 	m.Separator()
 	if m.Item(locales.MenuCloseUnmodifiedTabs()).Chosen() {
-		a.closeTabs(g, func(*doc) bool { return true })
+		a.closeTabs(g.docs, all)
 	}
 	if m.Item(locales.MenuCloseDeletedTabs()).Chosen() {
-		a.closeTabs(g, (*doc).deleted)
+		a.closeTabs(g.docs, (*doc).deleted)
 	}
 	m.Separator()
 	if m.Item(locales.MenuNewFile()).Chosen() {
@@ -41,9 +49,9 @@ func (a *app) tabMenu(m *ui.Menu, g *group, d *doc) {
 	}
 }
 
-// closeTabs closes the tabs of g without changes that match.
-func (a *app) closeTabs(g *group, match func(*doc) bool) {
-	for _, d := range slices.Clone(g.docs) {
+// closeTabs closes the tabs of docs without changes that match.
+func (a *app) closeTabs(docs []*doc, match func(*doc) bool) {
+	for _, d := range slices.Clone(docs) {
 		if !d.dirty() && match(d) {
 			a.remove(d)
 		}
