@@ -634,6 +634,26 @@ func (msgs Messages) MenuCloseTab() string {
 	return Catalog.Format(msgs.locale, "menuCloseTab", nil)
 }
 
+// MenuCloseTabsToLeft says "Close Tabs to the Left"
+// in the language the app shows.
+func MenuCloseTabsToLeft() string { return In(i18n.Locale()).MenuCloseTabsToLeft() }
+
+// MenuCloseTabsToLeft says "Close Tabs to the Left"
+// in the language of msgs.
+func (msgs Messages) MenuCloseTabsToLeft() string {
+	return Catalog.Format(msgs.locale, "menuCloseTabsToLeft", nil)
+}
+
+// MenuCloseTabsToRight says "Close Tabs to the Right"
+// in the language the app shows.
+func MenuCloseTabsToRight() string { return In(i18n.Locale()).MenuCloseTabsToRight() }
+
+// MenuCloseTabsToRight says "Close Tabs to the Right"
+// in the language of msgs.
+func (msgs Messages) MenuCloseTabsToRight() string {
+	return Catalog.Format(msgs.locale, "menuCloseTabsToRight", nil)
+}
+
 // MenuCloseUnmodifiedTabs says "Close Unmodified Tabs"
 // in the language the app shows.
 func MenuCloseUnmodifiedTabs() string { return In(i18n.Locale()).MenuCloseUnmodifiedTabs() }

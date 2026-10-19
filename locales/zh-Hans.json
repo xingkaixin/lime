@@ -62,6 +62,8 @@
   "menuDeleteFolder": "删除文件夹",
   "menuRemoveFolder": "从项目中移除文件夹",
   "menuCloseTab": "关闭标签页",
+  "menuCloseTabsToLeft": "关闭左侧标签页",
+  "menuCloseTabsToRight": "关闭右侧标签页",
   "menuCloseUnmodifiedTabs": "关闭未修改的标签页",
   "menuCloseDeletedTabs": "关闭文件已删除的标签页",
   "menuOpenFile": "打开文件…",
