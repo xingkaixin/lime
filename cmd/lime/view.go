@@ -168,6 +168,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		d.st.TabSize, d.st.Indent = a.set.TabSize, a.set.indent()
 		d.st.Font.Family, d.st.Font.Size = a.set.ContentFont, a.set.FontSize
 		d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
+		if d.cmp != nil {
+			a.diffView(c, gi, d)
+			return
+		}
 		if d.kind != textDoc {
 			a.preview(c, gi, d)
 			return
@@ -318,15 +322,27 @@ func (a *app) statusBar(c *ui.Context) {
 	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6).Gap(8).AlignItems(ui.Center).Background(ch.bg).Children(func() {
 		a.sideBarButton(c)
 		ui.Text(c, left).FontSize(12).TextColor(ch.muted)
+		if d != nil && d.cmp != nil {
+			a.diffCounts(c, d.cmp)
+		}
 		if a.notice.text != "" {
-			danger := a.scheme.danger()
+			fg := ch.muted
+			if a.notice.err {
+				fg = a.scheme.danger()
+			}
 			ui.Row(c).Shrink(1).MinWidth(0).Gap(5).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, warningIcon).Size(12, 12).TextColor(danger).Shrink(0)
-				ui.Text(c, a.notice.text).FontSize(12).TextColor(danger).SingleLine().Ellipsis("…")
+				if a.notice.err {
+					ui.Icon(c, warningIcon).Size(12, 12).TextColor(fg).Shrink(0)
+				}
+				ui.Text(c, a.notice.text).FontSize(12).TextColor(fg).SingleLine().Ellipsis("…")
 			})
 		}
 		ui.Box(c).Grow(1)
-		if d != nil && d.kind == textDoc {
+		switch {
+		case d == nil:
+		case d.cmp != nil:
+			a.diffLayoutButton(c, d.cmp)
+		case d.kind == textDoc:
 			a.syntaxButton(c, d)
 		}
 	})
@@ -338,14 +354,15 @@ const noticeTime = 4 * time.Second
 // notice is a message of the status bar, as why a command failed.
 type notice struct {
 	text string
+	err  bool
 	n    int // counts the notices, so that only the last one's timer clears it
 }
 
-// notifyError shows text in the status bar for noticeTime, as Sublime
-// Text shows its status messages.
-func (a *app) notifyError(text string) {
+// notify shows text in the status bar for noticeTime, as Sublime Text
+// shows its status messages.
+func (a *app) notify(text string) {
 	a.notice.n++
-	a.notice.text = text
+	a.notice.text, a.notice.err = text, false
 	n := a.notice.n
 	// A window that never opened, as in tests, has no frames to update.
 	if a.win == nil {
@@ -360,16 +377,17 @@ func (a *app) notifyError(text string) {
 	})
 }
 
+// notifyError shows text as notify does, as what went wrong.
+func (a *app) notifyError(text string) {
+	a.notify(text)
+	a.notice.err = true
+}
+
 // syntaxButton shows the syntax of d and changes it from a menu, as
 // Sublime Text's status bar does.
 func (a *app) syntaxButton(c *ui.Context, d *doc) {
-	ch := a.shell(c)
 	lang := d.st.Buffer.Language()
-	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Transition(colorFade).Label(locales.StatusSyntax(syntaxName(lang)))
-	if btn.Hovered() {
-		btn.Background(ch.hover)
-	}
-	btn.Menu(func(m *ui.Menu) {
+	a.statusMenu(c, syntaxName(lang), locales.StatusSyntax(syntaxName(lang)), func(m *ui.Menu) {
 		for i, l := range syntaxes() {
 			if m.Item(syntaxName(l)).Checked(l == lang).Chosen() {
 				d.st.Buffer.SetLanguage(l)
@@ -379,8 +397,19 @@ func (a *app) syntaxButton(c *ui.Context, d *doc) {
 			}
 		}
 	})
+}
+
+// statusMenu is a button of the status bar showing text, which opens
+// menu.
+func (a *app) statusMenu(c *ui.Context, text, label string, menu func(m *ui.Menu)) {
+	ch := a.shell(c)
+	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Transition(colorFade).Label(label)
+	if btn.Hovered() {
+		btn.Background(ch.hover)
+	}
+	btn.Menu(menu)
 	btn.Children(func() {
-		ui.Text(c, syntaxName(lang)).FontSize(12).TextColor(ch.muted)
+		ui.Text(c, text).FontSize(12).TextColor(ch.muted)
 	})
 }
 

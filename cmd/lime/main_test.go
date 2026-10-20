@@ -10,6 +10,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+
+	"lime/locales"
 )
 
 // The editor's input goes through app.input, which reaches the editor's
@@ -539,5 +541,47 @@ func TestTidyOnSave(t *testing.T) {
 	d.st.Run(editor.Undo)
 	if got := d.st.Buffer.String(); got != "a  \nb\t" {
 		t.Fatalf("one undo: %q, want the text as typed", got)
+	}
+}
+
+// A tab that shows no text has no editor to bind the focus to, which
+// would leave a click in another group unfollowed.
+func TestPreviewFocus(t *testing.T) {
+	a := newApp("")
+	a.add("/p/a.txt", "a\n")
+	a.newPane()
+	a.focusGroup(0)
+	a.add("/p/x.bin", "").kind = binaryDoc
+	tt := ui.NewTester(a.view, 1000, 500)
+	tt.Frame()
+	tt.ClickAt(800, 200)
+	tt.Frame()
+	if a.focus != 1 {
+		t.Fatalf("a click in group 1's editor leaves the focus on group %d", a.focus)
+	}
+}
+
+func TestCompare(t *testing.T) {
+	a := newApp("")
+	old := a.add("/p/old.txt", "one\ntwo\n")
+	src := a.add("/p/new.txt", "one\n2\n")
+	a.compareDocs(src, old)
+	d := a.current()
+	if d.cmp == nil || d.name() != "old.txt ↔ new.txt" || len(d.cmp.diff.Hunks()) != 1 {
+		t.Fatalf("diff tab %q, want old.txt ↔ new.txt with one change", d.name())
+	}
+	tt := ui.NewTester(a.view, 900, 500)
+	tt.Frame()
+	if s := a.session(); len(s.Groups[0].Docs) != 2 {
+		t.Fatalf("session keeps %d tabs, want the 2 files", len(s.Groups[0].Docs))
+	}
+	a.remove(src)
+	if a.docCount() != 1 {
+		t.Fatalf("%d tabs after closing new.txt, want its diff tab gone with it", a.docCount())
+	}
+	same := a.add("/p/same.txt", "one\ntwo\n")
+	a.compareDocs(same, old)
+	if a.current() != same || a.notice.text != locales.StatusNoDifferences() {
+		t.Fatalf("same texts: notice %q, want no diff tab", a.notice.text)
 	}
 }

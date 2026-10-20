@@ -18,6 +18,7 @@ All code is `package main` in `cmd/lime`. Keep it one package.
 - `menu.go`: the menu bar; `contextmenu.go`: tab and side bar menus
 - `view.go` (window, tab bar, status bar), `sidebar.go`, `panel.go` (Goto
   Anything, command palette), `find.go`, `tabdrag.go`, `preview.go`: window UI
+- `compare.go`: diff tabs, of a tab against a file, a tab, the clipboard or disk
 - `project.go`: folders, `.sublime-project` files, file operations
 - `settings.go`, `settingsview.go`, `shortcutsview.go`: settings.json and its dialog
 - `session.go`: hot exit (session.json)

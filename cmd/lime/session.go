@@ -68,7 +68,14 @@ func (a *app) session() sessionWindow {
 	}
 	for _, g := range a.groups {
 		sg := sessionGroup{Active: g.active, Docs: []sessionDoc{}}
-		for _, d := range g.docs {
+		for i, d := range g.docs {
+			// A diff tab's texts are kept in their own tabs.
+			if d.kind == diffDoc {
+				if i < g.active {
+					sg.Active--
+				}
+				continue
+			}
 			sd := sessionDoc{Path: d.path, Syntax: syntaxName(d.st.Buffer.Language())}
 			if d.dirty() {
 				snap := d.st.Buffer.Snapshot()
