@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -61,6 +62,22 @@ func quickFind(run func(st *editor.State)) func(a *app) {
 			a.find.query = t
 		}
 	})
+}
+
+// skipNext is Sublime's find_under_expand_skip: the newest selection
+// gives way to the next occurrence.
+func skipNext(st *editor.State) {
+	old := st.Selection()
+	if old.Anchor == old.Head {
+		st.Run(editor.SelectNext)
+		return
+	}
+	if !st.Run(editor.SelectNext) {
+		return
+	}
+	next := st.Selection()
+	rest := slices.DeleteFunc(st.Selections(), func(s editor.Selection) bool { return s == old || s == next })
+	st.SetSelections(append(rest, next)...)
 }
 
 const (

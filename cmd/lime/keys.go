@@ -1,12 +1,9 @@
 package main
 
 import (
-	"reflect"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
@@ -301,129 +298,4 @@ func (k appKey) String() string {
 		s = shortcutText(ui.Cmd, ui.KeyK) + " " + s
 	}
 	return s
-}
-
-// gesture is what a press of the mouse does in Sublime Text, which the
-// editor, after Zed, gives other modifiers.
-type gesture int
-
-const (
-	pressAsIs gesture = iota
-	pressAddCaret
-	pressSubtract
-	pressColumns
-)
-
-// mouseGesture reads Sublime Text's mousemap of the platform.
-func mouseGesture(button int, mods ui.Modifiers) gesture {
-	if mac {
-		switch {
-		case button == 2:
-			return pressColumns
-		case button != 0:
-		case mods == ui.Super:
-			return pressAddCaret
-		case mods == ui.Super|ui.Shift:
-			return pressSubtract
-		case mods == ui.Alt, mods == ui.Alt|ui.Super:
-			return pressColumns
-		}
-		return pressAsIs
-	}
-	switch {
-	case button == 2 && runtime.GOOS == "windows", button == 1 && mods&ui.Shift != 0:
-		return pressColumns
-	case button != 0:
-	case mods == ui.Ctrl:
-		return pressAddCaret
-	case mods == ui.Alt:
-		return pressSubtract
-	case mods == ui.Ctrl|ui.Alt|ui.Shift:
-		return pressColumns
-	}
-	return pressAsIs
-}
-
-// The editor takes no remapping of its mouse, so the app replaces its
-// input handler with one that adjusts events and then calls the editor's
-// own handler. linkname reaches that handler; TestSublimeInput guards the
-// link across MyGo upgrades.
-//
-//go:linkname editorInput github.com/egoist/mygo/ui/editor.(*editor).input
-func editorInput(ed unsafe.Pointer, ev ui.InputEvent) bool
-
-var editorOffset = func() uintptr {
-	f, ok := reflect.TypeFor[editor.State]().FieldByName("ed")
-	if !ok {
-		panic("editor.State has no ed field")
-	}
-	return f.Offset
-}()
-
-// input takes the input of the editor element e of d, as Sublime Text's
-// mousemap has it, and ends a chord whose second key is not one.
-func (a *app) input(e ui.Element, d *doc) {
-	st := d.st
-	ed := unsafe.Add(unsafe.Pointer(st), editorOffset)
-	e.HandleInput(func(ev ui.InputEvent) bool {
-		switch ev.Kind {
-		case ui.InputKeyDown:
-			if a.chord {
-				a.chord = false
-				return true
-			}
-		case ui.InputPointerDown:
-			a.chord = false
-			switch mouseGesture(ev.Button, ev.Mods) {
-			case pressAddCaret:
-				ev.Mods = ui.Alt
-			case pressColumns:
-				ev.Button, ev.Mods, ev.Clicks = 0, ui.Alt|ui.Shift, 1
-				d.columns = true
-			case pressSubtract:
-				subtract(ed, st, ev)
-				return true
-			}
-		case ui.InputPointerMove, ui.InputPointerUp:
-			if d.columns {
-				ev.Button = 0
-				d.columns = ev.Kind == ui.InputPointerMove
-			}
-		}
-		return editorInput(ed, ev)
-	})
-}
-
-// subtract takes away the selection under the press ev, as Sublime
-// Text's Cmd+Shift+click does, leaving a caret there when it was the
-// only one.
-func subtract(ed unsafe.Pointer, st *editor.State, ev ui.InputEvent) {
-	sels := slices.Clone(st.Selections())
-	ev.Mods, ev.Clicks = 0, 1
-	editorInput(ed, ev)
-	ev.Kind = ui.InputPointerUp
-	editorInput(ed, ev)
-	at := st.Cursor()
-	rest := slices.DeleteFunc(sels, func(s editor.Selection) bool {
-		return min(s.Anchor, s.Head) <= at && at <= max(s.Anchor, s.Head)
-	})
-	if len(rest) > 0 {
-		st.SetSelections(rest...)
-	}
-}
-
-// skipNext is Sublime's find_under_expand_skip: the newest selection
-// gives way to the next occurrence.
-func skipNext(st *editor.State) {
-	old := st.Selection()
-	if old.Anchor == old.Head {
-		st.Run(editor.SelectNext)
-		return
-	}
-	if !st.Run(editor.SelectNext) {
-		return
-	}
-	next := st.Selection()
-	rest := slices.DeleteFunc(st.Selections(), func(s editor.Selection) bool { return s == old || s == next })
-	st.SetSelections(append(rest, next)...)
 }

@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 )
@@ -185,41 +184,6 @@ func (l *lime) keysChanged() {
 	l.keys = newKeymap(l.set.Keys)
 	l.saveSettings()
 	l.refreshMenu()
-}
-
-// pauseMenu takes the keys away from the menu while a key is recorded,
-// as the menu would take them first.
-func (l *lime) pauseMenu(paused bool) {
-	if l.menuPaused != paused {
-		l.menuPaused = paused
-		l.refreshMenu()
-	}
-}
-
-// refreshMenu makes the menu anew, with its keys as they are.
-func (l *lime) refreshMenu() {
-	if l.menu == nil {
-		return
-	}
-	l.menu, l.menuState = l.newMenu(), ""
-	mygo.App.SetMenu(l.menu)
-	if l.last != nil {
-		l.last.syncMenu()
-	}
-}
-
-// menuKey is the accelerator of the menu item running the command named
-// id: its first key that is not a chord, when it runs it.
-func (l *lime) menuKey(id string) string {
-	if l.menuPaused {
-		return ""
-	}
-	for _, k := range l.keys.keys[id] {
-		if !k.chord && l.keys.runs(k) {
-			return accelerator(k.mods, k.key)
-		}
-	}
-	return ""
 }
 
 // seq is k without its command, the key alone.
