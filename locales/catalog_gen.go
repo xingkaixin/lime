@@ -1104,6 +1104,26 @@ func (msgs Messages) CmdDeleteSurplusBlankLines() string {
 	return Catalog.Format(msgs.locale, "cmdDeleteSurplusBlankLines", nil)
 }
 
+// CmdFormatJSON says "JSON: Format"
+// in the language the app shows.
+func CmdFormatJSON() string { return In(i18n.Locale()).CmdFormatJSON() }
+
+// CmdFormatJSON says "JSON: Format"
+// in the language of msgs.
+func (msgs Messages) CmdFormatJSON() string {
+	return Catalog.Format(msgs.locale, "cmdFormatJSON", nil)
+}
+
+// CmdMinifyJSON says "JSON: Minify"
+// in the language the app shows.
+func CmdMinifyJSON() string { return In(i18n.Locale()).CmdMinifyJSON() }
+
+// CmdMinifyJSON says "JSON: Minify"
+// in the language of msgs.
+func (msgs Messages) CmdMinifyJSON() string {
+	return Catalog.Format(msgs.locale, "cmdMinifyJSON", nil)
+}
+
 // CmdToggleComment says "Toggle Comment"
 // in the language the app shows.
 func CmdToggleComment() string { return In(i18n.Locale()).CmdToggleComment() }
@@ -1612,6 +1632,26 @@ func StatusSyntax(name string) string { return In(i18n.Locale()).StatusSyntax(na
 // The status bar's syntax button, to assistive technology.
 func (msgs Messages) StatusSyntax(name string) string {
 	return Catalog.Format(msgs.locale, "statusSyntax", map[string]any{"name": name})
+}
+
+// StatusInvalidJSON says "Invalid JSON: unexpected character “{char}”"
+// in the language the app shows.
+func StatusInvalidJSON(char string) string { return In(i18n.Locale()).StatusInvalidJSON(char) }
+
+// StatusInvalidJSON says "Invalid JSON: unexpected character “{char}”"
+// in the language of msgs.
+func (msgs Messages) StatusInvalidJSON(char string) string {
+	return Catalog.Format(msgs.locale, "statusInvalidJSON", map[string]any{"char": char})
+}
+
+// StatusIncompleteJSON says "Invalid JSON: unexpected end of input"
+// in the language the app shows.
+func StatusIncompleteJSON() string { return In(i18n.Locale()).StatusIncompleteJSON() }
+
+// StatusIncompleteJSON says "Invalid JSON: unexpected end of input"
+// in the language of msgs.
+func (msgs Messages) StatusIncompleteJSON() string {
+	return Catalog.Format(msgs.locale, "statusIncompleteJSON", nil)
 }
 
 // FindRegex says "Regular expression"

@@ -62,6 +62,7 @@ var shortcutGroups = func() []shortcutGroup {
 			s("sort_lines", m.CmdSortLines), s("sort_lines_case_sensitive", m.CmdSortLinesCaseSensitive),
 			s("reverse_lines", m.CmdReverseLines), s("unique_lines", m.CmdUniqueLines),
 			s("delete_blank_lines", m.CmdDeleteBlankLines), s("delete_blank_lines surplus", m.CmdDeleteSurplusBlankLines),
+			s("format_json", m.CmdFormatJSON), s("minify_json", m.CmdMinifyJSON),
 		}},
 		{m.ShortcutGroupSelection, []shortcut{
 			s("select_line", m.ShortcutSelectLine), s("expand_selection", m.ShortcutExpandSelection),
