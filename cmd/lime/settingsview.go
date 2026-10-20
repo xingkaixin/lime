@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/i18n"
@@ -26,6 +28,7 @@ type prefs struct {
 
 const (
 	pageGeneral    = "general"
+	pageEditor     = "editor"
 	pageAppearance = "appearance"
 	pageFonts      = "fonts"
 	pageShortcuts  = "shortcuts"
@@ -40,6 +43,7 @@ const (
 
 var (
 	generalIcon    = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 4.5h6M11.5 4.5h2M2.5 8h2M7.5 8h6M2.5 11.5h7M12.5 11.5h1"/><circle cx="10" cy="4.5" r="1.5"/><circle cx="6" cy="8" r="1.5"/><circle cx="11" cy="11.5" r="1.5"/></svg>`))
+	editorIcon     = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h11M2.5 6.75h6M2.5 10h3.5M2.5 13.25h2.5"/><path d="M13.25 7.75 9.5 11.5 9 13.5l2-.5 3.75-3.75z"/></svg>`))
 	appearanceIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.75"/><path d="M8 2.25a5.75 5.75 0 0 1 0 11.5z" fill="currentColor" stroke="none"/></svg>`))
 	fontsIcon      = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12.5 5.25 3.5 8.5 12.5M3.2 9.5h4.1"/><circle cx="11.75" cy="10.25" r="2.25"/><path d="M14 8v4.5"/></svg>`))
 	systemIcon     = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="3" width="12" height="8.5" rx="1.5"/><path d="M5.5 14h5M8 11.5V14"/></svg>`))
@@ -121,6 +125,7 @@ func (a *app) settingsView(c *ui.Context) {
 			})
 			ui.Sidebar(c, &p.page, func() {
 				ui.SidebarItem(c, pageGeneral, generalIcon, locales.SettingsGeneral())
+				ui.SidebarItem(c, pageEditor, editorIcon, locales.SettingsEditor())
 				ui.SidebarItem(c, pageAppearance, appearanceIcon, locales.SettingsAppearance())
 				ui.SidebarItem(c, pageFonts, fontsIcon, locales.SettingsFonts())
 				ui.SidebarItem(c, pageShortcuts, shortcutsIcon, locales.SettingsShortcuts())
@@ -142,6 +147,8 @@ func (a *app) settingsView(c *ui.Context) {
 			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Padding(4, 24, 24).Gap(20).Children(func() {
 					switch p.page {
+					case pageEditor:
+						a.editorPage(c)
 					case pageAppearance:
 						a.appearancePage(c)
 					case pageFonts:
@@ -169,6 +176,8 @@ func (a *app) dragBand(e ui.Element) ui.Element {
 
 func (a *app) pageTitle() string {
 	switch a.prefs.page {
+	case pageEditor:
+		return locales.SettingsEditor()
 	case pageAppearance:
 		return locales.SettingsAppearance()
 	case pageFonts:
@@ -368,7 +377,11 @@ func (a *app) fontsPage(c *ui.Context) {
 		a.settingsRow(c, locales.SettingsContentFont(), locales.SettingsContentFontDesc(), func() {
 			a.fontChoice(c, &a.set.ContentFont, locales.SettingsContentFont(), locales.SettingsSystemMono(), true)
 		})
-		a.settingsRow(c, locales.SettingsFontSize(), locales.SettingsFontSizeDesc(), func() { a.fontSizeControl(c) })
+		a.settingsRow(c, locales.SettingsFontSize(), locales.SettingsFontSizeDesc(), func() {
+			a.stepper(c, fmt.Sprintf("%g", a.set.FontSize), locales.SettingsSmaller(), locales.SettingsLarger(), func(by int) {
+				a.setFontSize(a.set.FontSize + float32(by))
+			})
+		})
 	})
 	p := &a.prefs
 	if p.preview == nil {
@@ -404,21 +417,62 @@ func (a *app) fontChoice(c *ui.Context, family *string, label, system string, mo
 	}
 }
 
-func (a *app) fontSizeControl(c *ui.Context) {
+// stepper shows value between buttons that step it down and up, by
+// calling step with -1 and 1.
+func (a *app) stepper(c *ui.Context, value, less, more string, step func(by int)) {
 	ch := a.scheme.chrome()
-	step := func(ic *ui.SVG, label string, by float32) {
+	button := func(ic *ui.SVG, label string, by int) {
 		btn := ui.ButtonBase(c).Width(28).Height(26).Center().Transition(colorFade).Label(label).
-			OnClick(func() { a.setFontSize(a.set.FontSize + by) })
+			OnClick(func() { step(by) })
 		if btn.Hovered() {
 			btn.Background(ch.panel.Mix(ch.text, 0.06))
 		}
 		btn.Children(func() { ui.Icon(c, ic).Size(12, 12).TextColor(ch.text) })
 	}
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Radius(6).Border(1, ch.line).Background(ch.panel).Clip().Children(func() {
-		step(minusIcon, locales.SettingsSmaller(), -1)
+		button(minusIcon, less, -1)
 		ui.Box(c).Width(40).Height(26).Center().BorderWidth(0, 1, 0, 1).BorderColor(ch.line).Children(func() {
-			ui.Textf(c, "%g", a.set.FontSize).FontSize(13).FontFeatures("tnum")
+			ui.Text(c, value).FontSize(13).FontFeatures("tnum")
 		})
-		step(plusIcon, locales.SettingsLarger(), 1)
+		button(plusIcon, more, 1)
+	})
+}
+
+var indentStyles = []editor.IndentStyle{editor.IndentAuto, editor.IndentTabs, editor.IndentSpaces}
+
+func (a *app) editorPage(c *ui.Context) {
+	ui.Column(c).FillWidth().Gap(10).Children(func() {
+		a.heading(c, locales.SettingsIndentation(), false)
+		a.settingsGroup(c, func() {
+			a.settingsRow(c, locales.SettingsTabSize(), locales.SettingsTabSizeDesc(), func() {
+				a.stepper(c, strconv.Itoa(a.set.TabSize), locales.SettingsTabSizeSmaller(), locales.SettingsTabSizeLarger(), func(by int) {
+					a.set.TabSize = max(1, min(a.set.TabSize+by, 8))
+					a.l.saveSettings()
+				})
+			})
+			a.settingsRow(c, locales.SettingsIndentWith(), locales.SettingsIndentWithDesc(), func() {
+				options := []string{locales.SettingsFollowLanguage(), locales.SettingsTabs(), locales.SettingsSpaces()}
+				choice := options[slices.Index(indentStyles, a.set.indent())]
+				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsIndentWith()).Changed() {
+					a.set.setIndent(indentStyles[slices.Index(options, choice)])
+					a.l.saveSettings()
+				}
+			})
+		})
+	})
+	ui.Column(c).FillWidth().Gap(10).Children(func() {
+		a.heading(c, locales.SettingsOnSave(), false)
+		a.settingsGroup(c, func() {
+			a.settingsRow(c, locales.SettingsTrimWhiteSpace(), locales.SettingsTrimWhiteSpaceDesc(), func() {
+				if ui.Switch(c, &a.set.TrimTrailingWhiteSpaceOnSave).Label(locales.SettingsTrimWhiteSpace()).Changed() {
+					a.l.saveSettings()
+				}
+			})
+			a.settingsRow(c, locales.SettingsEnsureNewline(), locales.SettingsEnsureNewlineDesc(), func() {
+				if ui.Switch(c, &a.set.EnsureNewlineAtEOFOnSave).Label(locales.SettingsEnsureNewline()).Changed() {
+					a.l.saveSettings()
+				}
+			})
+		})
 	})
 }

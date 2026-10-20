@@ -460,6 +460,7 @@ func (a *app) reopenClosed() {
 
 // write saves d to path, on the main thread.
 func (a *app) write(d *doc, path string) error {
+	a.tidy(d)
 	snap := d.st.Buffer.Snapshot()
 	var b bytes.Buffer
 	if _, err := snap.WriteTo(&b); err != nil {
@@ -484,6 +485,24 @@ func (a *app) write(d *doc, path string) error {
 	d.saved = snap
 	d.setDiffBase(snap)
 	return nil
+}
+
+// tidy makes the changes the settings make to a file as it is saved, as
+// one step of undo.
+func (a *app) tidy(d *doc) {
+	trim, eol := a.set.TrimTrailingWhiteSpaceOnSave, a.set.EnsureNewlineAtEOFOnSave
+	if !trim && !eol {
+		return
+	}
+	b := d.st.Buffer
+	b.Transact(func() {
+		if trim {
+			d.st.Run(editor.TrimTrailingWhitespace)
+		}
+		if n := b.Len(); eol && n > 0 && b.Slice(n-1, n) != "\n" {
+			b.Edit(editor.Edit{Start: n, End: n, Text: "\n"})
+		}
+	})
 }
 
 // pickPath asks where to save d; "" when canceled. It blocks, so call it
