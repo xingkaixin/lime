@@ -6,8 +6,8 @@ import (
 )
 
 // scheme is a color scheme: GitHub's, as its Primer colors have it, or
-// one of Sublime Text's, its colors taken from the schemes the app ships
-// with. The chrome around the editor derives from it, as Sublime's
+// one of Sublime Text's or Flexoki's, its colors taken from their
+// .sublime-color-scheme files. The chrome around the editor derives from it, as Sublime's
 // Adaptive theme does.
 type scheme struct {
 	name        string
@@ -50,6 +50,48 @@ var schemes = []*scheme{
 			editor.TokenAttribute: "#0550ae", editor.TokenMeta: "#8250df", editor.TokenHeading: "#0550ae/b",
 			editor.TokenLink: "#0a3069", editor.TokenCode: "#0a3069", editor.TokenInserted: "#1a7f37",
 			editor.TokenDeleted: "#cf222e", editor.TokenInvalid: "#d1242f",
+		}),
+	},
+	{
+		name: "GitHub Dark Dimmed", dark: true,
+		bg: ui.Hex("#22272e"), fg: ui.Hex("#adbac7"), caret: ui.Hex("#539bf5"), sel: ui.Hex("#539bf5").Alpha(0.2),
+		accent: ui.Hex("#539bf5"), activeGuide: ui.Hex("#636e7b"), find: ui.Hex("#c69026"), bracket: ui.Hex("#768390"),
+		tokens: tokens(map[editor.TokenKind]string{
+			editor.TokenKeyword: "#f47067", editor.TokenType: "#f69d50", editor.TokenFunction: "#dcbdfb",
+			editor.TokenProperty: "#6cb6ff", editor.TokenConstant: "#6cb6ff", editor.TokenNumber: "#6cb6ff",
+			editor.TokenString: "#96d0ff", editor.TokenEscape: "#6cb6ff", editor.TokenRegexp: "#8ddb8c",
+			editor.TokenComment: "#768390", editor.TokenOperator: "#f47067", editor.TokenTag: "#8ddb8c",
+			editor.TokenAttribute: "#6cb6ff", editor.TokenMeta: "#dcbdfb", editor.TokenHeading: "#6cb6ff/b",
+			editor.TokenLink: "#96d0ff", editor.TokenCode: "#96d0ff", editor.TokenInserted: "#8ddb8c",
+			editor.TokenDeleted: "#ff938a", editor.TokenInvalid: "#f47067",
+		}),
+	},
+	{
+		name: "GitHub Dark High Contrast", dark: true,
+		bg: ui.Hex("#0a0c10"), fg: ui.Hex("#f0f3f6"), caret: ui.Hex("#71b7ff"), sel: ui.Hex("#ffffff").Alpha(0.2),
+		accent: ui.Hex("#71b7ff"), activeGuide: ui.Hex("#9ea7b3"), find: ui.Hex("#f0b72f"), bracket: ui.Hex("#bdc4cc"),
+		tokens: tokens(map[editor.TokenKind]string{
+			editor.TokenKeyword: "#ff9492", editor.TokenType: "#ffb757", editor.TokenFunction: "#dbb7ff",
+			editor.TokenProperty: "#91cbff", editor.TokenConstant: "#91cbff", editor.TokenNumber: "#91cbff",
+			editor.TokenString: "#addcff", editor.TokenEscape: "#91cbff", editor.TokenRegexp: "#72f088",
+			editor.TokenComment: "#bdc4cc", editor.TokenOperator: "#ff9492", editor.TokenTag: "#72f088",
+			editor.TokenAttribute: "#91cbff", editor.TokenMeta: "#dbb7ff", editor.TokenHeading: "#91cbff/b",
+			editor.TokenLink: "#addcff", editor.TokenCode: "#addcff", editor.TokenInserted: "#72f088",
+			editor.TokenDeleted: "#ffb1af", editor.TokenInvalid: "#ff9492",
+		}),
+	},
+	{
+		name: "GitHub Light High Contrast",
+		bg:   ui.Hex("#ffffff"), fg: ui.Hex("#0e1116"), caret: ui.Hex("#0349b4"), sel: ui.Hex("#0e1116").Alpha(0.2),
+		accent: ui.Hex("#0349b4"), activeGuide: ui.Hex("#88929d"), find: ui.Hex("#b58407"), bracket: ui.Hex("#66707b"),
+		tokens: tokens(map[editor.TokenKind]string{
+			editor.TokenKeyword: "#a0111f", editor.TokenType: "#702c00", editor.TokenFunction: "#622cbc",
+			editor.TokenProperty: "#023b95", editor.TokenConstant: "#023b95", editor.TokenNumber: "#023b95",
+			editor.TokenString: "#032563", editor.TokenEscape: "#023b95", editor.TokenRegexp: "#024c1a",
+			editor.TokenComment: "#66707b", editor.TokenOperator: "#a0111f", editor.TokenTag: "#024c1a",
+			editor.TokenAttribute: "#023b95", editor.TokenMeta: "#622cbc", editor.TokenHeading: "#023b95/b",
+			editor.TokenLink: "#032563", editor.TokenCode: "#032563", editor.TokenInserted: "#024c1a",
+			editor.TokenDeleted: "#a0111f", editor.TokenInvalid: "#a0111f",
 		}),
 	},
 	{
@@ -115,6 +157,34 @@ var schemes = []*scheme{
 			editor.TokenOperator: "#86c1b9", editor.TokenPunctuation: "#999999", editor.TokenTag: "#d2322d",
 			editor.TokenAttribute: "#f09642", editor.TokenMeta: "#d2322d", editor.TokenHeading: "#3c97dd/b",
 			editor.TokenLink: "#3c97dd", editor.TokenInserted: "#9dbf40", editor.TokenDeleted: "#d2322d",
+		}),
+	},
+	// Flexoki marks selections and matches with borders, which the editor
+	// does not draw: they take ui-2 and yellow, which show without one.
+	{
+		name: "Flexoki Dark", dark: true,
+		bg: ui.Hex("#100f0f"), fg: ui.Hex("#cecdc3"), caret: ui.Hex("#fffcf0"), sel: ui.Hex("#343331"),
+		accent: ui.Hex("#4385be"), activeGuide: ui.Hex("#575653"), find: ui.Hex("#d0a215"), bracket: ui.Hex("#879a39"),
+		tokens: tokens(map[editor.TokenKind]string{
+			editor.TokenKeyword: "#879a39", editor.TokenType: "#da702c", editor.TokenFunction: "#da702c",
+			editor.TokenConstant: "#d0a215", editor.TokenNumber: "#8b7ec8", editor.TokenString: "#3aa99f",
+			editor.TokenEscape: "#d14d41", editor.TokenRegexp: "#3aa99f", editor.TokenComment: "#575653",
+			editor.TokenOperator: "#878580", editor.TokenPunctuation: "#878580", editor.TokenTag: "#4385be",
+			editor.TokenAttribute: "#da702c", editor.TokenMeta: "#d0a215", editor.TokenHeading: "#575653/b",
+			editor.TokenLink: "#3aa99f", editor.TokenInserted: "#879a39", editor.TokenDeleted: "#d14d41",
+		}),
+	},
+	{
+		name: "Flexoki Light",
+		bg:   ui.Hex("#fffcf0"), fg: ui.Hex("#100f0f"), caret: ui.Hex("#100f0f"), sel: ui.Hex("#dad8ce"),
+		accent: ui.Hex("#205ea6"), activeGuide: ui.Hex("#b7b5ac"), find: ui.Hex("#ad8301"), bracket: ui.Hex("#66800b"),
+		tokens: tokens(map[editor.TokenKind]string{
+			editor.TokenKeyword: "#66800b", editor.TokenType: "#bc5215", editor.TokenFunction: "#bc5215",
+			editor.TokenConstant: "#ad8301", editor.TokenNumber: "#5e409d", editor.TokenString: "#24837b",
+			editor.TokenEscape: "#af3029", editor.TokenRegexp: "#24837b", editor.TokenComment: "#b7b5ac",
+			editor.TokenOperator: "#6f6e69", editor.TokenPunctuation: "#6f6e69", editor.TokenTag: "#205ea6",
+			editor.TokenAttribute: "#bc5215", editor.TokenMeta: "#ad8301", editor.TokenHeading: "#b7b5ac/b",
+			editor.TokenLink: "#24837b", editor.TokenInserted: "#66800b", editor.TokenDeleted: "#af3029",
 		}),
 	},
 }
