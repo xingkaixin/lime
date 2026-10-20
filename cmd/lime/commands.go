@@ -35,8 +35,28 @@ func withDoc(fn func(a *app, d *doc)) func(a *app) {
 	}
 }
 
+// withSource runs fn on the doc whose text the current tab edits, a diff
+// tab's new one.
+func withSource(fn func(a *app, d *doc)) func(a *app) {
+	return func(a *app) {
+		if d := a.current(); d != nil && d.source().kind == textDoc {
+			fn(a, d.source())
+		}
+	}
+}
+
+// edit runs cmd in the current editor, or the side of a diff that has
+// the keyboard.
 func edit(id string, caption func(locales.Messages) string, cmd editor.Command) command {
-	return command{id, caption, withDoc(func(_ *app, d *doc) { d.st.Run(cmd) }), cmd}
+	return command{id, caption, func(a *app) {
+		switch d := a.current(); {
+		case d == nil:
+		case d.cmp != nil:
+			d.cmp.diff.Run(cmd)
+		case d.kind == textDoc:
+			d.st.Run(cmd)
+		}
+	}, cmd}
 }
 
 func (a *app) setFontSize(size float32) {
@@ -66,8 +86,8 @@ func makeCommands() []command {
 		{id: "prompt_open", caption: locales.Messages.CmdOpen, run: (*app).promptOpen},
 		{id: "prompt_open_folder", caption: locales.Messages.CmdOpenFolder, run: (*app).promptAddFolder},
 		{id: "reopen_last_file", caption: locales.Messages.CmdReopenClosedFile, run: (*app).reopenClosed},
-		{id: "save", caption: locales.Messages.CmdSave, run: withDoc((*app).save)},
-		{id: "prompt_save_as", caption: locales.Messages.CmdSaveAs, run: withDoc((*app).saveAs)},
+		{id: "save", caption: locales.Messages.CmdSave, run: withSource((*app).save)},
+		{id: "prompt_save_as", caption: locales.Messages.CmdSaveAs, run: withSource((*app).saveAs)},
 		{id: "save_all", caption: locales.Messages.CmdSaveAll, run: (*app).saveAll},
 		{id: "close", caption: locales.Messages.CmdClose, run: (*app).closeCurrent},
 		{id: "new_window", caption: locales.Messages.CmdNewWindow, run: (*app).openWindow},
@@ -122,6 +142,9 @@ func makeCommands() []command {
 		{id: "delete_blank_lines surplus", caption: locales.Messages.CmdDeleteSurplusBlankLines, run: withDoc(func(_ *app, d *doc) { deleteBlankLines(d.st, true) })},
 		{id: "format_json", caption: locales.Messages.CmdFormatJSON, run: withDoc(func(a *app, d *doc) { a.formatJSON(d.st, false) })},
 		{id: "minify_json", caption: locales.Messages.CmdMinifyJSON, run: withDoc(func(a *app, d *doc) { a.formatJSON(d.st, true) })},
+		{id: "compare_with", caption: locales.Messages.CmdCompareWith, run: withDoc((*app).showCompare)},
+		{id: "compare_with_clipboard", caption: locales.Messages.CmdCompareWithClipboard, run: withDoc((*app).compareClipboard)},
+		{id: "diff_changes", caption: locales.Messages.CmdShowUnsavedChanges, run: withDoc((*app).showUnsavedChanges)},
 		edit("toggle_comment", locales.Messages.CmdToggleComment, editor.ToggleComment),
 		edit("toggle_block_comment", locales.Messages.CmdToggleBlockComment, editor.ToggleBlockComment),
 		edit("split_selection_into_lines", locales.Messages.CmdSplitSelection, editor.SplitSelectionIntoLines),

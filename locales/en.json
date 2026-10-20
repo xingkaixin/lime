@@ -113,6 +113,9 @@
   "cmdDeleteSurplusBlankLines": "Delete Surplus Blank Lines",
   "cmdFormatJSON": "JSON: Format",
   "cmdMinifyJSON": "JSON: Minify",
+  "cmdCompareWith": "Compare: With File or Tab…",
+  "cmdCompareWithClipboard": "Compare: With Clipboard",
+  "cmdShowUnsavedChanges": "Compare: Show Unsaved Changes",
   "cmdToggleComment": "Toggle Comment",
   "cmdToggleBlockComment": "Toggle Block Comment",
   "cmdSplitSelection": "Selection: Split into Lines",
@@ -147,6 +150,16 @@
   "panelGoToLine": "Go to line {line, number, ::group-off}",
   "@panelGoToLine": {
     "placeholders": { "line": { "type": "int", "example": "42" } }
+  },
+  "panelCompareWith": "Choose a file to compare with {name}",
+  "@panelCompareWith": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "panelBrowseFiles": "Browse Other Files…",
+  "panelBrowseFilesDetail": "Choose a file outside the project with the system dialog",
+  "panelOpenTab": "Open",
+  "@panelOpenTab": {
+    "description": "Marks a file of the list that is open in a tab."
   },
   "promptNewName": "New Name:",
   "promptFolderName": "Folder Name:",
@@ -200,6 +213,23 @@
     "description": "The button closing a tab, to assistive technology.",
     "placeholders": { "name": { "type": "String", "example": "main.go" } }
   },
+  "tabUnsavedChanges": "{name}: Unsaved Changes",
+  "@tabUnsavedChanges": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "compareClipboard": "Clipboard",
+  "compareOnDisk": "{name} on Disk",
+  "@compareOnDisk": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "compareEdited": "{name} in Editor",
+  "@compareEdited": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "compareEditable": "Editable",
+  "compareRevert": "Revert",
+  "compareSideBySide": "Side by Side",
+  "compareUnified": "Unified",
   "statusSideBar": "Show or Hide Side Bar",
   "statusSelections": "{count, plural, one {# selection region} other {# selection regions}}",
   "@statusSelections": {
@@ -222,6 +252,20 @@
     "placeholders": { "char": { "type": "String", "example": "}" } }
   },
   "statusIncompleteJSON": "Invalid JSON: unexpected end of input",
+  "statusNoDifferences": "No differences",
+  "statusDifferences": "{count, plural, one {# difference} other {# differences}}",
+  "@statusDifferences": {
+    "placeholders": { "count": { "type": "int", "example": "5" } }
+  },
+  "statusChanges": "{count, plural, one {# change} other {# changes}}",
+  "@statusChanges": {
+    "placeholders": { "count": { "type": "int", "example": "2" } }
+  },
+  "statusDiffLayout": "Diff layout: {name}",
+  "@statusDiffLayout": {
+    "description": "The status bar's button choosing how a comparison shows, to assistive technology.",
+    "placeholders": { "name": { "type": "String", "example": "Side by Side" } }
+  },
 
   "findRegex": "Regular expression",
   "findCaseSensitive": "Case sensitive",

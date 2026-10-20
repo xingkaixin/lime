@@ -1124,6 +1124,36 @@ func (msgs Messages) CmdMinifyJSON() string {
 	return Catalog.Format(msgs.locale, "cmdMinifyJSON", nil)
 }
 
+// CmdCompareWith says "Compare: With File or Tab…"
+// in the language the app shows.
+func CmdCompareWith() string { return In(i18n.Locale()).CmdCompareWith() }
+
+// CmdCompareWith says "Compare: With File or Tab…"
+// in the language of msgs.
+func (msgs Messages) CmdCompareWith() string {
+	return Catalog.Format(msgs.locale, "cmdCompareWith", nil)
+}
+
+// CmdCompareWithClipboard says "Compare: With Clipboard"
+// in the language the app shows.
+func CmdCompareWithClipboard() string { return In(i18n.Locale()).CmdCompareWithClipboard() }
+
+// CmdCompareWithClipboard says "Compare: With Clipboard"
+// in the language of msgs.
+func (msgs Messages) CmdCompareWithClipboard() string {
+	return Catalog.Format(msgs.locale, "cmdCompareWithClipboard", nil)
+}
+
+// CmdShowUnsavedChanges says "Compare: Show Unsaved Changes"
+// in the language the app shows.
+func CmdShowUnsavedChanges() string { return In(i18n.Locale()).CmdShowUnsavedChanges() }
+
+// CmdShowUnsavedChanges says "Compare: Show Unsaved Changes"
+// in the language of msgs.
+func (msgs Messages) CmdShowUnsavedChanges() string {
+	return Catalog.Format(msgs.locale, "cmdShowUnsavedChanges", nil)
+}
+
 // CmdToggleComment says "Toggle Comment"
 // in the language the app shows.
 func CmdToggleComment() string { return In(i18n.Locale()).CmdToggleComment() }
@@ -1362,6 +1392,50 @@ func (msgs Messages) PanelGoToLine(line int) string {
 	return Catalog.Format(msgs.locale, "panelGoToLine", map[string]any{"line": line})
 }
 
+// PanelCompareWith says "Choose a file to compare with {name}"
+// in the language the app shows.
+func PanelCompareWith(name string) string { return In(i18n.Locale()).PanelCompareWith(name) }
+
+// PanelCompareWith says "Choose a file to compare with {name}"
+// in the language of msgs.
+func (msgs Messages) PanelCompareWith(name string) string {
+	return Catalog.Format(msgs.locale, "panelCompareWith", map[string]any{"name": name})
+}
+
+// PanelBrowseFiles says "Browse Other Files…"
+// in the language the app shows.
+func PanelBrowseFiles() string { return In(i18n.Locale()).PanelBrowseFiles() }
+
+// PanelBrowseFiles says "Browse Other Files…"
+// in the language of msgs.
+func (msgs Messages) PanelBrowseFiles() string {
+	return Catalog.Format(msgs.locale, "panelBrowseFiles", nil)
+}
+
+// PanelBrowseFilesDetail says "Choose a file outside the project with the system dialog"
+// in the language the app shows.
+func PanelBrowseFilesDetail() string { return In(i18n.Locale()).PanelBrowseFilesDetail() }
+
+// PanelBrowseFilesDetail says "Choose a file outside the project with the system dialog"
+// in the language of msgs.
+func (msgs Messages) PanelBrowseFilesDetail() string {
+	return Catalog.Format(msgs.locale, "panelBrowseFilesDetail", nil)
+}
+
+// PanelOpenTab says "Open"
+// in the language the app shows.
+//
+// Marks a file of the list that is open in a tab.
+func PanelOpenTab() string { return In(i18n.Locale()).PanelOpenTab() }
+
+// PanelOpenTab says "Open"
+// in the language of msgs.
+//
+// Marks a file of the list that is open in a tab.
+func (msgs Messages) PanelOpenTab() string {
+	return Catalog.Format(msgs.locale, "panelOpenTab", nil)
+}
+
 // PromptNewName says "New Name:"
 // in the language the app shows.
 func PromptNewName() string { return In(i18n.Locale()).PromptNewName() }
@@ -1588,6 +1662,86 @@ func (msgs Messages) TabClose(name string) string {
 	return Catalog.Format(msgs.locale, "tabClose", map[string]any{"name": name})
 }
 
+// TabUnsavedChanges says "{name}: Unsaved Changes"
+// in the language the app shows.
+func TabUnsavedChanges(name string) string { return In(i18n.Locale()).TabUnsavedChanges(name) }
+
+// TabUnsavedChanges says "{name}: Unsaved Changes"
+// in the language of msgs.
+func (msgs Messages) TabUnsavedChanges(name string) string {
+	return Catalog.Format(msgs.locale, "tabUnsavedChanges", map[string]any{"name": name})
+}
+
+// CompareClipboard says "Clipboard"
+// in the language the app shows.
+func CompareClipboard() string { return In(i18n.Locale()).CompareClipboard() }
+
+// CompareClipboard says "Clipboard"
+// in the language of msgs.
+func (msgs Messages) CompareClipboard() string {
+	return Catalog.Format(msgs.locale, "compareClipboard", nil)
+}
+
+// CompareOnDisk says "{name} on Disk"
+// in the language the app shows.
+func CompareOnDisk(name string) string { return In(i18n.Locale()).CompareOnDisk(name) }
+
+// CompareOnDisk says "{name} on Disk"
+// in the language of msgs.
+func (msgs Messages) CompareOnDisk(name string) string {
+	return Catalog.Format(msgs.locale, "compareOnDisk", map[string]any{"name": name})
+}
+
+// CompareEdited says "{name} in Editor"
+// in the language the app shows.
+func CompareEdited(name string) string { return In(i18n.Locale()).CompareEdited(name) }
+
+// CompareEdited says "{name} in Editor"
+// in the language of msgs.
+func (msgs Messages) CompareEdited(name string) string {
+	return Catalog.Format(msgs.locale, "compareEdited", map[string]any{"name": name})
+}
+
+// CompareEditable says "Editable"
+// in the language the app shows.
+func CompareEditable() string { return In(i18n.Locale()).CompareEditable() }
+
+// CompareEditable says "Editable"
+// in the language of msgs.
+func (msgs Messages) CompareEditable() string {
+	return Catalog.Format(msgs.locale, "compareEditable", nil)
+}
+
+// CompareRevert says "Revert"
+// in the language the app shows.
+func CompareRevert() string { return In(i18n.Locale()).CompareRevert() }
+
+// CompareRevert says "Revert"
+// in the language of msgs.
+func (msgs Messages) CompareRevert() string {
+	return Catalog.Format(msgs.locale, "compareRevert", nil)
+}
+
+// CompareSideBySide says "Side by Side"
+// in the language the app shows.
+func CompareSideBySide() string { return In(i18n.Locale()).CompareSideBySide() }
+
+// CompareSideBySide says "Side by Side"
+// in the language of msgs.
+func (msgs Messages) CompareSideBySide() string {
+	return Catalog.Format(msgs.locale, "compareSideBySide", nil)
+}
+
+// CompareUnified says "Unified"
+// in the language the app shows.
+func CompareUnified() string { return In(i18n.Locale()).CompareUnified() }
+
+// CompareUnified says "Unified"
+// in the language of msgs.
+func (msgs Messages) CompareUnified() string {
+	return Catalog.Format(msgs.locale, "compareUnified", nil)
+}
+
 // StatusSideBar says "Show or Hide Side Bar"
 // in the language the app shows.
 func StatusSideBar() string { return In(i18n.Locale()).StatusSideBar() }
@@ -1652,6 +1806,52 @@ func StatusIncompleteJSON() string { return In(i18n.Locale()).StatusIncompleteJS
 // in the language of msgs.
 func (msgs Messages) StatusIncompleteJSON() string {
 	return Catalog.Format(msgs.locale, "statusIncompleteJSON", nil)
+}
+
+// StatusNoDifferences says "No differences"
+// in the language the app shows.
+func StatusNoDifferences() string { return In(i18n.Locale()).StatusNoDifferences() }
+
+// StatusNoDifferences says "No differences"
+// in the language of msgs.
+func (msgs Messages) StatusNoDifferences() string {
+	return Catalog.Format(msgs.locale, "statusNoDifferences", nil)
+}
+
+// StatusDifferences says "{count, plural, one {# difference} other {# differences}}"
+// in the language the app shows.
+func StatusDifferences(count int) string { return In(i18n.Locale()).StatusDifferences(count) }
+
+// StatusDifferences says "{count, plural, one {# difference} other {# differences}}"
+// in the language of msgs.
+func (msgs Messages) StatusDifferences(count int) string {
+	return Catalog.Format(msgs.locale, "statusDifferences", map[string]any{"count": count})
+}
+
+// StatusChanges says "{count, plural, one {# change} other {# changes}}"
+// in the language the app shows.
+func StatusChanges(count int) string { return In(i18n.Locale()).StatusChanges(count) }
+
+// StatusChanges says "{count, plural, one {# change} other {# changes}}"
+// in the language of msgs.
+func (msgs Messages) StatusChanges(count int) string {
+	return Catalog.Format(msgs.locale, "statusChanges", map[string]any{"count": count})
+}
+
+// StatusDiffLayout says "Diff layout: {name}"
+// in the language the app shows.
+//
+// The status bar's button choosing how a comparison shows, to assistive
+// technology.
+func StatusDiffLayout(name string) string { return In(i18n.Locale()).StatusDiffLayout(name) }
+
+// StatusDiffLayout says "Diff layout: {name}"
+// in the language of msgs.
+//
+// The status bar's button choosing how a comparison shows, to assistive
+// technology.
+func (msgs Messages) StatusDiffLayout(name string) string {
+	return Catalog.Format(msgs.locale, "statusDiffLayout", map[string]any{"name": name})
 }
 
 // FindRegex says "Regular expression"

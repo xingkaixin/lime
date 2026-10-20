@@ -33,6 +33,10 @@ func (a *app) showFind(replace bool) {
 	}
 	s := &a.find
 	s.replacing, s.pending = replace, true
+	if d.cmp != nil {
+		d.cmp.diff.Find(s.query)
+		return
+	}
 	d.st.Run(editor.Find)
 	if t := selectionQuery(d.st); t != "" {
 		s.query = t

@@ -213,7 +213,13 @@ func (a *app) gotoList(query string) []item {
 			}
 		}})
 	}
-	return ranked(items, func(it *item) (int, bool) {
+	return ranked(items, byName(name))
+}
+
+// byName scores files for name, matched in their names, or else across
+// their paths, the details.
+func byName(name string) func(it *item) (int, bool) {
+	return func(it *item) (int, bool) {
 		if name == "" {
 			return 0, true
 		}
@@ -223,7 +229,7 @@ func (a *app) gotoList(query string) []item {
 			return s * 2, true
 		}
 		return fuzzy(name, it.detail)
-	})
+	}
 }
 
 func goToLine(d *doc, line int) {

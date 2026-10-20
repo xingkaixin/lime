@@ -21,6 +21,7 @@ const (
 	textDoc   docKind = iota
 	imageDoc          // shown as an image
 	binaryDoc         // shown as a note that it is binary
+	diffDoc           // shown as the changes between two texts, cmp's
 )
 
 // imageExts are the images DecodeBitmap reads.

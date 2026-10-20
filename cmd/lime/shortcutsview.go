@@ -46,6 +46,8 @@ var shortcutGroups = func() []shortcutGroup {
 			s("prompt_open_folder", m.MenuOpenFolder), s("reopen_last_file", m.MenuReopenClosedFile),
 			s("save", m.MenuSave), s("prompt_save_as", m.MenuSaveAs), s("save_all", m.MenuSaveAll),
 			s("close", m.MenuCloseFile), s("close_window", m.MenuCloseWindow), s("show_settings", m.MenuSettings),
+			s("compare_with", m.CmdCompareWith), s("compare_with_clipboard", m.CmdCompareWithClipboard),
+			s("diff_changes", m.CmdShowUnsavedChanges),
 		}},
 		{m.ShortcutGroupEdit, []shortcut{
 			s("soft_undo", m.ShortcutSoftUndo), s("soft_redo", m.ShortcutSoftRedo),

@@ -32,15 +32,27 @@ type doc struct {
 	modified bool
 
 	kind    docKind
-	img     *ui.Bitmap // an imageDoc's image, once decoded
-	loading bool       // the image is decoding
+	img     *ui.Bitmap  // an imageDoc's image, once decoded
+	loading bool        // the image is decoding
+	cmp     *comparison // a diffDoc's
 }
 
 func (d *doc) name() string {
-	if d.path == "" {
+	switch {
+	case d.cmp != nil:
+		return d.cmp.title()
+	case d.path == "":
 		return locales.Untitled()
 	}
 	return filepath.Base(d.path)
+}
+
+// source is the doc whose text d edits: its own, or a diff tab's new one.
+func (d *doc) source() *doc {
+	if d.cmp != nil {
+		return d.cmp.src
+	}
+	return d
 }
 
 // savePath is where the save dialog starts for d.
@@ -605,6 +617,14 @@ func (a *app) remove(d *doc) {
 		a.closed = append(a.closed, d.path)
 	}
 	release(d)
+	// A diff tab would go on editing a text no tab shows.
+	for _, w := range a.l.wins {
+		for _, x := range w.allDocs() {
+			if x.cmp != nil && (x.cmp.src == d || x.cmp.old == d) {
+				w.remove(x)
+			}
+		}
+	}
 }
 
 // release gives the memory of large docs just closed back to the system,
