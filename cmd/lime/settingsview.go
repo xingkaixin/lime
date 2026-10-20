@@ -356,7 +356,7 @@ func (a *app) themeCard(c *ui.Context, sc *scheme, on bool) {
 			})
 		}
 	})
-	ui.Text(c, sc.name).FontSize(12).Padding(7, 10).SingleLine().Ellipsis("…")
+	ui.Text(c, sc.name).FontSize(12).Padding(7, 10).MaxLines(2).Ellipsis("…")
 }
 
 func (a *app) fontsPage(c *ui.Context) {
