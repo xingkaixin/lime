@@ -109,6 +109,8 @@
   "cmdSortLinesCaseSensitive": "排序行（区分大小写）",
   "cmdReverseLines": "重排行：倒序",
   "cmdUniqueLines": "重排行：去重",
+  "cmdDeleteBlankLines": "删除空行",
+  "cmdDeleteSurplusBlankLines": "删除多余空行",
   "cmdToggleComment": "切换注释",
   "cmdToggleBlockComment": "切换块注释",
   "cmdSplitSelection": "选区：拆分为行",

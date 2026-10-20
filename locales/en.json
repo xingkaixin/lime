@@ -109,6 +109,8 @@
   "cmdSortLinesCaseSensitive": "Sort Lines (Case Sensitive)",
   "cmdReverseLines": "Permute Lines: Reverse",
   "cmdUniqueLines": "Permute Lines: Unique",
+  "cmdDeleteBlankLines": "Delete Blank Lines",
+  "cmdDeleteSurplusBlankLines": "Delete Surplus Blank Lines",
   "cmdToggleComment": "Toggle Comment",
   "cmdToggleBlockComment": "Toggle Block Comment",
   "cmdSplitSelection": "Selection: Split into Lines",

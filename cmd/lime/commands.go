@@ -2,6 +2,7 @@ package main
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/egoist/mygo/ui/editor"
 
@@ -114,6 +115,8 @@ func makeCommands() []command {
 		edit("sort_lines_case_sensitive", locales.Messages.CmdSortLinesCaseSensitive, editor.SortLines),
 		edit("reverse_lines", locales.Messages.CmdReverseLines, editor.ReverseLines),
 		edit("unique_lines", locales.Messages.CmdUniqueLines, editor.UniqueLines),
+		{id: "delete_blank_lines", caption: locales.Messages.CmdDeleteBlankLines, run: withDoc(func(_ *app, d *doc) { deleteBlankLines(d.st, false) })},
+		{id: "delete_blank_lines surplus", caption: locales.Messages.CmdDeleteSurplusBlankLines, run: withDoc(func(_ *app, d *doc) { deleteBlankLines(d.st, true) })},
 		edit("toggle_comment", locales.Messages.CmdToggleComment, editor.ToggleComment),
 		edit("toggle_block_comment", locales.Messages.CmdToggleBlockComment, editor.ToggleBlockComment),
 		edit("split_selection_into_lines", locales.Messages.CmdSplitSelection, editor.SplitSelectionIntoLines),
@@ -173,6 +176,53 @@ func makeCommands() []command {
 		c = append(c, command{id: l.id(), caption: caption, run: func(a *app) { a.setLayout(l) }})
 	}
 	return c
+}
+
+// deleteBlankLines deletes the lines of white space alone from the lines
+// of the selections, a caret alone taking all lines, as the
+// DeleteBlankLines package does. With surplus it keeps the first line of
+// each run of them.
+func deleteBlankLines(st *editor.State, surplus bool) {
+	t := st.Buffer.Snapshot()
+	type span struct{ from, to int }
+	var spans []span
+	sels := st.Selections()
+	if len(sels) == 1 && sels[0].Anchor == sels[0].Head {
+		spans = []span{{0, t.LineCount() - 1}}
+	} else {
+		for _, s := range sels {
+			a, z := min(s.Anchor, s.Head), max(s.Anchor, s.Head)
+			sp := span{t.LineOf(a), t.LineOf(z)}
+			if sp.to > sp.from && z == t.LineStart(sp.to) {
+				sp.to--
+			}
+			if n := len(spans); n > 0 && sp.from <= spans[n-1].to {
+				spans[n-1].to = max(spans[n-1].to, sp.to)
+				continue
+			}
+			spans = append(spans, sp)
+		}
+	}
+	last := t.LineCount() - 1
+	var edits []editor.Edit
+	for _, sp := range spans {
+		run := false
+		for i := sp.from; i <= sp.to; i++ {
+			blank := strings.TrimSpace(t.Line(i)) == ""
+			keep := !blank || surplus && !run
+			run = blank
+			switch {
+			case keep:
+			case i < last:
+				edits = append(edits, editor.Edit{Start: t.LineStart(i), End: t.LineStart(i + 1)})
+			default:
+				// The last line loses its white space only, so the file keeps
+				// its final newline.
+				edits = append(edits, editor.Edit{Start: t.LineStart(i), End: t.LineEnd(i)})
+			}
+		}
+	}
+	st.Buffer.Edit(edits...)
 }
 
 func (a *app) run(id string) {

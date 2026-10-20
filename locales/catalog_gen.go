@@ -1084,6 +1084,26 @@ func (msgs Messages) CmdUniqueLines() string {
 	return Catalog.Format(msgs.locale, "cmdUniqueLines", nil)
 }
 
+// CmdDeleteBlankLines says "Delete Blank Lines"
+// in the language the app shows.
+func CmdDeleteBlankLines() string { return In(i18n.Locale()).CmdDeleteBlankLines() }
+
+// CmdDeleteBlankLines says "Delete Blank Lines"
+// in the language of msgs.
+func (msgs Messages) CmdDeleteBlankLines() string {
+	return Catalog.Format(msgs.locale, "cmdDeleteBlankLines", nil)
+}
+
+// CmdDeleteSurplusBlankLines says "Delete Surplus Blank Lines"
+// in the language the app shows.
+func CmdDeleteSurplusBlankLines() string { return In(i18n.Locale()).CmdDeleteSurplusBlankLines() }
+
+// CmdDeleteSurplusBlankLines says "Delete Surplus Blank Lines"
+// in the language of msgs.
+func (msgs Messages) CmdDeleteSurplusBlankLines() string {
+	return Catalog.Format(msgs.locale, "cmdDeleteSurplusBlankLines", nil)
+}
+
 // CmdToggleComment says "Toggle Comment"
 // in the language the app shows.
 func CmdToggleComment() string { return In(i18n.Locale()).CmdToggleComment() }

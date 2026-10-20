@@ -475,3 +475,24 @@ func TestInvalidSettings(t *testing.T) {
 		t.Fatalf("settings.json written over: %s", b)
 	}
 }
+
+func TestDeleteBlankLines(t *testing.T) {
+	for _, c := range []struct {
+		id, text string
+		sel      editor.Selection
+		want     string
+	}{
+		{"delete_blank_lines", "a\n\n \t\nb\n\n", editor.Selection{}, "a\nb\n"},
+		{"delete_blank_lines", "a\n\n  ", editor.Selection{}, "a\n"},
+		{"delete_blank_lines", "a\n\nb\n\nc\n", editor.Selection{Anchor: 0, Head: 3}, "a\nb\n\nc\n"},
+		{"delete_blank_lines surplus", "a\n\n\n\nb\n\n\n", editor.Selection{}, "a\n\nb\n\n"},
+	} {
+		a := newApp("")
+		st := a.add("", c.text).st
+		st.SetSelections(c.sel)
+		a.run(c.id)
+		if got := st.Buffer.String(); got != c.want {
+			t.Errorf("%s %q: %q, want %q", c.id, c.text, got, c.want)
+		}
+	}
+}
