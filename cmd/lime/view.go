@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"slices"
+	"time"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo"
@@ -316,10 +317,45 @@ func (a *app) statusBar(c *ui.Context) {
 	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6).Gap(8).AlignItems(ui.Center).Background(ch.bg).Children(func() {
 		a.sideBarButton(c)
 		ui.Text(c, left).FontSize(12).TextColor(ch.muted)
+		if a.notice.text != "" {
+			danger := a.scheme.danger()
+			ui.Row(c).Shrink(1).MinWidth(0).Gap(5).AlignItems(ui.Center).Children(func() {
+				ui.Icon(c, warningIcon).Size(12, 12).TextColor(danger).Shrink(0)
+				ui.Text(c, a.notice.text).FontSize(12).TextColor(danger).SingleLine().Ellipsis("…")
+			})
+		}
 		ui.Box(c).Grow(1)
 		if d != nil && d.kind == textDoc {
 			a.syntaxButton(c, d)
 		}
+	})
+}
+
+// noticeTime is how long the status bar shows a notice.
+const noticeTime = 4 * time.Second
+
+// notice is a message of the status bar, as why a command failed.
+type notice struct {
+	text string
+	n    int // counts the notices, so that only the last one's timer clears it
+}
+
+// notifyError shows text in the status bar for noticeTime, as Sublime
+// Text shows its status messages.
+func (a *app) notifyError(text string) {
+	a.notice.n++
+	a.notice.text = text
+	n := a.notice.n
+	// A window that never opened, as in tests, has no frames to update.
+	if a.win == nil {
+		return
+	}
+	time.AfterFunc(noticeTime, func() {
+		a.win.Update(func() {
+			if a.notice.n == n {
+				a.notice.text = ""
+			}
+		})
 	})
 }
 

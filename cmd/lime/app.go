@@ -214,6 +214,7 @@ type app struct {
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
 	prefs   prefs
+	notice  notice
 }
 
 func newLime(dir string) *lime {
