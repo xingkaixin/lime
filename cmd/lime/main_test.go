@@ -541,3 +541,20 @@ func TestTidyOnSave(t *testing.T) {
 		t.Fatalf("one undo: %q, want the text as typed", got)
 	}
 }
+
+// A tab that shows no text has no editor to bind the focus to, which
+// would leave a click in another group unfollowed.
+func TestPreviewFocus(t *testing.T) {
+	a := newApp("")
+	a.add("/p/a.txt", "a\n")
+	a.newPane()
+	a.focusGroup(0)
+	a.add("/p/x.bin", "").kind = binaryDoc
+	tt := ui.NewTester(a.view, 1000, 500)
+	tt.Frame()
+	tt.ClickAt(800, 200)
+	tt.Frame()
+	if a.focus != 1 {
+		t.Fatalf("a click in group 1's editor leaves the focus on group %d", a.focus)
+	}
+}

@@ -325,6 +325,11 @@ func (a *app) syncFocus(ctrlHeld bool) {
 	if a.cycle == nil && p.d != p.g.blank && (len(a.mru) == 0 || a.mru[0] != p.d) {
 		a.touch(p.d)
 	}
+	// Only a text's editor binds the focus: a place that no element binds
+	// would wait for one, and leave the focus the user moves unfollowed.
+	if p.d.kind != textDoc {
+		a.focused = place{}
+	}
 }
 
 // cycleTabs is Sublime Text's next_view_in_stack: Ctrl+Tab walks the
