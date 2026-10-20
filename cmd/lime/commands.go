@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -117,6 +120,8 @@ func makeCommands() []command {
 		edit("unique_lines", locales.Messages.CmdUniqueLines, editor.UniqueLines),
 		{id: "delete_blank_lines", caption: locales.Messages.CmdDeleteBlankLines, run: withDoc(func(_ *app, d *doc) { deleteBlankLines(d.st, false) })},
 		{id: "delete_blank_lines surplus", caption: locales.Messages.CmdDeleteSurplusBlankLines, run: withDoc(func(_ *app, d *doc) { deleteBlankLines(d.st, true) })},
+		{id: "format_json", caption: locales.Messages.CmdFormatJSON, run: withDoc(func(a *app, d *doc) { a.formatJSON(d.st, false) })},
+		{id: "minify_json", caption: locales.Messages.CmdMinifyJSON, run: withDoc(func(a *app, d *doc) { a.formatJSON(d.st, true) })},
 		edit("toggle_comment", locales.Messages.CmdToggleComment, editor.ToggleComment),
 		edit("toggle_block_comment", locales.Messages.CmdToggleBlockComment, editor.ToggleBlockComment),
 		edit("split_selection_into_lines", locales.Messages.CmdSplitSelection, editor.SplitSelectionIntoLines),
@@ -223,6 +228,92 @@ func deleteBlankLines(st *editor.State, surplus bool) {
 		}
 	}
 	st.Buffer.Edit(edits...)
+}
+
+// formatJSON indents, or with minify compacts, the JSON of each selection,
+// or of all the text when nothing is selected. When one does not parse,
+// none changes: the caret goes where it fails, which the status bar tells.
+func (a *app) formatJSON(st *editor.State, minify bool) {
+	t := st.Buffer.Snapshot()
+	var spans [][2]int
+	for _, s := range st.Selections() {
+		if s.Anchor != s.Head {
+			spans = append(spans, [2]int{min(s.Anchor, s.Head), max(s.Anchor, s.Head)})
+		}
+	}
+	whole := len(spans) == 0
+	if whole {
+		spans = [][2]int{{0, t.Len()}}
+	}
+	unit := indentUnit(st)
+	var edits []editor.Edit
+	var sels []editor.Selection
+	delta := 0
+	for _, sp := range spans {
+		// The white space around the JSON stays, as a file's final newline.
+		src := t.Slice(sp[0], sp[1])
+		lead := len(src) - len(strings.TrimLeft(src, " \t\r\n"))
+		src = strings.TrimSpace(src)
+		at := sp[0] + lead
+		var out bytes.Buffer
+		var err error
+		if minify {
+			err = json.Compact(&out, []byte(src))
+		} else {
+			line := t.Line(t.LineOf(at))
+			err = json.Indent(&out, []byte(src), line[:len(line)-len(strings.TrimLeft(line, " \t"))], unit)
+		}
+		if err != nil {
+			a.jsonError(st, at, src, err)
+			return
+		}
+		edits = append(edits, editor.Edit{Start: at, End: at + len(src), Text: out.String()})
+		sels = append(sels, editor.Selection{Anchor: at + delta, Head: at + delta + out.Len()})
+		delta += out.Len() - len(src)
+	}
+	st.Buffer.Edit(edits...)
+	if !whole {
+		st.SetSelections(sels...)
+	}
+}
+
+// jsonError puts the caret where src, at offset at, fails to parse as
+// JSON, and tells why in the status bar.
+func (a *app) jsonError(st *editor.State, at int, src string, err error) {
+	var se *json.SyntaxError
+	if !errors.As(err, &se) {
+		return
+	}
+	// The scanner's messages name the character it stopped at so:
+	// "invalid character '}' looking for beginning of object key string".
+	if rest, ok := strings.CutPrefix(se.Error(), "invalid character "); ok {
+		if i := strings.Index(rest, "' "); i > 0 {
+			rest = rest[:i]
+		}
+		pos := at + max(int(se.Offset)-1, 0)
+		st.Select(pos, pos)
+		a.notifyError(locales.StatusInvalidJSON(strings.Trim(rest, "'")))
+		return
+	}
+	st.Select(at+len(src), at+len(src))
+	a.notifyError(locales.StatusIncompleteJSON())
+}
+
+// indentUnit is what a level of indentation inserts in st, chosen as its
+// editor chooses it, which keeps that to itself.
+func indentUnit(st *editor.State) string {
+	l := st.Buffer.Language()
+	if st.Indent == editor.IndentTabs || st.Indent == editor.IndentAuto && l != nil && l.HardTabs {
+		return "\t"
+	}
+	size := st.TabSize
+	if size <= 0 {
+		size = 4
+		if l != nil && l.TabSize > 0 {
+			size = l.TabSize
+		}
+	}
+	return strings.Repeat(" ", size)
 }
 
 func (a *app) run(id string) {

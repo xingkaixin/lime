@@ -496,3 +496,31 @@ func TestDeleteBlankLines(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatJSON(t *testing.T) {
+	a := newApp("")
+	st := a.add("a.json", "{\"a\": [1, 2], \"b\": {}}\n").st
+	st.Indent, st.TabSize = editor.IndentSpaces, 2
+	a.run("format_json")
+	if got, want := st.Buffer.String(), "{\n  \"a\": [\n    1,\n    2\n  ],\n  \"b\": {}\n}\n"; got != want {
+		t.Fatalf("format_json: %q, want %q", got, want)
+	}
+	a.run("minify_json")
+	if got, want := st.Buffer.String(), "{\"a\":[1,2],\"b\":{}}\n"; got != want {
+		t.Fatalf("minify_json: %q, want %q", got, want)
+	}
+
+	bad := "{\n  \"a\": 1,\n}\n"
+	st.Buffer.Set(bad)
+	st.Select(0, 0)
+	a.run("format_json")
+	if got := st.Buffer.String(); got != bad {
+		t.Fatalf("format_json changed invalid JSON: %q", got)
+	}
+	if got := st.Selection(); got != (editor.Selection{Anchor: 12, Head: 12}) {
+		t.Fatalf("caret at %v, want at the closing brace, 12", got)
+	}
+	if a.notice.text == "" {
+		t.Fatal("no notice of the invalid JSON")
+	}
+}

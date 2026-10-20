@@ -111,6 +111,8 @@
   "cmdUniqueLines": "Permute Lines: Unique",
   "cmdDeleteBlankLines": "Delete Blank Lines",
   "cmdDeleteSurplusBlankLines": "Delete Surplus Blank Lines",
+  "cmdFormatJSON": "JSON: Format",
+  "cmdMinifyJSON": "JSON: Minify",
   "cmdToggleComment": "Toggle Comment",
   "cmdToggleBlockComment": "Toggle Block Comment",
   "cmdSplitSelection": "Selection: Split into Lines",
@@ -215,6 +217,11 @@
     "description": "The status bar's syntax button, to assistive technology.",
     "placeholders": { "name": { "type": "String", "example": "Go" } }
   },
+  "statusInvalidJSON": "Invalid JSON: unexpected character “{char}”",
+  "@statusInvalidJSON": {
+    "placeholders": { "char": { "type": "String", "example": "}" } }
+  },
+  "statusIncompleteJSON": "Invalid JSON: unexpected end of input",
 
   "findRegex": "Regular expression",
   "findCaseSensitive": "Case sensitive",
