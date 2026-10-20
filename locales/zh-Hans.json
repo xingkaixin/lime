@@ -142,6 +142,7 @@
   "dialogUnableToCreate": "无法创建 {name}",
   "dialogUnableToDelete": "无法删除 {name}",
   "dialogUnableToKeepFiles": "无法保留打开的文件",
+  "dialogUnableToReadSettings": "无法读取 settings.json",
   "dialogUnableToOpenProject": "无法打开项目",
   "dialogUnableToSaveProject": "无法保存项目",
   "dialogSaveChanges": "关闭前要保存对 {name} 的更改吗？",

@@ -7,6 +7,8 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/i18n"
+
+	"lime/locales"
 )
 
 // settings are what the app keeps between runs, in settings.json.
@@ -53,18 +55,21 @@ func dataDir() string {
 
 func settingsPath(dir string) string { return filepath.Join(dir, "settings.json") }
 
-func loadSettings(dir string) settings {
+// loadSettings reads settings.json over the defaults, and returns the
+// error of a file that does not parse.
+func loadSettings(dir string) (settings, error) {
 	s := settings{
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220,
 	}
+	var err error
 	if dir != "" {
-		if b, err := os.ReadFile(settingsPath(dir)); err == nil {
-			json.Unmarshal(b, &s)
+		if b, rerr := os.ReadFile(settingsPath(dir)); rerr == nil {
+			err = json.Unmarshal(b, &s)
 		}
 	}
 	s.migrate()
-	return s
+	return s, err
 }
 
 // migrate reads the color scheme of older settings into the appearance
@@ -111,10 +116,11 @@ func (s *settings) showScheme(sc *scheme, shownDark bool) {
 	}
 }
 
-// saveSettings keeps the settings, and shows them in all windows.
+// saveSettings keeps the settings, and shows them in all windows. A
+// settings.json that does not parse is left for the user to fix.
 func (l *lime) saveSettings() {
 	l.redraw()
-	if l.dir == "" {
+	if l.dir == "" || l.setErr != nil {
 		return
 	}
 	b, err := json.MarshalIndent(l.set, "", "\t")
@@ -134,9 +140,15 @@ func (l *lime) setLanguage(tag string) {
 }
 
 // reloadSettings reads settings.json again once it is saved in a tab,
-// which the settings kept later would write over.
+// which the settings kept later would write over. A file that does not
+// parse leaves the settings as they are.
 func (l *lime) reloadSettings() {
-	l.set = loadSettings(l.dir)
+	s, err := loadSettings(l.dir)
+	if l.setErr = err; err != nil {
+		go mygo.Dialog.Error(locales.DialogUnableToReadSettings(), err.Error())
+		return
+	}
+	l.set = s
 	l.keys = newKeymap(l.set.Keys)
 	mygo.App.SetLocale(l.set.locale())
 	l.redraw()

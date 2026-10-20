@@ -175,6 +175,10 @@ type lime struct {
 
 	menuPaused bool // while a key is recorded
 
+	// setErr is why settings.json does not parse: nothing writes over the
+	// file until it does.
+	setErr error
+
 	themeSource mygo.ThemeSource
 	menuState   string
 	fonts       *fontLists // listed as the font settings first show
@@ -213,7 +217,8 @@ type app struct {
 }
 
 func newLime(dir string) *lime {
-	l := &lime{dir: dir, set: loadSettings(dir)}
+	set, err := loadSettings(dir)
+	l := &lime{dir: dir, set: set, setErr: err}
 	l.keys = newKeymap(l.set.Keys)
 	return l
 }

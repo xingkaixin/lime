@@ -1402,6 +1402,16 @@ func (msgs Messages) DialogUnableToKeepFiles() string {
 	return Catalog.Format(msgs.locale, "dialogUnableToKeepFiles", nil)
 }
 
+// DialogUnableToReadSettings says "Unable to read settings.json"
+// in the language the app shows.
+func DialogUnableToReadSettings() string { return In(i18n.Locale()).DialogUnableToReadSettings() }
+
+// DialogUnableToReadSettings says "Unable to read settings.json"
+// in the language of msgs.
+func (msgs Messages) DialogUnableToReadSettings() string {
+	return Catalog.Format(msgs.locale, "dialogUnableToReadSettings", nil)
+}
+
 // DialogUnableToOpenProject says "Unable to open the project"
 // in the language the app shows.
 func DialogUnableToOpenProject() string { return In(i18n.Locale()).DialogUnableToOpenProject() }

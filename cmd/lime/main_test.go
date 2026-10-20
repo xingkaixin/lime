@@ -450,9 +450,28 @@ func TestMigrateColorScheme(t *testing.T) {
 	} {
 		dir := t.TempDir()
 		os.WriteFile(settingsPath(dir), []byte(`{"color_scheme": "`+tc.old+`"}`), 0o644)
-		s := loadSettings(dir)
+		s, _ := loadSettings(dir)
 		if s.Appearance != tc.appearance || s.LightTheme != tc.light || s.DarkTheme != tc.dark || s.ColorScheme != "" {
 			t.Errorf("%s: %+v", tc.old, s)
 		}
+	}
+}
+
+// A settings.json saved with an error leaves the settings as they were,
+// and is not written over with them.
+func TestInvalidSettings(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(settingsPath(dir), []byte(`{"font_size": 20}`), 0o644)
+	l := newLime(dir)
+	bad := []byte(`{"font_size": 20,}`)
+	os.WriteFile(settingsPath(dir), bad, 0o644)
+	l.reloadSettings()
+	if l.set.FontSize != 20 {
+		t.Fatalf("font size %v after a file that does not parse, want 20", l.set.FontSize)
+	}
+	l.set.WordWrap = false
+	l.saveSettings()
+	if b, _ := os.ReadFile(settingsPath(dir)); string(b) != string(bad) {
+		t.Fatalf("settings.json written over: %s", b)
 	}
 }

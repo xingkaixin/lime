@@ -210,6 +210,9 @@ func main() {
 			a.makeWindow(a.bounds)
 		}
 		mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) { l.quit(e) })
+		if err := l.setErr; err != nil {
+			go mygo.Dialog.Error(locales.DialogUnableToReadSettings(), err.Error())
+		}
 		go func() {
 			for range time.Tick(3 * time.Second) {
 				mygo.RunOnMain(l.autosave)
