@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/i18n"
+	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
 )
@@ -27,6 +28,12 @@ type settings struct {
 	WordWrap     bool    `json:"word_wrap"`
 	SideBar      bool    `json:"side_bar"`
 	SideBarWidth float32 `json:"side_bar_width"`
+	TabSize      int     `json:"tab_size"`
+	// TranslateTabsToSpaces indents with spaces when true and tabs when
+	// false; unset, as the language's files usually do.
+	TranslateTabsToSpaces        *bool `json:"translate_tabs_to_spaces,omitempty"`
+	TrimTrailingWhiteSpaceOnSave bool  `json:"trim_trailing_white_space_on_save"`
+	EnsureNewlineAtEOFOnSave     bool  `json:"ensure_newline_at_eof_on_save"`
 	// Keys are the commands' keys the user changed, the one changed last
 	// last.
 	Keys []keyChange `json:"keys,omitempty"`
@@ -60,7 +67,7 @@ func settingsPath(dir string) string { return filepath.Join(dir, "settings.json"
 func loadSettings(dir string) (settings, error) {
 	s := settings{
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
-		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220,
+		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4,
 	}
 	var err error
 	if dir != "" {
@@ -98,6 +105,25 @@ func (s *settings) locale() string {
 		return ""
 	}
 	return i18n.Normalize(s.Language)
+}
+
+// indent is what TranslateTabsToSpaces has indenting insert.
+func (s *settings) indent() editor.IndentStyle {
+	switch {
+	case s.TranslateTabsToSpaces == nil:
+		return editor.IndentAuto
+	case *s.TranslateTabsToSpaces:
+		return editor.IndentSpaces
+	}
+	return editor.IndentTabs
+}
+
+func (s *settings) setIndent(style editor.IndentStyle) {
+	s.TranslateTabsToSpaces = nil
+	if style != editor.IndentAuto {
+		spaces := style == editor.IndentSpaces
+		s.TranslateTabsToSpaces = &spaces
+	}
 }
 
 // showScheme makes sc the theme of its appearance, and shows that

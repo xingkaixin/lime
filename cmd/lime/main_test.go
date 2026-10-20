@@ -524,3 +524,20 @@ func TestFormatJSON(t *testing.T) {
 		t.Fatal("no notice of the invalid JSON")
 	}
 }
+
+func TestTidyOnSave(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.txt")
+	a := newApp("")
+	a.set.TrimTrailingWhiteSpaceOnSave, a.set.EnsureNewlineAtEOFOnSave = true, true
+	d := a.add(p, "a  \nb\t")
+	if err := a.write(d, p); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(p); string(b) != "a\nb\n" {
+		t.Fatalf("saved %q, want %q", b, "a\nb\n")
+	}
+	d.st.Run(editor.Undo)
+	if got := d.st.Buffer.String(); got != "a  \nb\t" {
+		t.Fatalf("one undo: %q, want the text as typed", got)
+	}
+}
