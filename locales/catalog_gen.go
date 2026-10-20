@@ -1804,6 +1804,166 @@ func (msgs Messages) SettingsFonts() string {
 	return Catalog.Format(msgs.locale, "settingsFonts", nil)
 }
 
+// SettingsEditor says "Editor"
+// in the language the app shows.
+func SettingsEditor() string { return In(i18n.Locale()).SettingsEditor() }
+
+// SettingsEditor says "Editor"
+// in the language of msgs.
+func (msgs Messages) SettingsEditor() string {
+	return Catalog.Format(msgs.locale, "settingsEditor", nil)
+}
+
+// SettingsIndentation says "Indentation"
+// in the language the app shows.
+func SettingsIndentation() string { return In(i18n.Locale()).SettingsIndentation() }
+
+// SettingsIndentation says "Indentation"
+// in the language of msgs.
+func (msgs Messages) SettingsIndentation() string {
+	return Catalog.Format(msgs.locale, "settingsIndentation", nil)
+}
+
+// SettingsTabSize says "Tab Size"
+// in the language the app shows.
+func SettingsTabSize() string { return In(i18n.Locale()).SettingsTabSize() }
+
+// SettingsTabSize says "Tab Size"
+// in the language of msgs.
+func (msgs Messages) SettingsTabSize() string {
+	return Catalog.Format(msgs.locale, "settingsTabSize", nil)
+}
+
+// SettingsTabSizeDesc says "Columns a tab and a level of indentation take"
+// in the language the app shows.
+func SettingsTabSizeDesc() string { return In(i18n.Locale()).SettingsTabSizeDesc() }
+
+// SettingsTabSizeDesc says "Columns a tab and a level of indentation take"
+// in the language of msgs.
+func (msgs Messages) SettingsTabSizeDesc() string {
+	return Catalog.Format(msgs.locale, "settingsTabSizeDesc", nil)
+}
+
+// SettingsTabSizeSmaller says "Decrease tab size"
+// in the language the app shows.
+func SettingsTabSizeSmaller() string { return In(i18n.Locale()).SettingsTabSizeSmaller() }
+
+// SettingsTabSizeSmaller says "Decrease tab size"
+// in the language of msgs.
+func (msgs Messages) SettingsTabSizeSmaller() string {
+	return Catalog.Format(msgs.locale, "settingsTabSizeSmaller", nil)
+}
+
+// SettingsTabSizeLarger says "Increase tab size"
+// in the language the app shows.
+func SettingsTabSizeLarger() string { return In(i18n.Locale()).SettingsTabSizeLarger() }
+
+// SettingsTabSizeLarger says "Increase tab size"
+// in the language of msgs.
+func (msgs Messages) SettingsTabSizeLarger() string {
+	return Catalog.Format(msgs.locale, "settingsTabSizeLarger", nil)
+}
+
+// SettingsIndentWith says "Indent With"
+// in the language the app shows.
+func SettingsIndentWith() string { return In(i18n.Locale()).SettingsIndentWith() }
+
+// SettingsIndentWith says "Indent With"
+// in the language of msgs.
+func (msgs Messages) SettingsIndentWith() string {
+	return Catalog.Format(msgs.locale, "settingsIndentWith", nil)
+}
+
+// SettingsIndentWithDesc says "Follow Language: tabs for Go, spaces for others"
+// in the language the app shows.
+func SettingsIndentWithDesc() string { return In(i18n.Locale()).SettingsIndentWithDesc() }
+
+// SettingsIndentWithDesc says "Follow Language: tabs for Go, spaces for others"
+// in the language of msgs.
+func (msgs Messages) SettingsIndentWithDesc() string {
+	return Catalog.Format(msgs.locale, "settingsIndentWithDesc", nil)
+}
+
+// SettingsFollowLanguage says "Follow Language"
+// in the language the app shows.
+func SettingsFollowLanguage() string { return In(i18n.Locale()).SettingsFollowLanguage() }
+
+// SettingsFollowLanguage says "Follow Language"
+// in the language of msgs.
+func (msgs Messages) SettingsFollowLanguage() string {
+	return Catalog.Format(msgs.locale, "settingsFollowLanguage", nil)
+}
+
+// SettingsTabs says "Tabs"
+// in the language the app shows.
+func SettingsTabs() string { return In(i18n.Locale()).SettingsTabs() }
+
+// SettingsTabs says "Tabs"
+// in the language of msgs.
+func (msgs Messages) SettingsTabs() string {
+	return Catalog.Format(msgs.locale, "settingsTabs", nil)
+}
+
+// SettingsSpaces says "Spaces"
+// in the language the app shows.
+func SettingsSpaces() string { return In(i18n.Locale()).SettingsSpaces() }
+
+// SettingsSpaces says "Spaces"
+// in the language of msgs.
+func (msgs Messages) SettingsSpaces() string {
+	return Catalog.Format(msgs.locale, "settingsSpaces", nil)
+}
+
+// SettingsOnSave says "On Save"
+// in the language the app shows.
+func SettingsOnSave() string { return In(i18n.Locale()).SettingsOnSave() }
+
+// SettingsOnSave says "On Save"
+// in the language of msgs.
+func (msgs Messages) SettingsOnSave() string {
+	return Catalog.Format(msgs.locale, "settingsOnSave", nil)
+}
+
+// SettingsTrimWhiteSpace says "Trim Trailing White Space"
+// in the language the app shows.
+func SettingsTrimWhiteSpace() string { return In(i18n.Locale()).SettingsTrimWhiteSpace() }
+
+// SettingsTrimWhiteSpace says "Trim Trailing White Space"
+// in the language of msgs.
+func (msgs Messages) SettingsTrimWhiteSpace() string {
+	return Catalog.Format(msgs.locale, "settingsTrimWhiteSpace", nil)
+}
+
+// SettingsTrimWhiteSpaceDesc says "Removes spaces and tabs at the end of each line"
+// in the language the app shows.
+func SettingsTrimWhiteSpaceDesc() string { return In(i18n.Locale()).SettingsTrimWhiteSpaceDesc() }
+
+// SettingsTrimWhiteSpaceDesc says "Removes spaces and tabs at the end of each line"
+// in the language of msgs.
+func (msgs Messages) SettingsTrimWhiteSpaceDesc() string {
+	return Catalog.Format(msgs.locale, "settingsTrimWhiteSpaceDesc", nil)
+}
+
+// SettingsEnsureNewline says "Ensure Newline at End of File"
+// in the language the app shows.
+func SettingsEnsureNewline() string { return In(i18n.Locale()).SettingsEnsureNewline() }
+
+// SettingsEnsureNewline says "Ensure Newline at End of File"
+// in the language of msgs.
+func (msgs Messages) SettingsEnsureNewline() string {
+	return Catalog.Format(msgs.locale, "settingsEnsureNewline", nil)
+}
+
+// SettingsEnsureNewlineDesc says "Adds a newline to a file that does not end with one"
+// in the language the app shows.
+func SettingsEnsureNewlineDesc() string { return In(i18n.Locale()).SettingsEnsureNewlineDesc() }
+
+// SettingsEnsureNewlineDesc says "Adds a newline to a file that does not end with one"
+// in the language of msgs.
+func (msgs Messages) SettingsEnsureNewlineDesc() string {
+	return Catalog.Format(msgs.locale, "settingsEnsureNewlineDesc", nil)
+}
+
 // SettingsClose says "Close"
 // in the language the app shows.
 func SettingsClose() string { return In(i18n.Locale()).SettingsClose() }
