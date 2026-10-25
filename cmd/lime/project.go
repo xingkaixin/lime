@@ -49,6 +49,7 @@ type project struct {
 	dirs    map[string][]os.DirEntry // folders read, for the side bar
 	files   []string                 // the folders' files, for Goto Anything
 	gen     int                      // counts the indexings, for the last to win
+	create  *creation
 	// jump has the side bar show the next frame without motion: another
 	// project or a rename replaced the rows' paths, not their places.
 	jump bool
@@ -328,7 +329,6 @@ func (a *app) renamed(from, to string) {
 			d.path = p
 			d.st.Buffer.SetLanguage(editor.LanguageFor(p))
 		}
-		d.dir = moved(d.dir, from, to)
 	}
 	open := make(map[string]*bool, len(a.proj.open))
 	for dir, o := range a.proj.open {
@@ -477,18 +477,53 @@ func copyNew(from, to string) error {
 	return dst.Close()
 }
 
-func (a *app) promptNewFolder(dir string) {
-	a.openPanel(&panel{prompt: locales.PromptFolderName(), submit: func(name string) {
-		if name == "" {
-			return
-		}
-		if err := os.MkdirAll(filepath.Join(dir, name), 0o755); err != nil {
-			go mygo.Dialog.Error(locales.DialogUnableToCreate(name), err.Error())
-			return
-		}
-		*a.proj.isOpen(dir, true) = true
-		a.refreshFolders()
-	}})
+// holds reports whether path is in one of the folders.
+func (p *project) holds(path string) bool {
+	return slices.ContainsFunc(p.folders, func(f string) bool { return within(path, f) })
+}
+
+// creation is a file or folder being named in the side bar, at the top of
+// the folder it goes in.
+type creation struct {
+	dir     string
+	folder  bool
+	name    string
+	focused bool // the input took the focus, which leaving cancels it
+}
+
+func (a *app) startCreate(dir string, folder bool) {
+	*a.proj.isOpen(dir, true) = true
+	a.proj.create = &creation{dir: dir, folder: folder}
+}
+
+// finishCreate makes the file or folder named, opening a file in a tab.
+func (a *app) finishCreate() {
+	cr := a.proj.create
+	a.proj.create = nil
+	name := strings.TrimSpace(cr.name)
+	if name == "" {
+		return
+	}
+	p := filepath.Join(cr.dir, name)
+	if err := createNew(p, cr.folder); err != nil {
+		go mygo.Dialog.Error(locales.DialogUnableToCreate(name), err.Error())
+		return
+	}
+	a.refreshFolders()
+	if !cr.folder {
+		a.open([]string{p})
+	}
+}
+
+func createNew(path string, folder bool) error {
+	if folder {
+		return os.Mkdir(path, 0o755)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }
 
 // docsIn returns the tabs of the files in path.

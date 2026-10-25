@@ -147,7 +147,6 @@
   "panelBrowseFilesDetail": "用系统对话框选择项目外的文件",
   "panelOpenTab": "已打开",
   "promptNewName": "新名称：",
-  "promptFolderName": "文件夹名称：",
 
   "dialogUnableToOpen": "无法打开 {name}",
   "dialogUnableToSave": "无法保存 {name}",

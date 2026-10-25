@@ -164,7 +164,6 @@
     "description": "Marks a file of the list that is open in a tab."
   },
   "promptNewName": "New Name:",
-  "promptFolderName": "Folder Name:",
 
   "dialogUnableToOpen": "Unable to open {name}",
   "@dialogUnableToOpen": {

@@ -81,7 +81,7 @@ func (a *app) fileMenu(c *ui.Context, m *ui.Menu, path string) {
 
 func (a *app) folderMenu(c *ui.Context, m *ui.Menu, dir string, root bool) {
 	if m.Item(locales.MenuNewFile()).Chosen() {
-		a.add("", "").dir = dir
+		a.startCreate(dir, false)
 	}
 	if m.Item(locales.MenuRename()).Chosen() {
 		a.promptRename(dir)
@@ -94,7 +94,7 @@ func (a *app) folderMenu(c *ui.Context, m *ui.Menu, dir string, root bool) {
 	}
 	m.Separator()
 	if m.Item(locales.MenuNewFolder()).Chosen() {
-		a.promptNewFolder(dir)
+		a.startCreate(dir, true)
 	}
 	if m.Item(locales.MenuDeleteFolder()).Chosen() {
 		a.trash(dir, true)

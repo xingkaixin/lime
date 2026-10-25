@@ -1466,16 +1466,6 @@ func (msgs Messages) PromptNewName() string {
 	return Catalog.Format(msgs.locale, "promptNewName", nil)
 }
 
-// PromptFolderName says "Folder Name:"
-// in the language the app shows.
-func PromptFolderName() string { return In(i18n.Locale()).PromptFolderName() }
-
-// PromptFolderName says "Folder Name:"
-// in the language of msgs.
-func (msgs Messages) PromptFolderName() string {
-	return Catalog.Format(msgs.locale, "promptFolderName", nil)
-}
-
 // DialogUnableToOpen says "Unable to open {name}"
 // in the language the app shows.
 func DialogUnableToOpen(name string) string { return In(i18n.Locale()).DialogUnableToOpen(name) }

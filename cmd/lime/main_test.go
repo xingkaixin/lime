@@ -397,6 +397,58 @@ func TestRenameFolder(t *testing.T) {
 	}
 }
 
+// New File and New Folder of a folder's menu name the item in the side
+// bar. Escape or a press elsewhere makes nothing.
+func TestCreateInSideBar(t *testing.T) {
+	dir := t.TempDir()
+	a := newApp("")
+	a.addFolder(dir)
+	tt := ui.NewTester(a.view, 800, 500)
+	base := filepath.Base(dir)
+	newItem := func(item string) {
+		t.Helper()
+		if err := tt.RightClick(base); err != nil {
+			t.Fatal(err)
+		}
+		if err := tt.ChooseMenuItem(item); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+	}
+	newItem("New File")
+	tt.Type("a.txt")
+	tt.Key(0, ui.KeyEnter)
+	if _, err := os.Stat(filepath.Join(dir, "a.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if d := a.current(); d == nil || d.path != filepath.Join(dir, "a.txt") {
+		t.Fatal("a.txt is not open")
+	}
+	tt.Frame()
+	if !tt.HasText("a.txt") {
+		t.Fatal("the side bar leaves a.txt out")
+	}
+	newItem("New Folder…")
+	tt.Type("lib")
+	tt.Key(0, ui.KeyEscape)
+	if a.proj.create != nil {
+		t.Fatal("Escape leaves the new folder's name")
+	}
+	newItem("New Folder…")
+	tt.Type("lib")
+	tt.ClickAt(400, 300)
+	tt.Frame()
+	if _, err := os.Stat(filepath.Join(dir, "lib")); err == nil || a.proj.create != nil {
+		t.Fatal("a canceled folder was made")
+	}
+	d := a.add("", "x")
+	a.write(d, filepath.Join(dir, "b.txt"))
+	tt.Frame()
+	if !tt.HasText("b.txt") {
+		t.Fatal("the side bar leaves out a file saved in its folder")
+	}
+}
+
 // Files take their icons as Zed gives them, and every icon parses.
 func TestIcons(t *testing.T) {
 	for name, want := range map[string]string{
