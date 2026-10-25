@@ -5,8 +5,10 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
@@ -54,6 +56,30 @@ func TestSublimeInput(t *testing.T) {
 	tt.Key(ui.Alt, ui.KeyUp)
 	if got := st.Buffer.String(); got != "alpha\nALPHA\nbeta\n" {
 		t.Fatalf("Option+Up moved lines, as in Zed: %q", got)
+	}
+}
+
+func TestDragPastSide(t *testing.T) {
+	a := newApp("")
+	a.set.WordWrap = false
+	a.add("", strings.Repeat("x", 500))
+	tt := ui.NewTester(a.view, 800, 500)
+	d := a.current()
+	r, _ := tt.Find("Code editor")
+	tt.Press(r.X+r.W/2, r.Y+8)
+	tt.Move(r.X+r.W+40, r.Y+8)
+	head := d.st.Cursor()
+	for range 5 {
+		if !a.slideStep(d, unsafe.Add(unsafe.Pointer(d.st), editorOffset)) {
+			t.Fatal("a drag past the right stopped scrolling")
+		}
+	}
+	if got := d.st.Cursor(); got <= head {
+		t.Fatalf("the selection stayed at %d, from %d", got, head)
+	}
+	tt.Release(r.X+r.W+40, r.Y+8)
+	if a.slideStep(d, unsafe.Add(unsafe.Pointer(d.st), editorOffset)) {
+		t.Fatal("scrolling went on after the release")
 	}
 }
 

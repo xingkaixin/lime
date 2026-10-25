@@ -25,6 +25,8 @@ type doc struct {
 	dir     string // the folder an untitled doc saves in first, as New File of a folder sets it
 	st      *editor.State
 	columns bool            // a column drag remapped from another press is going on
+	drag    ui.InputEvent   // the pointer's last move over the editor
+	sliding bool            // a drag past the text's side is scrolling it (slide)
 	saved   editor.Snapshot // the text on disk
 	// checked is the version modified was found for: dirty compares the
 	// text with saved once a version.
