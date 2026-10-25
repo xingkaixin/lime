@@ -176,6 +176,14 @@
   "@dialogUnableToRename": {
     "placeholders": { "name": { "type": "String", "example": "main.go" } }
   },
+  "dialogUnableToMove": "Unable to move {name}",
+  "@dialogUnableToMove": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogUnableToCopy": "Unable to copy {name}",
+  "@dialogUnableToCopy": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
   "dialogUnableToCreate": "Unable to create {name}",
   "@dialogUnableToCreate": {
     "placeholders": { "name": { "type": "String", "example": "src" } }

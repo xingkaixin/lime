@@ -1486,6 +1486,26 @@ func (msgs Messages) DialogUnableToRename(name string) string {
 	return Catalog.Format(msgs.locale, "dialogUnableToRename", map[string]any{"name": name})
 }
 
+// DialogUnableToMove says "Unable to move {name}"
+// in the language the app shows.
+func DialogUnableToMove(name string) string { return In(i18n.Locale()).DialogUnableToMove(name) }
+
+// DialogUnableToMove says "Unable to move {name}"
+// in the language of msgs.
+func (msgs Messages) DialogUnableToMove(name string) string {
+	return Catalog.Format(msgs.locale, "dialogUnableToMove", map[string]any{"name": name})
+}
+
+// DialogUnableToCopy says "Unable to copy {name}"
+// in the language the app shows.
+func DialogUnableToCopy(name string) string { return In(i18n.Locale()).DialogUnableToCopy(name) }
+
+// DialogUnableToCopy says "Unable to copy {name}"
+// in the language of msgs.
+func (msgs Messages) DialogUnableToCopy(name string) string {
+	return Catalog.Format(msgs.locale, "dialogUnableToCopy", map[string]any{"name": name})
+}
+
 // DialogUnableToCreate says "Unable to create {name}"
 // in the language the app shows.
 func DialogUnableToCreate(name string) string { return In(i18n.Locale()).DialogUnableToCreate(name) }

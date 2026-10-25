@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -338,6 +339,80 @@ func (a *app) renamed(from, to string) {
 	}
 	a.proj.jump = true
 	a.refreshFolders()
+}
+
+// canDrop reports whether path dragged in the side bar can go into dir:
+// not where it is, nor into itself.
+func canDrop(path, dir string) bool {
+	return filepath.Dir(path) != dir && !within(dir, path)
+}
+
+// dropInto moves path into dir, or copies it.
+func (a *app) dropInto(path, dir string, copy bool) {
+	*a.proj.isOpen(dir, true) = true
+	a.transfer(path, filepath.Join(dir, filepath.Base(path)), copy)
+}
+
+// transfer moves path to to, or copies it off the main thread in the app.
+func (a *app) transfer(path, to string, copy bool) {
+	if !copy {
+		if err := renameNew(path, to); err != nil {
+			a.transferError(path, copy, err)
+			return
+		}
+		a.renamed(path, to)
+		return
+	}
+	done := func(err error) {
+		if err != nil {
+			a.transferError(path, copy, err)
+		}
+		a.refreshFolders()
+	}
+	if a.win == nil {
+		done(copyNew(path, to))
+		return
+	}
+	go func() {
+		err := copyNew(path, to)
+		a.win.Update(func() { done(err) })
+	}()
+}
+
+func (a *app) transferError(path string, copy bool, err error) {
+	title := locales.DialogUnableToMove(filepath.Base(path))
+	if copy {
+		title = locales.DialogUnableToCopy(filepath.Base(path))
+	}
+	go mygo.Dialog.Error(title, err.Error())
+}
+
+// copyNew copies the file or folder from to to, which must not exist.
+func copyNew(from, to string) error {
+	fi, err := os.Lstat(from)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Lstat(to); err == nil {
+		return &os.PathError{Op: "copy", Path: to, Err: fs.ErrExist}
+	}
+	if fi.IsDir() {
+		return os.CopyFS(to, os.DirFS(from))
+	}
+	src, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_EXCL, fi.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		return err
+	}
+	return dst.Close()
 }
 
 func (a *app) promptNewFolder(dir string) {

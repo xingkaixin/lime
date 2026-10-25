@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"runtime"
 
 	"github.com/egoist/mygo/ui"
 
@@ -86,32 +87,71 @@ const treeIcon, treeGap = 16, 6
 // collapses as one block, which the rows below follow.
 var treeMotion = ui.ElementTransition{Position: true, Colors: true, Enter: &ui.Motion{Collapse: true}, Exit: &ui.Motion{Collapse: true}}
 
+// treeDrag is a file or folder of the side bar dragged to another folder.
+type treeDrag string
+
+// treeBox keys the box of a folder's row and what it holds, apart from
+// both.
+type treeBox string
+
+// copyMods held as a drag is let go copy rather than move, as Finder's
+// Option and Explorer's Ctrl do.
+var copyMods = func() ui.Modifiers {
+	if runtime.GOOS == "darwin" {
+		return ui.Alt
+	}
+	return ui.Ctrl
+}()
+
 // treeDir shows dir, and what it holds while open. A click anywhere on its
-// row opens or closes it.
+// row opens or closes it. Files and folders dragged anywhere on it go into
+// it.
 func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 	open := a.proj.isOpen(dir, depth == 0)
 	ic, tint := icon("_folder"), a.scheme.chrome().muted
 	if *open {
 		ic, tint = icon("_folder_open"), a.scheme.accent
 	}
-	a.treeRow(c, dir, depth, ic, tint, false).Expanded(*open).OnClick(func() { *open = !*open }).
-		ContextMenu(func(m *ui.Menu) { a.folderMenu(c, m, dir, depth == 0) })
-	if !*open {
-		return
+	box := ui.Column(c.Key(treeBox(dir))).FillWidth().Radius(c.Theme().Radius).Transition(colorFade)
+	if p, ok := ui.Drop[treeDrag](box); ok && canDrop(string(p), dir) {
+		a.dropInto(string(p), dir, c.Modifiers()&copyMods != 0)
 	}
-	// Keyed dir/, apart from dir's row.
-	ui.Column(c.Key(dir + string(filepath.Separator))).FillWidth().Transition(treeMotion).Children(func() {
-		for _, e := range a.proj.list(dir) {
-			p := filepath.Join(dir, e.Name())
-			if e.IsDir() {
-				a.treeDir(c, p, depth+1, cur)
-				continue
-			}
-			a.treeRow(c, p, depth+1, fileIcon(e.Name()), a.scheme.chrome().muted, cur != nil && cur.path == p).
-				OnClick(func() { a.open([]string{p}) }).
-				ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
+	if p, ok := ui.DragOver[treeDrag](box); ok && canDrop(string(p), dir) {
+		box.Background(a.scheme.accent.Alpha(0.08))
+	}
+	box.Children(func() {
+		row := a.treeRow(c, dir, depth, ic, tint, false).Expanded(*open).OnClick(func() { *open = !*open }).
+			ContextMenu(func(m *ui.Menu) { a.folderMenu(c, m, dir, depth == 0) })
+		if depth > 0 {
+			treeSource(c, row, dir)
 		}
+		if !*open {
+			return
+		}
+		// Keyed dir/, apart from dir's row.
+		ui.Column(c.Key(dir + string(filepath.Separator))).FillWidth().Transition(treeMotion).Children(func() {
+			for _, e := range a.proj.list(dir) {
+				p := filepath.Join(dir, e.Name())
+				if e.IsDir() {
+					a.treeDir(c, p, depth+1, cur)
+					continue
+				}
+				row := a.treeRow(c, p, depth+1, fileIcon(e.Name()), a.scheme.chrome().muted, cur != nil && cur.path == p).
+					OnClick(func() { a.open([]string{p}) }).
+					ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
+				treeSource(c, row, p)
+			}
+		})
 	})
+}
+
+// treeSource makes row drag path, showing the copy cursor while copyMods
+// are held. The pointer takes the cursor of the row it presses.
+func treeSource(c *ui.Context, row ui.Element, path string) {
+	row.Drag(treeDrag(path))
+	if row.Dragging() && c.Modifiers()&copyMods != 0 {
+		row.Cursor(ui.CursorCopy)
+	}
 }
 
 func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui.Color, selected bool) ui.Element {

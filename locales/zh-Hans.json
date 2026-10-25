@@ -150,6 +150,8 @@
   "dialogUnableToOpen": "无法打开 {name}",
   "dialogUnableToSave": "无法保存 {name}",
   "dialogUnableToRename": "无法重命名 {name}",
+  "dialogUnableToMove": "无法移动 {name}",
+  "dialogUnableToCopy": "无法复制 {name}",
   "dialogUnableToCreate": "无法创建 {name}",
   "dialogUnableToDelete": "无法删除 {name}",
   "dialogUnableToKeepFiles": "无法保留打开的文件",
