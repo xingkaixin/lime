@@ -114,6 +114,26 @@ func (msgs Messages) ButtonDelete() string {
 	return Catalog.Format(msgs.locale, "buttonDelete", nil)
 }
 
+// ButtonReplace says "Replace"
+// in the language the app shows.
+func ButtonReplace() string { return In(i18n.Locale()).ButtonReplace() }
+
+// ButtonReplace says "Replace"
+// in the language of msgs.
+func (msgs Messages) ButtonReplace() string {
+	return Catalog.Format(msgs.locale, "buttonReplace", nil)
+}
+
+// ButtonKeepBoth says "Keep Both"
+// in the language the app shows.
+func ButtonKeepBoth() string { return In(i18n.Locale()).ButtonKeepBoth() }
+
+// ButtonKeepBoth says "Keep Both"
+// in the language of msgs.
+func (msgs Messages) ButtonKeepBoth() string {
+	return Catalog.Format(msgs.locale, "buttonKeepBoth", nil)
+}
+
 // MenuFile says "File"
 // in the language the app shows.
 func MenuFile() string { return In(i18n.Locale()).MenuFile() }
@@ -1486,6 +1506,26 @@ func (msgs Messages) DialogUnableToRename(name string) string {
 	return Catalog.Format(msgs.locale, "dialogUnableToRename", map[string]any{"name": name})
 }
 
+// DialogUnableToMove says "Unable to move {name}"
+// in the language the app shows.
+func DialogUnableToMove(name string) string { return In(i18n.Locale()).DialogUnableToMove(name) }
+
+// DialogUnableToMove says "Unable to move {name}"
+// in the language of msgs.
+func (msgs Messages) DialogUnableToMove(name string) string {
+	return Catalog.Format(msgs.locale, "dialogUnableToMove", map[string]any{"name": name})
+}
+
+// DialogUnableToCopy says "Unable to copy {name}"
+// in the language the app shows.
+func DialogUnableToCopy(name string) string { return In(i18n.Locale()).DialogUnableToCopy(name) }
+
+// DialogUnableToCopy says "Unable to copy {name}"
+// in the language of msgs.
+func (msgs Messages) DialogUnableToCopy(name string) string {
+	return Catalog.Format(msgs.locale, "dialogUnableToCopy", map[string]any{"name": name})
+}
+
 // DialogUnableToCreate says "Unable to create {name}"
 // in the language the app shows.
 func DialogUnableToCreate(name string) string { return In(i18n.Locale()).DialogUnableToCreate(name) }
@@ -1596,6 +1636,28 @@ func DialogUnsavedLost() string { return In(i18n.Locale()).DialogUnsavedLost() }
 // in the language of msgs.
 func (msgs Messages) DialogUnsavedLost() string {
 	return Catalog.Format(msgs.locale, "dialogUnsavedLost", nil)
+}
+
+// DialogItemExists says "An item named {name} already exists in {folder}."
+// in the language the app shows.
+func DialogItemExists(name string, folder string) string {
+	return In(i18n.Locale()).DialogItemExists(name, folder)
+}
+
+// DialogItemExists says "An item named {name} already exists in {folder}."
+// in the language of msgs.
+func (msgs Messages) DialogItemExists(name string, folder string) string {
+	return Catalog.Format(msgs.locale, "dialogItemExists", map[string]any{"name": name, "folder": folder})
+}
+
+// DialogReplaceDetail says "Replacing it moves the one there to the Trash."
+// in the language the app shows.
+func DialogReplaceDetail() string { return In(i18n.Locale()).DialogReplaceDetail() }
+
+// DialogReplaceDetail says "Replacing it moves the one there to the Trash."
+// in the language of msgs.
+func (msgs Messages) DialogReplaceDetail() string {
+	return Catalog.Format(msgs.locale, "dialogReplaceDetail", nil)
 }
 
 // FilterProject says "Sublime Project"

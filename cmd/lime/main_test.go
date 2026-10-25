@@ -611,3 +611,54 @@ func TestCompare(t *testing.T) {
 		t.Fatalf("same texts: notice %q, want no diff tab", a.notice.text)
 	}
 }
+
+// A file dragged in the side bar onto a folder moves into it, its tab
+// following. A copy leaves it and its tab where they are.
+func TestSideBarDrag(t *testing.T) {
+	dir := t.TempDir()
+	os.Mkdir(filepath.Join(dir, "sub"), 0o755)
+	file := filepath.Join(dir, "a.txt")
+	os.WriteFile(file, []byte("a\n"), 0o644)
+	a := newApp("")
+	a.open([]string{dir})
+	a.open([]string{file})
+	tt := ui.NewTester(a.view, 900, 600)
+	f, _ := tt.Find("a.txt")
+	g, ok := tt.Find("sub")
+	if !ok {
+		t.Fatalf("side bar: %q", tt.Texts())
+	}
+	tt.Press(f.X+4, f.Y+4)
+	for i := float32(1); i <= 8; i++ {
+		tt.Move(f.X+4, f.Y+4+(g.Y-f.Y)*i/8)
+	}
+	tt.HoldModifiers(copyMods)
+	if tt.Cursor() != ui.CursorCopy {
+		t.Fatalf("holding copyMods shows cursor %v", tt.Cursor())
+	}
+	tt.HoldModifiers(0)
+	if tt.Cursor() == ui.CursorCopy {
+		t.Fatal("letting go of copyMods keeps the copy cursor")
+	}
+	tt.Release(g.X+4, g.Y+4)
+	tt.Frame()
+	moved := filepath.Join(dir, "sub", "a.txt")
+	if _, err := os.Stat(moved); err != nil || a.current().path != moved {
+		t.Fatalf("moving a.txt into sub: %v, tab at %s", err, a.current().path)
+	}
+
+	// The Tester lets go of the pointer without modifiers, so a copy is
+	// asked for as the drop would.
+	a.dropInto(moved, dir, true)
+	if _, err := os.Stat(file); err != nil {
+		t.Fatalf("copying a.txt back: %v", err)
+	}
+	if _, err := os.Stat(moved); err != nil || a.current().path != moved {
+		t.Fatalf("copying keeps sub/a.txt and its tab: %v, tab at %s", err, a.current().path)
+	}
+	for name, want := range map[string]string{"a.txt": "a 2.txt", "sub": "sub 2", ".env": ".env 2"} {
+		if got := keepBoth(filepath.Join(dir, name)); got != filepath.Join(dir, want) {
+			t.Errorf("keeping both of %s: %s", name, filepath.Base(got))
+		}
+	}
+}

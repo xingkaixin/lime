@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -340,6 +342,141 @@ func (a *app) renamed(from, to string) {
 	a.refreshFolders()
 }
 
+// canDrop reports whether path dragged in the side bar can go into dir:
+// not where it is, nor into itself.
+func canDrop(path, dir string) bool {
+	return filepath.Dir(path) != dir && !within(dir, path)
+}
+
+// dropInto moves path into dir, or copies it. What dir holds by its name
+// it asks first to replace, or to keep both, as Finder does.
+func (a *app) dropInto(path, dir string, copy bool) {
+	*a.proj.isOpen(dir, true) = true
+	name := filepath.Base(path)
+	to := filepath.Join(dir, name)
+	if _, err := os.Lstat(to); err != nil {
+		a.transfer(path, to, copy)
+		return
+	}
+	detail := []string{locales.DialogReplaceDetail()}
+	if slices.ContainsFunc(a.docsIn(to), (*doc).dirty) {
+		detail = append(detail, locales.DialogUnsavedLost())
+	}
+	labels := []string{locales.ButtonReplace(), locales.ButtonKeepBoth()}
+	choices := []func(){
+		func() { a.replace(path, to, copy) },
+		func() { a.transfer(path, keepBoth(to), copy) },
+	}
+	// Replacing the folder path is in would trash path too.
+	if within(path, to) {
+		labels, choices, detail = labels[1:], choices[1:], nil
+	}
+	labels = append(labels, locales.ButtonCancel())
+	go func() {
+		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:       a.win,
+			Type:         mygo.MessageWarning,
+			Message:      locales.DialogItemExists(name, filepath.Base(dir)),
+			Detail:       strings.Join(detail, " "),
+			Buttons:      labels,
+			CancelButton: len(labels) - 1,
+		})
+		if res.Button < len(choices) {
+			a.win.Update(choices[res.Button])
+		}
+	}()
+}
+
+// replace moves the item at to to the Trash, then moves or copies path
+// there.
+func (a *app) replace(path, to string, copy bool) {
+	if err := a.discard(to); err != nil {
+		a.transferError(path, copy, err)
+		a.refreshFolders()
+		return
+	}
+	a.transfer(path, to, copy)
+}
+
+// transfer moves path to to, or copies it off the main thread in the app.
+func (a *app) transfer(path, to string, copy bool) {
+	if !copy {
+		if err := renameNew(path, to); err != nil {
+			a.transferError(path, copy, err)
+			return
+		}
+		a.renamed(path, to)
+		return
+	}
+	done := func(err error) {
+		if err != nil {
+			a.transferError(path, copy, err)
+		}
+		a.refreshFolders()
+	}
+	if a.win == nil {
+		done(copyNew(path, to))
+		return
+	}
+	go func() {
+		err := copyNew(path, to)
+		a.win.Update(func() { done(err) })
+	}()
+}
+
+func (a *app) transferError(path string, copy bool, err error) {
+	title := locales.DialogUnableToMove(filepath.Base(path))
+	if copy {
+		title = locales.DialogUnableToCopy(filepath.Base(path))
+	}
+	go mygo.Dialog.Error(title, err.Error())
+}
+
+// keepBoth returns to with the first number from 2 after its name that
+// nothing has, as Finder's Keep Both names a copy.
+func keepBoth(to string) string {
+	dir, name := filepath.Split(to)
+	ext := filepath.Ext(name)
+	if ext == name {
+		ext = ""
+	}
+	stem := strings.TrimSuffix(name, ext)
+	for n := 2; ; n++ {
+		p := filepath.Join(dir, fmt.Sprintf("%s %d%s", stem, n, ext))
+		if _, err := os.Lstat(p); err != nil {
+			return p
+		}
+	}
+}
+
+// copyNew copies the file or folder from to to, which must not exist.
+func copyNew(from, to string) error {
+	fi, err := os.Lstat(from)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Lstat(to); err == nil {
+		return &os.PathError{Op: "copy", Path: to, Err: fs.ErrExist}
+	}
+	if fi.IsDir() {
+		return os.CopyFS(to, os.DirFS(from))
+	}
+	src, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_EXCL, fi.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		return err
+	}
+	return dst.Close()
+}
+
 func (a *app) promptNewFolder(dir string) {
 	a.openPanel(&panel{prompt: locales.PromptFolderName(), submit: func(name string) {
 		if name == "" {
@@ -354,25 +491,41 @@ func (a *app) promptNewFolder(dir string) {
 	}})
 }
 
-// trash moves path to the Trash, with the tabs of its files. It asks first
-// for a folder, or when a tab has changes.
-func (a *app) trash(path string, folder bool) {
+// docsIn returns the tabs of the files in path.
+func (a *app) docsIn(path string) []*doc {
 	var docs []*doc
 	for _, d := range a.allDocs() {
 		if d.path != "" && within(d.path, path) {
 			docs = append(docs, d)
 		}
 	}
+	return docs
+}
+
+// discard moves path to the Trash, with the tabs of its files and the
+// project's folders in it.
+func (a *app) discard(path string) error {
+	if err := mygo.Shell.TrashItem(path); err != nil {
+		return err
+	}
+	docs := a.docsIn(path)
+	for _, d := range docs {
+		a.take(d)
+	}
+	release(docs...)
+	a.proj.folders = slices.DeleteFunc(a.proj.folders, func(f string) bool { return within(f, path) })
+	return nil
+}
+
+// trash moves path to the Trash, with the tabs of its files. It asks first
+// for a folder, or when a tab has changes.
+func (a *app) trash(path string, folder bool) {
+	docs := a.docsIn(path)
 	del := func() {
-		if err := mygo.Shell.TrashItem(path); err != nil {
+		if err := a.discard(path); err != nil {
 			go mygo.Dialog.Error(locales.DialogUnableToDelete(filepath.Base(path)), err.Error())
 			return
 		}
-		for _, d := range docs {
-			a.take(d)
-		}
-		release(docs...)
-		a.proj.folders = slices.DeleteFunc(a.proj.folders, func(f string) bool { return within(f, path) })
 		a.refreshFolders()
 	}
 	var detail []string

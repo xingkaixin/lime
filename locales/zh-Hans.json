@@ -9,6 +9,8 @@
   "buttonDontSave": "不保存",
   "buttonCancel": "取消",
   "buttonDelete": "删除",
+  "buttonReplace": "替换",
+  "buttonKeepBoth": "保留两者",
 
   "menuFile": "文件",
   "menuNewFile": "新建文件",
@@ -150,6 +152,8 @@
   "dialogUnableToOpen": "无法打开 {name}",
   "dialogUnableToSave": "无法保存 {name}",
   "dialogUnableToRename": "无法重命名 {name}",
+  "dialogUnableToMove": "无法移动 {name}",
+  "dialogUnableToCopy": "无法复制 {name}",
   "dialogUnableToCreate": "无法创建 {name}",
   "dialogUnableToDelete": "无法删除 {name}",
   "dialogUnableToKeepFiles": "无法保留打开的文件",
@@ -161,6 +165,8 @@
   "dialogDelete": "要删除 {name} 吗？",
   "dialogDeleteFolder": "文件夹及其中的内容会移到废纸篓。",
   "dialogUnsavedLost": "未保存的更改会丢失。",
+  "dialogItemExists": "{folder} 中已有名为 {name} 的项目。",
+  "dialogReplaceDetail": "替换会把原有的项目移到废纸篓。",
   "filterProject": "Sublime 项目",
 
   "sideBarFolders": "文件夹",
