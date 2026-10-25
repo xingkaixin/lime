@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"time"
 	"unsafe"
 
 	"github.com/egoist/mygo/ui"
@@ -67,6 +68,42 @@ var editorOffset = func() uintptr {
 	return f.Offset
 }()
 
+// editorField reads the field of MyGo's editor at the path names, from
+// State, failing at start rather than misreading memory when an upgrade
+// moves or retypes it.
+func editorField[T any](names ...string) func(*editor.State) T {
+	t, off := reflect.TypeFor[editor.State](), uintptr(0)
+	for _, n := range append([]string{"ed"}, names...) {
+		f, ok := t.FieldByName(n)
+		if !ok {
+			panic("MyGo's editor has no " + n)
+		}
+		t, off = f.Type, off+f.Offset
+	}
+	if t != reflect.TypeFor[T]() {
+		panic("MyGo's editor retyped " + t.String())
+	}
+	return func(st *editor.State) T { return *(*T)(unsafe.Add(unsafe.Pointer(st), off)) }
+}
+
+var (
+	dragging  = editorField[bool]("gesture", "active")
+	textLeft  = editorField[float32]("textX")
+	editorBox = editorField[ui.Rect]("r")
+)
+
+// pastSide is how far x, in the editor, is left (< 0) or right (> 0) of
+// its text.
+func pastSide(st *editor.State, x float32) float32 {
+	switch l, r := textLeft(st), editorBox(st).W; {
+	case x < l:
+		return x - l
+	case x > r:
+		return x - r
+	}
+	return 0
+}
+
 // input takes the input of the editor element e of d, as Sublime Text's
 // mousemap has it, and ends a chord whose second key is not one.
 func (a *app) input(e ui.Element, d *doc) {
@@ -97,8 +134,49 @@ func (a *app) input(e ui.Element, d *doc) {
 				d.columns = ev.Kind == ui.InputPointerMove
 			}
 		}
-		return editorInput(ed, ev)
+		ok := editorInput(ed, ev)
+		if ev.Kind == ui.InputPointerMove {
+			d.drag = ev
+			if !d.sliding && a.win != nil && dragging(st) && pastSide(st, ev.X) != 0 {
+				a.slide(d, ed)
+			}
+		}
+		return ok
 	})
+}
+
+// slide scrolls the editor of d sideways while a drag goes past the left
+// or the right of its text, as Sublime Text does; MyGo's editor scrolls
+// only up and down for a drag. Until it does, a ticker sends the editor
+// the scroll and the pointer's move a frame would.
+func (a *app) slide(d *doc, ed unsafe.Pointer) {
+	d.sliding = true
+	win := a.win
+	go func() {
+		for more := true; more; {
+			time.Sleep(time.Second / 60)
+			ch := make(chan bool, 1)
+			win.Update(func() { ch <- a.slideStep(d, ed) })
+			more = <-ch
+		}
+	}()
+}
+
+// slideStep scrolls a frame's worth, at MyGo's speed for up and down, and
+// reports whether to go on.
+func (a *app) slideStep(d *doc, ed unsafe.Pointer) bool {
+	st, ev := d.st, d.drag
+	dx := pastSide(st, ev.X)
+	ev.Time = time.Now()
+	scroll := ui.InputEvent{Kind: ui.InputScroll, X: ev.X, Y: ev.Y, DX: max(-300, min(dx, 300)) / 4, Time: ev.Time}
+	if dx == 0 || !dragging(st) || a.l.owner(d) != a || !editorInput(ed, scroll) {
+		d.sliding = false
+		return false
+	}
+	// The scroll extends a column drag as a plain one; the move puts the
+	// columns back.
+	editorInput(ed, ev)
+	return true
 }
 
 // subtract takes away the selection under the press ev, as Sublime
