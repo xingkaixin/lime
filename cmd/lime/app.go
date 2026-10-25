@@ -22,7 +22,6 @@ import (
 // doc is a file open in a tab.
 type doc struct {
 	path    string // "" while untitled
-	dir     string // the folder an untitled doc saves in first, as New File of a folder sets it
 	st      *editor.State
 	columns bool            // a column drag remapped from another press is going on
 	drag    ui.InputEvent   // the pointer's last move over the editor
@@ -55,14 +54,6 @@ func (d *doc) source() *doc {
 		return d.cmp.src
 	}
 	return d
-}
-
-// savePath is where the save dialog starts for d.
-func (d *doc) savePath() string {
-	if d.path == "" && d.dir != "" {
-		return filepath.Join(d.dir, d.name())
-	}
-	return d.path
 }
 
 // dirty reports whether the text differs from the saved one, as
@@ -547,7 +538,7 @@ func (a *app) save(d *doc) {
 }
 
 func (a *app) saveAs(d *doc) {
-	name, path := d.name(), d.savePath()
+	name, path := d.name(), d.path
 	go func() {
 		if p := a.pickPath(name, path); p != "" {
 			a.win.Update(func() { a.write(d, p) })
@@ -576,7 +567,7 @@ func (a *app) closeDoc(d *doc) {
 		a.remove(d)
 		return
 	}
-	name, path, start := d.name(), d.path, d.savePath()
+	name, path := d.name(), d.path
 	go func() {
 		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
 			Parent:  a.win,
@@ -587,7 +578,7 @@ func (a *app) closeDoc(d *doc) {
 		switch res.Button {
 		case 0:
 			if path == "" {
-				if path = a.pickPath(name, start); path == "" {
+				if path = a.pickPath(name, ""); path == "" {
 					return
 				}
 			}

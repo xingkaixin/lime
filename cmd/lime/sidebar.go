@@ -130,6 +130,9 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 		}
 		// Keyed dir/, apart from dir's row.
 		ui.Column(c.Key(dir + string(filepath.Separator))).FillWidth().Transition(treeMotion).Children(func() {
+			if cr := a.proj.create; cr != nil && cr.dir == dir {
+				a.treeInput(c, cr, depth+1)
+			}
 			for _, e := range a.proj.list(dir) {
 				p := filepath.Join(dir, e.Name())
 				if e.IsDir() {
@@ -152,6 +155,36 @@ func treeSource(c *ui.Context, row ui.Element, path string) {
 	if row.Dragging() && c.Modifiers()&copyMods != 0 {
 		row.Cursor(ui.CursorCopy)
 	}
+}
+
+// treeInput names a new file or folder in a row of the tree. Enter makes
+// it; Escape, a press elsewhere or the focus leaving cancels it.
+func (a *app) treeInput(c *ui.Context, cr *creation, depth int) {
+	t := c.Theme()
+	ic, tint := fileIcon(cr.name), a.scheme.chrome().muted
+	if cr.folder {
+		ic = icon("_folder")
+	}
+	ui.Row(c.Key(cr)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
+		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Transition(treeMotion).
+		Children(func() {
+			ui.Icon(c, ic).Size(treeIcon, treeIcon).Shrink(0).TextColor(tint)
+			pad := t.Space(0.5)
+			in := ui.TextInputBase(c, &cr.name).AutoFocus().Grow(1).MinWidth(0).Padding(pad).
+				Margin(0, -pad-1).Radius(t.Space(1)).Background(t.Background).Border(1, t.Accent).TextColor(t.Text).
+				OnSubmit(a.finishCreate).OnShortcut(0, ui.KeyEscape, func() { a.proj.create = nil })
+			if cr.folder {
+				in.Label(locales.MenuNewFolder())
+			} else {
+				in.Label(locales.MenuNewFile())
+			}
+			switch {
+			case in.PressedOutside() || cr.focused && !in.FocusWithin():
+				a.proj.create = nil
+			case in.FocusWithin():
+				cr.focused = true
+			}
+		})
 }
 
 func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui.Color, selected bool) ui.Element {
