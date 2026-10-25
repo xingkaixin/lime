@@ -781,14 +781,19 @@ func (a *app) openWindow() {
 
 // closing asks to save the changes of a window closing while others stay,
 // which would be lost. The last one keeps the session instead, as Sublime
-// Text's hot exit does.
+// Text's hot exit does, and quits but on macOS, where the app stays in the
+// Dock.
 func (a *app) closing(e *mygo.CloseEvent) {
 	l := a.l
 	if l.quitting {
 		return
 	}
 	if len(l.wins) == 1 {
-		l.quit(e)
+		if mac {
+			l.keep(e)
+		} else {
+			l.quit(e)
+		}
 		return
 	}
 	n := 0
@@ -831,22 +836,49 @@ func (a *app) closing(e *mygo.CloseEvent) {
 // text with it, for the next run to bring back: nothing asks to save. The
 // app stays when the session cannot be kept.
 func (l *lime) quit(e interface{ PreventDefault() }) {
-	if l.quitting {
-		return
+	if !l.quitting && l.keep(e) {
+		l.quitting = true
 	}
+}
+
+// keep keeps the settings and the session, or cancels e and tells why.
+// With no window left the session is the one the last window kept as it
+// closed.
+func (l *lime) keep(e interface{ PreventDefault() }) bool {
 	l.saveSettings()
+	if len(l.wins) == 0 {
+		return true
+	}
 	if err := l.saveSession(); err != nil {
 		e.PreventDefault()
 		go mygo.Dialog.Error(locales.DialogUnableToKeepFiles(), err.Error())
-		return
+		return false
 	}
-	l.quitting = true
+	return true
 }
 
 func (l *lime) closed(a *app) {
 	release(a.allDocs()...)
 	l.wins = slices.DeleteFunc(l.wins, func(w *app) bool { return w == a })
-	if l.last == a && len(l.wins) > 0 {
-		l.last = l.wins[len(l.wins)-1]
+	if l.last == a {
+		l.last = nil
+		if len(l.wins) > 0 {
+			l.last = l.wins[len(l.wins)-1]
+		}
+	}
+}
+
+// reopen brings back the windows the last one kept as it closed, on
+// macOS, where the app stays without windows.
+func (l *lime) reopen() {
+	l.restoreSession()
+	if len(l.wins) == 0 {
+		l.newWindow()
+	}
+	for _, a := range l.wins {
+		if a.docCount() == 0 {
+			a.newFile()
+		}
+		a.makeWindow(a.bounds)
 	}
 }

@@ -10,9 +10,16 @@ import (
 )
 
 // menuItem runs the command named id in the focused window, showing its
-// key.
+// key. With no window, as on macOS after the last closes, the windows come
+// back first, and new_window has its window in them.
 func (l *lime) menuItem(label, id string) *mygo.MenuItem {
 	return &mygo.MenuItem{Label: label, Accelerator: l.menuKey(id), Click: func(_ *mygo.MenuItem, w *mygo.Window) {
+		if len(l.wins) == 0 {
+			l.reopen()
+			if id == "new_window" {
+				return
+			}
+		}
 		if a := l.at(w); a != nil {
 			a.win.Update(func() { a.run(id) })
 		}
