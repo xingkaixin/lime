@@ -656,4 +656,9 @@ func TestSideBarDrag(t *testing.T) {
 	if _, err := os.Stat(moved); err != nil || a.current().path != moved {
 		t.Fatalf("copying keeps sub/a.txt and its tab: %v, tab at %s", err, a.current().path)
 	}
+	for name, want := range map[string]string{"a.txt": "a 2.txt", "sub": "sub 2", ".env": ".env 2"} {
+		if got := keepBoth(filepath.Join(dir, name)); got != filepath.Join(dir, want) {
+			t.Errorf("keeping both of %s: %s", name, filepath.Base(got))
+		}
+	}
 }

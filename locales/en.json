@@ -9,6 +9,8 @@
   "buttonDontSave": "Don't Save",
   "buttonCancel": "Cancel",
   "buttonDelete": "Delete",
+  "buttonReplace": "Replace",
+  "buttonKeepBoth": "Keep Both",
 
   "menuFile": "File",
   "menuNewFile": "New File",
@@ -210,6 +212,14 @@
   },
   "dialogDeleteFolder": "The folder and what it holds move to the Trash.",
   "dialogUnsavedLost": "Unsaved changes are lost.",
+  "dialogItemExists": "An item named {name} already exists in {folder}.",
+  "@dialogItemExists": {
+    "placeholders": {
+      "name": { "type": "String", "example": "main.go" },
+      "folder": { "type": "String", "example": "src" }
+    }
+  },
+  "dialogReplaceDetail": "Replacing it moves the one there to the Trash.",
   "filterProject": "Sublime Project",
 
   "sideBarFolders": "FOLDERS",

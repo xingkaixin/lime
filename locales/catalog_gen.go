@@ -114,6 +114,26 @@ func (msgs Messages) ButtonDelete() string {
 	return Catalog.Format(msgs.locale, "buttonDelete", nil)
 }
 
+// ButtonReplace says "Replace"
+// in the language the app shows.
+func ButtonReplace() string { return In(i18n.Locale()).ButtonReplace() }
+
+// ButtonReplace says "Replace"
+// in the language of msgs.
+func (msgs Messages) ButtonReplace() string {
+	return Catalog.Format(msgs.locale, "buttonReplace", nil)
+}
+
+// ButtonKeepBoth says "Keep Both"
+// in the language the app shows.
+func ButtonKeepBoth() string { return In(i18n.Locale()).ButtonKeepBoth() }
+
+// ButtonKeepBoth says "Keep Both"
+// in the language of msgs.
+func (msgs Messages) ButtonKeepBoth() string {
+	return Catalog.Format(msgs.locale, "buttonKeepBoth", nil)
+}
+
 // MenuFile says "File"
 // in the language the app shows.
 func MenuFile() string { return In(i18n.Locale()).MenuFile() }
@@ -1616,6 +1636,28 @@ func DialogUnsavedLost() string { return In(i18n.Locale()).DialogUnsavedLost() }
 // in the language of msgs.
 func (msgs Messages) DialogUnsavedLost() string {
 	return Catalog.Format(msgs.locale, "dialogUnsavedLost", nil)
+}
+
+// DialogItemExists says "An item named {name} already exists in {folder}."
+// in the language the app shows.
+func DialogItemExists(name string, folder string) string {
+	return In(i18n.Locale()).DialogItemExists(name, folder)
+}
+
+// DialogItemExists says "An item named {name} already exists in {folder}."
+// in the language of msgs.
+func (msgs Messages) DialogItemExists(name string, folder string) string {
+	return Catalog.Format(msgs.locale, "dialogItemExists", map[string]any{"name": name, "folder": folder})
+}
+
+// DialogReplaceDetail says "Replacing it moves the one there to the Trash."
+// in the language the app shows.
+func DialogReplaceDetail() string { return In(i18n.Locale()).DialogReplaceDetail() }
+
+// DialogReplaceDetail says "Replacing it moves the one there to the Trash."
+// in the language of msgs.
+func (msgs Messages) DialogReplaceDetail() string {
+	return Catalog.Format(msgs.locale, "dialogReplaceDetail", nil)
 }
 
 // FilterProject says "Sublime Project"

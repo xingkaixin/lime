@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -347,10 +348,54 @@ func canDrop(path, dir string) bool {
 	return filepath.Dir(path) != dir && !within(dir, path)
 }
 
-// dropInto moves path into dir, or copies it.
+// dropInto moves path into dir, or copies it. What dir holds by its name
+// it asks first to replace, or to keep both, as Finder does.
 func (a *app) dropInto(path, dir string, copy bool) {
 	*a.proj.isOpen(dir, true) = true
-	a.transfer(path, filepath.Join(dir, filepath.Base(path)), copy)
+	name := filepath.Base(path)
+	to := filepath.Join(dir, name)
+	if _, err := os.Lstat(to); err != nil {
+		a.transfer(path, to, copy)
+		return
+	}
+	detail := []string{locales.DialogReplaceDetail()}
+	if slices.ContainsFunc(a.docsIn(to), (*doc).dirty) {
+		detail = append(detail, locales.DialogUnsavedLost())
+	}
+	labels := []string{locales.ButtonReplace(), locales.ButtonKeepBoth()}
+	choices := []func(){
+		func() { a.replace(path, to, copy) },
+		func() { a.transfer(path, keepBoth(to), copy) },
+	}
+	// Replacing the folder path is in would trash path too.
+	if within(path, to) {
+		labels, choices, detail = labels[1:], choices[1:], nil
+	}
+	labels = append(labels, locales.ButtonCancel())
+	go func() {
+		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:       a.win,
+			Type:         mygo.MessageWarning,
+			Message:      locales.DialogItemExists(name, filepath.Base(dir)),
+			Detail:       strings.Join(detail, " "),
+			Buttons:      labels,
+			CancelButton: len(labels) - 1,
+		})
+		if res.Button < len(choices) {
+			a.win.Update(choices[res.Button])
+		}
+	}()
+}
+
+// replace moves the item at to to the Trash, then moves or copies path
+// there.
+func (a *app) replace(path, to string, copy bool) {
+	if err := a.discard(to); err != nil {
+		a.transferError(path, copy, err)
+		a.refreshFolders()
+		return
+	}
+	a.transfer(path, to, copy)
 }
 
 // transfer moves path to to, or copies it off the main thread in the app.
@@ -385,6 +430,23 @@ func (a *app) transferError(path string, copy bool, err error) {
 		title = locales.DialogUnableToCopy(filepath.Base(path))
 	}
 	go mygo.Dialog.Error(title, err.Error())
+}
+
+// keepBoth returns to with the first number from 2 after its name that
+// nothing has, as Finder's Keep Both names a copy.
+func keepBoth(to string) string {
+	dir, name := filepath.Split(to)
+	ext := filepath.Ext(name)
+	if ext == name {
+		ext = ""
+	}
+	stem := strings.TrimSuffix(name, ext)
+	for n := 2; ; n++ {
+		p := filepath.Join(dir, fmt.Sprintf("%s %d%s", stem, n, ext))
+		if _, err := os.Lstat(p); err != nil {
+			return p
+		}
+	}
 }
 
 // copyNew copies the file or folder from to to, which must not exist.
