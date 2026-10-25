@@ -69,6 +69,15 @@ func main() {
 			a.makeWindow(a.bounds)
 		}
 		mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) { l.quit(e) })
+		if mac {
+			// A listener, though it does nothing, keeps the app running.
+			mygo.App.OnWindowAllClosed(func() {})
+			mygo.App.OnActivate(func(bool) {
+				if len(l.wins) == 0 {
+					l.reopen()
+				}
+			})
+		}
 		if err := l.setErr; err != nil {
 			go mygo.Dialog.Error(locales.DialogUnableToReadSettings(), err.Error())
 		}
