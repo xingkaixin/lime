@@ -476,9 +476,9 @@ func (a *app) write(d *doc, path string) error {
 	if _, err := snap.WriteTo(&b); err != nil {
 		return err
 	}
-	mode := os.FileMode(0o644)
+	mode, created := os.FileMode(0o644), true
 	if fi, err := os.Stat(path); err == nil {
-		mode = fi.Mode().Perm()
+		mode, created = fi.Mode().Perm(), false
 	}
 	if err := os.WriteFile(path, b.Bytes(), mode); err != nil {
 		go mygo.Dialog.Error(locales.DialogUnableToSave(filepath.Base(path)), err.Error())
@@ -494,6 +494,9 @@ func (a *app) write(d *doc, path string) error {
 	d.st.Buffer.MarkSaved()
 	d.saved = snap
 	d.setDiffBase(snap)
+	if created && a.proj.holds(path) {
+		a.refreshFolders()
+	}
 	return nil
 }
 

@@ -477,6 +477,11 @@ func copyNew(from, to string) error {
 	return dst.Close()
 }
 
+// holds reports whether path is in one of the folders.
+func (p *project) holds(path string) bool {
+	return slices.ContainsFunc(p.folders, func(f string) bool { return within(path, f) })
+}
+
 // creation is a file or folder being named in the side bar, at the top of
 // the folder it goes in.
 type creation struct {

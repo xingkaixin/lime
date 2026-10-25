@@ -441,6 +441,12 @@ func TestCreateInSideBar(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "lib")); err == nil || a.proj.create != nil {
 		t.Fatal("a canceled folder was made")
 	}
+	d := a.add("", "x")
+	a.write(d, filepath.Join(dir, "b.txt"))
+	tt.Frame()
+	if !tt.HasText("b.txt") {
+		t.Fatal("the side bar leaves out a file saved in its folder")
+	}
 }
 
 // Files take their icons as Zed gives them, and every icon parses.
