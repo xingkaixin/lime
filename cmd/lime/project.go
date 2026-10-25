@@ -354,25 +354,41 @@ func (a *app) promptNewFolder(dir string) {
 	}})
 }
 
-// trash moves path to the Trash, with the tabs of its files. It asks first
-// for a folder, or when a tab has changes.
-func (a *app) trash(path string, folder bool) {
+// docsIn returns the tabs of the files in path.
+func (a *app) docsIn(path string) []*doc {
 	var docs []*doc
 	for _, d := range a.allDocs() {
 		if d.path != "" && within(d.path, path) {
 			docs = append(docs, d)
 		}
 	}
+	return docs
+}
+
+// discard moves path to the Trash, with the tabs of its files and the
+// project's folders in it.
+func (a *app) discard(path string) error {
+	if err := mygo.Shell.TrashItem(path); err != nil {
+		return err
+	}
+	docs := a.docsIn(path)
+	for _, d := range docs {
+		a.take(d)
+	}
+	release(docs...)
+	a.proj.folders = slices.DeleteFunc(a.proj.folders, func(f string) bool { return within(f, path) })
+	return nil
+}
+
+// trash moves path to the Trash, with the tabs of its files. It asks first
+// for a folder, or when a tab has changes.
+func (a *app) trash(path string, folder bool) {
+	docs := a.docsIn(path)
 	del := func() {
-		if err := mygo.Shell.TrashItem(path); err != nil {
+		if err := a.discard(path); err != nil {
 			go mygo.Dialog.Error(locales.DialogUnableToDelete(filepath.Base(path)), err.Error())
 			return
 		}
-		for _, d := range docs {
-			a.take(d)
-		}
-		release(docs...)
-		a.proj.folders = slices.DeleteFunc(a.proj.folders, func(f string) bool { return within(f, path) })
 		a.refreshFolders()
 	}
 	var detail []string
