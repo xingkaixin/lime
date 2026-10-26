@@ -475,4 +475,20 @@ func (a *app) editorPage(c *ui.Context) {
 			})
 		})
 	})
+	ui.Column(c).FillWidth().Gap(10).Children(func() {
+		a.heading(c, locales.SettingsDiffs(), false)
+		a.settingsGroup(c, func() {
+			a.settingsRow(c, locales.SettingsDiffLayout(), locales.SettingsDiffLayoutDesc(), func() {
+				options := []string{locales.CompareSideBySide(), locales.CompareUnified()}
+				choice := options[0]
+				if a.set.DiffUnified {
+					choice = options[1]
+				}
+				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsDiffLayout()).Changed() {
+					a.set.DiffUnified = choice == options[1]
+					a.l.saveSettings()
+				}
+			})
+		})
+	})
 }

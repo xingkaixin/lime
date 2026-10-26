@@ -34,6 +34,9 @@ type settings struct {
 	TranslateTabsToSpaces        *bool `json:"translate_tabs_to_spaces,omitempty"`
 	TrimTrailingWhiteSpaceOnSave bool  `json:"trim_trailing_white_space_on_save"`
 	EnsureNewlineAtEOFOnSave     bool  `json:"ensure_newline_at_eof_on_save"`
+	// DiffUnified lays commits' diffs out one over the other rather than
+	// side by side.
+	DiffUnified bool `json:"diff_unified"`
 	// Keys are the commands' keys the user changed, the one changed last
 	// last.
 	Keys []keyChange `json:"keys,omitempty"`

@@ -86,7 +86,7 @@ func (a *app) showCommit(cm commit) {
 			return
 		}
 	}
-	cv := &commitView{commit: cm, root: root}
+	cv := &commitView{commit: cm, root: root, unified: a.set.DiffUnified}
 	d := newDoc("", "")
 	d.kind, d.commit = commitDoc, cv
 	g := a.group()
@@ -581,13 +581,21 @@ func (a *app) commitBar(c *ui.Context, cv *commitView) {
 		} else {
 			a.barButton(c, unfoldAllIcon, locales.CommitExpandAll(), false, func() { cv.foldAll(false) })
 		}
-		a.barButton(c, splitIcon, locales.CompareSideBySide(), !cv.unified, func() { cv.unified, cv.dirty = false, true })
-		a.barButton(c, unifiedIcon, locales.CompareUnified(), cv.unified, func() { cv.unified, cv.dirty = true, true })
+		a.barButton(c, splitIcon, locales.CompareSideBySide(), !cv.unified, func() { a.layDiffs(cv, false) })
+		a.barButton(c, unifiedIcon, locales.CompareUnified(), cv.unified, func() { a.layDiffs(cv, true) })
 		ui.Box(c).Grow(1)
 		if cv.loaded {
 			a.counts(c, added, deleted)
 		}
 	})
+}
+
+// layDiffs lays cv's diffs out side by side or unified, as commits opened
+// next will be.
+func (a *app) layDiffs(cv *commitView, unified bool) {
+	cv.unified, cv.dirty = unified, true
+	a.set.DiffUnified = unified
+	a.l.saveSettings()
 }
 
 func (cv *commitView) foldAll(fold bool) {
