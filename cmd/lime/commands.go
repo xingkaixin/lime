@@ -36,10 +36,10 @@ func withDoc(fn func(a *app, d *doc)) func(a *app) {
 }
 
 // withSource runs fn on the doc whose text the current tab edits, a diff
-// tab's new one.
+// tab's new one, but for a fixed diff's, which no tab edits.
 func withSource(fn func(a *app, d *doc)) func(a *app) {
 	return func(a *app) {
-		if d := a.current(); d != nil && d.source().kind == textDoc {
+		if d := a.current(); d != nil && (d.cmp == nil || !d.cmp.fixed) && d.source().kind == textDoc {
 			fn(a, d.source())
 		}
 	}

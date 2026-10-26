@@ -20,11 +20,18 @@ type comparison struct {
 	oldName string
 	oldPath string // "" when the old text is no file's
 	unsaved bool   // compares src with its text on disk
+	// fixed compares two texts of git, which neither side edits. Its new
+	// one is src's, which no tab has, so it names it.
+	fixed            bool
+	newName, newPath string
 }
 
 func (cmp *comparison) title() string {
-	if cmp.unsaved {
+	switch {
+	case cmp.unsaved:
 		return locales.TabUnsavedChanges(cmp.src.name())
+	case cmp.fixed:
+		return cmp.newName
 	}
 	return cmp.oldName + " ↔ " + cmp.src.name()
 }
@@ -124,7 +131,7 @@ func (a *app) compare(cmp *comparison) {
 		a.notify(locales.StatusNoDifferences())
 		return
 	}
-	cmp.diff.New, cmp.diff.Editable = cmp.src.st.Buffer, true
+	cmp.diff.New, cmp.diff.Editable = cmp.src.st.Buffer, !cmp.fixed
 	d := newDoc("", "")
 	d.kind, d.cmp = diffDoc, cmp
 	g := a.group()
@@ -162,9 +169,12 @@ func (a *app) diffHeader(c *ui.Context, cmp *comparison) {
 	ch := a.scheme.chrome()
 	oldName, newName := cmp.oldName, cmp.src.name()
 	oldPath, newPath := cmp.oldPath, cmp.src.path
-	if cmp.unsaved {
+	switch {
+	case cmp.unsaved:
 		oldName, newName = locales.CompareOnDisk(oldName), locales.CompareEdited(newName)
 		oldPath, newPath = "", ""
+	case cmp.fixed:
+		newName, newPath = cmp.newName, cmp.newPath
 	}
 	side := func(name, path string, editable bool) {
 		ui.Text(c, name).FontSize(12).TextColor(ch.text).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
@@ -186,14 +196,14 @@ func (a *app) diffHeader(c *ui.Context, cmp *comparison) {
 			pane(func() {
 				side(oldName, oldPath, false)
 				ui.Text(c, "→").FontSize(12).TextColor(ch.muted).Shrink(0)
-				side(newName, newPath, true)
+				side(newName, newPath, !cmp.fixed)
 			}).Grow(1)
 			return
 		}
 		// The halves line up with the sides, which the diff splits evenly.
 		pane(func() { side(oldName, oldPath, false) }).Grow(1).Basis(0)
 		ui.Box(c).Width(1).Background(ch.line)
-		pane(func() { side(newName, newPath, true) }).Grow(1).Basis(0)
+		pane(func() { side(newName, newPath, !cmp.fixed) }).Grow(1).Basis(0)
 	})
 }
 
