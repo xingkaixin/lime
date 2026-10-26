@@ -222,6 +222,12 @@
   "filterProject": "Sublime Project",
 
   "sideBarDropFolder": "Drop a folder here to open it",
+  "gitSwitchBranch": "Switch Branch",
+  "gitSwitchWorktree": "Switch Worktree",
+  "gitBranchPlaceholder": "Switch Branch or Apply Stash",
+  "gitCurrent": "Current",
+  "gitRemoteBranch": "Remote branch",
+  "gitStash": "Stash",
   "previewBinary": "This file is binary and can't be shown.",
   "tabBar": "Tab bar",
   "tabClose": "Close {name}",

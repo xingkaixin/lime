@@ -169,6 +169,12 @@
   "filterProject": "Sublime 项目",
 
   "sideBarDropFolder": "将文件夹拖到这里打开",
+  "gitSwitchBranch": "切换分支",
+  "gitSwitchWorktree": "切换工作树",
+  "gitBranchPlaceholder": "切换分支或应用 Stash",
+  "gitCurrent": "当前",
+  "gitRemoteBranch": "远程分支",
+  "gitStash": "Stash",
   "previewBinary": "此文件是二进制文件，无法显示。",
   "tabBar": "标签栏",
   "tabClose": "关闭 {name}",

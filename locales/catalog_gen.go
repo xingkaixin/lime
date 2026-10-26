@@ -1670,6 +1670,66 @@ func (msgs Messages) SideBarDropFolder() string {
 	return Catalog.Format(msgs.locale, "sideBarDropFolder", nil)
 }
 
+// GitSwitchBranch says "Switch Branch"
+// in the language the app shows.
+func GitSwitchBranch() string { return In(i18n.Locale()).GitSwitchBranch() }
+
+// GitSwitchBranch says "Switch Branch"
+// in the language of msgs.
+func (msgs Messages) GitSwitchBranch() string {
+	return Catalog.Format(msgs.locale, "gitSwitchBranch", nil)
+}
+
+// GitSwitchWorktree says "Switch Worktree"
+// in the language the app shows.
+func GitSwitchWorktree() string { return In(i18n.Locale()).GitSwitchWorktree() }
+
+// GitSwitchWorktree says "Switch Worktree"
+// in the language of msgs.
+func (msgs Messages) GitSwitchWorktree() string {
+	return Catalog.Format(msgs.locale, "gitSwitchWorktree", nil)
+}
+
+// GitBranchPlaceholder says "Switch Branch or Apply Stash"
+// in the language the app shows.
+func GitBranchPlaceholder() string { return In(i18n.Locale()).GitBranchPlaceholder() }
+
+// GitBranchPlaceholder says "Switch Branch or Apply Stash"
+// in the language of msgs.
+func (msgs Messages) GitBranchPlaceholder() string {
+	return Catalog.Format(msgs.locale, "gitBranchPlaceholder", nil)
+}
+
+// GitCurrent says "Current"
+// in the language the app shows.
+func GitCurrent() string { return In(i18n.Locale()).GitCurrent() }
+
+// GitCurrent says "Current"
+// in the language of msgs.
+func (msgs Messages) GitCurrent() string {
+	return Catalog.Format(msgs.locale, "gitCurrent", nil)
+}
+
+// GitRemoteBranch says "Remote branch"
+// in the language the app shows.
+func GitRemoteBranch() string { return In(i18n.Locale()).GitRemoteBranch() }
+
+// GitRemoteBranch says "Remote branch"
+// in the language of msgs.
+func (msgs Messages) GitRemoteBranch() string {
+	return Catalog.Format(msgs.locale, "gitRemoteBranch", nil)
+}
+
+// GitStash says "Stash"
+// in the language the app shows.
+func GitStash() string { return In(i18n.Locale()).GitStash() }
+
+// GitStash says "Stash"
+// in the language of msgs.
+func (msgs Messages) GitStash() string {
+	return Catalog.Format(msgs.locale, "gitStash", nil)
+}
+
 // PreviewBinary says "This file is binary and can't be shown."
 // in the language the app shows.
 func PreviewBinary() string { return In(i18n.Locale()).PreviewBinary() }

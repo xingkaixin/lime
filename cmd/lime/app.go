@@ -217,6 +217,7 @@ type app struct {
 	panel   *panel
 	find    finding
 	proj    project
+	git     gitRepo
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
 	prefs   prefs
@@ -416,14 +417,10 @@ func (a *app) reloadChanged() {
 	if len(docs) == 0 {
 		return
 	}
-	if a.win == nil {
-		a.applyReloads(changedOnDisk(docs, stamps))
-		return
-	}
-	go func() {
+	a.background(func() func() {
 		rs := changedOnDisk(docs, stamps)
-		a.win.Update(func() { a.applyReloads(rs) })
-	}()
+		return func() { a.applyReloads(rs) }
+	})
 }
 
 func (a *app) applyReloads(rs []reload) {
