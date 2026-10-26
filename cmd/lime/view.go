@@ -65,7 +65,9 @@ func (a *app) view(c *ui.Context) {
 const tabBarHeight = 34
 
 // tabMinW is the width tabs shrink to before they no longer fit.
-const tabMinW = 72
+const tabMinW = 92
+
+const tabIcon = 14
 
 // controlsGap is the room left after the window controls.
 const controlsGap = 12
@@ -290,6 +292,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 	}
 	row.Background(bg).Label(d.name()).OnClick(func() { a.show(d) }).ContextMenu(func(m *ui.Menu) { a.tabMenu(m, g, d) })
 	row.Children(func() {
+		a.tabIcon(c, d, fg)
 		ui.Text(c, d.name()).FontSize(12).TextColor(fg).SingleLine().Ellipsis("…").Grow(1).Shrink(1).MinWidth(0)
 		glyph := "×"
 		if d.dirty() && !hovered {
@@ -303,6 +306,20 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 			ui.Text(c, glyph).FontSize(12).TextColor(fg).ContentTransition(ui.ContentTransition{})
 		})
 	})
+}
+
+// tabIcon is the icon of d's file, as the side bar shows it, tinted fg
+// where it has no colour. A commit's tab has none.
+func (a *app) tabIcon(c *ui.Context, d *doc, fg ui.Color) {
+	if d.commit != nil {
+		return
+	}
+	ic := fileIcon(d.source().path, a.scheme.dark)
+	tint := ic.color
+	if tint == (ui.Color{}) {
+		tint = fg
+	}
+	ic.view(c, tabIcon, tint)
 }
 
 func (a *app) statusBar(c *ui.Context) {

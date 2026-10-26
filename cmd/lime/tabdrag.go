@@ -109,11 +109,12 @@ func (a *app) draggedTab(c *ui.Context) {
 		x, y = min(max(x, b.X), b.X+b.W-t.g.tabW), b.Y
 	}
 	ghost := ui.Row(c).Absolute().Left(x).Top(y).Width(t.g.tabW).Height(b.H).PassThrough().
-		AlignItems(ui.Center).Padding(0, 6, 0, 14).Background(s.bg).Shadow(0, 1, 4, 0, ui.RGB(0, 0, 0).Alpha(0.15))
+		AlignItems(ui.Center).Gap(6).Padding(0, 6, 0, 14).Background(s.bg).Shadow(0, 1, 4, 0, ui.RGB(0, 0, 0).Alpha(0.15))
 	if t.out {
 		ghost.Opacity(0.9).Shadow(0, 4, 12, 0, ui.RGB(0, 0, 0).Alpha(0.25))
 	}
 	ghost.Children(func() {
+		a.tabIcon(c, t.d, ch.text)
 		ui.Text(c, t.d.name()).FontSize(12).TextColor(ch.text).SingleLine().Ellipsis("…").Grow(1).Shrink(1).MinWidth(0)
 	})
 }

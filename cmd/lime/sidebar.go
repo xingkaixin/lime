@@ -249,7 +249,7 @@ func (a *app) treeInput(c *ui.Context, cr *creation, depth int) {
 	ui.Row(c.Key(cr)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Transition(treeMotion).
 		Children(func() {
-			ic.view(c, tint)
+			ic.view(c, treeIcon, tint)
 			pad := t.Space(0.5)
 			in := ui.TextInputBase(c, &cr.name).AutoFocus().Grow(1).MinWidth(0).Padding(pad).
 				Margin(0, -pad-1).Radius(t.Space(1)).Background(t.Background).Border(1, t.Accent).TextColor(t.Text).
@@ -291,7 +291,7 @@ func (a *app) treeRow(c *ui.Context, path string, depth int, ic rowIcon, selecte
 		row.Background(hover)
 	}
 	row.Children(func() {
-		ic.view(c, tint)
+		ic.view(c, treeIcon, tint)
 		ui.Text(c, name).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 	})
 	return row
