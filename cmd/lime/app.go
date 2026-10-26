@@ -27,6 +27,7 @@ type doc struct {
 	drag    ui.InputEvent   // the pointer's last move over the editor
 	sliding bool            // a drag past the text's side is scrolling it (slide)
 	saved   editor.Snapshot // the text on disk
+	disk    stamp           // the file as saved was found on disk
 	// checked is the version modified was found for: dirty compares the
 	// text with saved once a version.
 	checked  uint64
@@ -216,6 +217,7 @@ type app struct {
 	panel   *panel
 	find    finding
 	proj    project
+	git     gitRepo
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
 	prefs   prefs
@@ -358,8 +360,85 @@ func newDoc(path, text string) *doc {
 	if path != "" {
 		buf.SetLanguage(editor.LanguageFor(path))
 		d.setDiffBase(d.saved)
+		d.disk = stampOf(path)
 	}
 	return d
+}
+
+// stamp tells a file's versions apart, as Sublime Text does to reload a
+// file another app changed.
+type stamp struct {
+	mod  time.Time
+	size int64
+}
+
+func stampOf(path string) stamp {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return stamp{}
+	}
+	return stamp{fi.ModTime(), fi.Size()}
+}
+
+// reload is a tab's file as another app or git left it.
+type reload struct {
+	d         *doc
+	was, disk stamp
+	text      string
+}
+
+// changedOnDisk reads the files of the window's tabs that changed since
+// they were opened or saved. It blocks, so call it off the main thread.
+func changedOnDisk(docs []*doc, stamps []stamp) []reload {
+	var rs []reload
+	for i, d := range docs {
+		now := stampOf(d.path)
+		if now == stamps[i] || now == (stamp{}) {
+			continue
+		}
+		if text, err := readText(d.path); err == nil {
+			rs = append(rs, reload{d, stamps[i], now, text})
+		}
+	}
+	return rs
+}
+
+// reloadChanged shows the files of the window's tabs as they are on
+// disk now, as the window comes to the front or git changes them. A tab
+// with unsaved changes keeps them, which saving writes over the file.
+func (a *app) reloadChanged() {
+	var docs []*doc
+	var stamps []stamp
+	for _, d := range a.allDocs() {
+		if d.path != "" && d.kind == textDoc && d.cmp == nil {
+			docs, stamps = append(docs, d), append(stamps, d.disk)
+		}
+	}
+	if len(docs) == 0 {
+		return
+	}
+	a.background(func() func() {
+		rs := changedOnDisk(docs, stamps)
+		return func() { a.applyReloads(rs) }
+	})
+}
+
+func (a *app) applyReloads(rs []reload) {
+	for _, r := range rs {
+		d := r.d
+		// Saved again, or reloaded by a check before this one.
+		if d.disk != r.was {
+			continue
+		}
+		d.disk = r.disk
+		if d.dirty() {
+			continue
+		}
+		d.st.Buffer.Set(r.text)
+		d.st.Buffer.MarkSaved()
+		d.saved = d.st.Buffer.Snapshot()
+		d.setDiffBase(d.saved)
+	}
 }
 
 // largeFile is the size from which a file opens lighter. The gutter does
@@ -494,6 +573,7 @@ func (a *app) write(d *doc, path string) error {
 	d.st.Buffer.MarkSaved()
 	d.saved = snap
 	d.setDiffBase(snap)
+	d.disk = stampOf(path)
 	if created && a.proj.holds(path) {
 		a.refreshFolders()
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -713,5 +714,79 @@ func TestSideBarDrag(t *testing.T) {
 		if got := keepBoth(filepath.Join(dir, name)); got != filepath.Join(dir, want) {
 			t.Errorf("keeping both of %s: %s", name, filepath.Base(got))
 		}
+	}
+}
+
+// A file changed on disk shows as it is now, unless its tab has unsaved
+// changes, which stay.
+func TestReloadChanged(t *testing.T) {
+	dir := t.TempDir()
+	clean, edited := filepath.Join(dir, "clean.txt"), filepath.Join(dir, "edited.txt")
+	os.WriteFile(clean, []byte("one\n"), 0o644)
+	os.WriteFile(edited, []byte("one\n"), 0o644)
+	a := newApp("")
+	a.open([]string{clean, edited})
+	a.docAt(edited).st.Buffer.Set("mine\n")
+	os.WriteFile(clean, []byte("two two\n"), 0o644)
+	os.WriteFile(edited, []byte("two two\n"), 0o644)
+	a.reloadChanged()
+	if d := a.docAt(clean); d.st.Buffer.String() != "two two\n" || d.dirty() {
+		t.Fatalf("clean tab: %q, dirty %v", d.st.Buffer.String(), d.dirty())
+	}
+	if got := a.docAt(edited).st.Buffer.String(); got != "mine\n" {
+		t.Fatalf("edited tab: %q", got)
+	}
+}
+
+// The side bar shows the branch of a project's repository, whose panel
+// switches it, and the tabs show the files as the branch has them.
+func TestGitBar(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	git := func(args ...string) {
+		t.Helper()
+		if _, err := runGit(dir, append([]string{"-c", "user.name=t", "-c", "user.email=t@t"}, args...)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	os.WriteFile(file, []byte("main\n"), 0o644)
+	git("add", ".")
+	git("commit", "-q", "-m", "main")
+	git("switch", "-q", "-c", "topic")
+	os.WriteFile(file, []byte("topic branch\n"), 0o644)
+	git("commit", "-q", "-am", "topic")
+	git("switch", "-q", "main")
+
+	a := newApp("")
+	a.open([]string{dir, file})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.SetTitleBar(ui.TitleBar{Height: 38, Left: 78})
+	if a.git.tree != "main" || a.git.branch != "main" || !tt.HasText(filepath.Base(dir)) {
+		t.Fatalf("side bar: %q", tt.Texts())
+	}
+	if err := tt.Click(locales.GitSwitchBranch()); err != nil {
+		t.Fatal(err)
+	}
+	if p := a.panel; p == nil || !slices.ContainsFunc(p.list(""), func(it item) bool { return it.label == "topic" }) {
+		t.Fatal("the panel lists no topic branch")
+	}
+	a.cancelPanel()
+	a.gitRun("switch", "topic")
+	if a.git.branch != "topic" {
+		t.Fatalf("branch: %q", a.git.branch)
+	}
+	if got := a.docAt(file).st.Buffer.String(); got != "topic branch\n" {
+		t.Fatalf("tab: %q", got)
+	}
+
+	tree := filepath.Join(t.TempDir(), "side")
+	git("worktree", "add", "-q", "-b", "side", tree)
+	a.switchWorktree(tree)
+	if a.git.tree != "side" || a.git.branch != "side" || a.proj.folders[0] != tree {
+		t.Fatalf("work tree: %+v, folders %q", a.git, a.proj.folders)
 	}
 }

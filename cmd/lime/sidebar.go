@@ -17,9 +17,10 @@ func (a *app) sideBar(c *ui.Context) {
 	ch := a.shell(c)
 	cur := a.current()
 	ui.Column(c).Fill().Background(ch.bg).ContextMenu(a.projectMenu).Children(func() {
-		if band := titleBand(c); band > 0 {
-			ui.Box(c).FillWidth().Height(band).Shrink(0).DragWindow()
+		if a.gitDir() != a.git.dir {
+			a.readGit()
 		}
+		a.sideBarTitle(c)
 		if len(a.proj.folders) == 0 {
 			a.sideBarEmpty(c)
 			return
@@ -31,6 +32,30 @@ func (a *app) sideBar(c *ui.Context) {
 				}
 			})
 		})
+	})
+}
+
+// sideBarTitle is the side bar's part of the window's top, level with the
+// tab bars: the work tree and the branch of the project's repository,
+// after the window controls, as Zed's title bar shows them.
+func (a *app) sideBarTitle(c *ui.Context) {
+	band := titleBand(c)
+	if a.git.root == "" {
+		if band > 0 {
+			ui.Box(c).FillWidth().Height(band).Shrink(0).DragWindow()
+		}
+		return
+	}
+	ui.Row(c).FillWidth().Height(max(band, tabBarHeight)).Shrink(0).Gap(2).AlignItems(ui.Stretch).Children(func() {
+		lead := ui.Box(c).Width(c.TitleBar().Left + controlsGap/2).Shrink(0)
+		// The branch gives way first: the work tree's name is most often main.
+		a.gitButton(c, worktreeIcon, a.git.tree, locales.GitSwitchWorktree(), a.showWorktrees).Shrink(0).MaxWidth(120)
+		a.gitButton(c, branchIcon, a.git.branch, locales.GitSwitchBranch(), a.showBranches)
+		// Around the buttons, the band drags the window, as a title bar.
+		if band > 0 {
+			lead.DragWindow()
+			ui.Box(c).Grow(1).DragWindow()
+		}
 	})
 }
 
@@ -75,6 +100,40 @@ func (a *app) sideBarButton(c *ui.Context) {
 	btn.Children(func() {
 		ui.Icon(c, sideBarIcon).Size(treeIcon, treeIcon).TextColor(tint)
 	})
+}
+
+var (
+	worktreeIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+	<g fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M4.5 4.5H12c.83 0 1.5.67 1.5 1.5v6c0 .83-.67 1.5-1.5 1.5H2A1.5 1.5 0 01.5 12V3.5a1 1 0 011-1h5a1 1 0 011 1v1" />
+		<circle cx="7" cy="9" r="1.5" />
+		<path d="M8.5 9h3" />
+	</g>
+</svg>`))
+	branchIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+	<g fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round">
+		<circle cx="4.5" cy="3.5" r="1.5" />
+		<circle cx="4.5" cy="12.5" r="1.5" />
+		<circle cx="11.5" cy="5.5" r="1.5" />
+		<path d="M4.5 5v6M11.5 7c0 2.5-2 3-7 4" />
+	</g>
+</svg>`))
+)
+
+// gitButton is a button of the side bar's repository row, as the work
+// tree and the branch of Zed's title bar are.
+func (a *app) gitButton(c *ui.Context, icon *ui.SVG, text, label string, onClick func()) ui.Element {
+	ch := a.shell(c)
+	btn := ui.ButtonBase(c.Key(label)).Height(22).AlignSelf(ui.Center).Padding(0, 6).Gap(5).Radius(4).AlignItems(ui.Center).
+		Shrink(1).MinWidth(0).Transition(colorFade).Label(label).Tooltip(label).OnClick(onClick)
+	if btn.Hovered() {
+		btn.Background(ch.hover)
+	}
+	btn.Children(func() {
+		ui.Icon(c, icon).Size(14, 14).Shrink(0).TextColor(ch.muted)
+		ui.Text(c, text).FontSize(12).TextColor(ch.muted).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
+	})
+	return btn
 }
 
 // treeIcon and treeGap size a row's icon and the room after it, which
