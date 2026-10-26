@@ -449,23 +449,24 @@ func TestCreateInSideBar(t *testing.T) {
 	}
 }
 
-// Files take their icons as Zed gives them, and every icon parses.
+// Files take their icons as file-icons gives them, by name and by path.
 func TestIcons(t *testing.T) {
-	for name, want := range map[string]string{
-		"main.go": "go", "go.mod": "go-mod", ".gitignore": "git", "Gemfile.lock": "ruby-gem-lock",
-		"Makefile": "makefile", "app.component.ts": "angular-component", "notes": "_file", "a.unknown": "_file",
+	for p, want := range map[string]string{
+		"main.go": "go", "go.mod": "config-go", ".gitignore": "git", "src/App.tsx": "tsx",
+		"a.test.ts": "test-ts", "tests/foo_test.py": "test-python", "roles/web/tasks/main.yml": "ansible",
+		"x.json.dist": "json", "x.unknownext": "",
 	} {
-		if fileIcon(name) != icon(want) {
-			t.Errorf("%s: want %s", name, want)
+		got := ""
+		if i := matchFileIcon(p); i >= 0 {
+			got = fileIconRules[i].icon
+		}
+		if got != want {
+			t.Errorf("%s: got %q, want %q", p, got, want)
 		}
 	}
-	m := iconMap()
-	for _, names := range []map[string]string{m.Stems, m.Suffixes} {
-		for _, name := range names {
-			b, err := iconFiles.ReadFile("icons/" + name + ".svg")
-			if _, perr := ui.ParseSVG(b); err != nil || perr != nil {
-				t.Errorf("%s: %v %v", name, err, perr)
-			}
+	for _, r := range fileIconRules {
+		if _, ok := fileIconGlyphs[r.icon]; !ok {
+			t.Errorf("%s has no glyph", r.icon)
 		}
 	}
 }
