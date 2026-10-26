@@ -17,21 +17,13 @@ func (a *app) sideBar(c *ui.Context) {
 	ch := a.shell(c)
 	cur := a.current()
 	ui.Column(c).Fill().Background(ch.bg).ContextMenu(a.projectMenu).Children(func() {
-		if band := titleBand(c); band > 0 {
-			ui.Box(c).FillWidth().Height(band).Shrink(0).DragWindow()
-		}
-		if len(a.proj.folders) == 0 {
-			a.sideBarEmpty(c)
-			return
-		}
 		if a.gitDir() != a.git.dir {
 			a.readGit()
 		}
-		if a.git.root != "" {
-			ui.Row(c).FillWidth().Padding(2, 8, 4).Gap(2).AlignItems(ui.Center).Children(func() {
-				a.gitButton(c, worktreeIcon, filepath.Base(a.git.root), locales.GitSwitchWorktree(), a.showWorktrees)
-				a.gitButton(c, branchIcon, a.git.branch, locales.GitSwitchBranch(), a.showBranches)
-			})
+		a.sideBarTitle(c)
+		if len(a.proj.folders) == 0 {
+			a.sideBarEmpty(c)
+			return
 		}
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
@@ -40,6 +32,30 @@ func (a *app) sideBar(c *ui.Context) {
 				}
 			})
 		})
+	})
+}
+
+// sideBarTitle is the side bar's part of the window's top, level with the
+// tab bars: the work tree and the branch of the project's repository,
+// after the window controls, as Zed's title bar shows them.
+func (a *app) sideBarTitle(c *ui.Context) {
+	band := titleBand(c)
+	if a.git.root == "" {
+		if band > 0 {
+			ui.Box(c).FillWidth().Height(band).Shrink(0).DragWindow()
+		}
+		return
+	}
+	ui.Row(c).FillWidth().Height(max(band, tabBarHeight)).Shrink(0).Gap(2).AlignItems(ui.Stretch).Children(func() {
+		lead := ui.Box(c).Width(c.TitleBar().Left + controlsGap/2).Shrink(0)
+		// The branch gives way first: the work tree's name is most often main.
+		a.gitButton(c, worktreeIcon, a.git.tree, locales.GitSwitchWorktree(), a.showWorktrees).Shrink(0).MaxWidth(120)
+		a.gitButton(c, branchIcon, a.git.branch, locales.GitSwitchBranch(), a.showBranches)
+		// Around the buttons, the band drags the window, as a title bar.
+		if band > 0 {
+			lead.DragWindow()
+			ui.Box(c).Grow(1).DragWindow()
+		}
 	})
 }
 
@@ -106,9 +122,9 @@ var (
 
 // gitButton is a button of the side bar's repository row, as the work
 // tree and the branch of Zed's title bar are.
-func (a *app) gitButton(c *ui.Context, icon *ui.SVG, text, label string, onClick func()) {
+func (a *app) gitButton(c *ui.Context, icon *ui.SVG, text, label string, onClick func()) ui.Element {
 	ch := a.shell(c)
-	btn := ui.ButtonBase(c.Key(label)).Height(22).Padding(0, 6).Gap(5).Radius(4).AlignItems(ui.Center).
+	btn := ui.ButtonBase(c.Key(label)).Height(22).AlignSelf(ui.Center).Padding(0, 6).Gap(5).Radius(4).AlignItems(ui.Center).
 		Shrink(1).MinWidth(0).Transition(colorFade).Label(label).Tooltip(label).OnClick(onClick)
 	if btn.Hovered() {
 		btn.Background(ch.hover)
@@ -117,6 +133,7 @@ func (a *app) gitButton(c *ui.Context, icon *ui.SVG, text, label string, onClick
 		ui.Icon(c, icon).Size(14, 14).Shrink(0).TextColor(ch.muted)
 		ui.Text(c, text).FontSize(12).TextColor(ch.muted).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 	})
+	return btn
 }
 
 // treeIcon and treeGap size a row's icon and the room after it, which

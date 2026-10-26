@@ -764,10 +764,13 @@ func TestGitBar(t *testing.T) {
 	a := newApp("")
 	a.open([]string{dir, file})
 	tt := ui.NewTester(a.view, 900, 600)
-	if !tt.HasText("main") || !tt.HasText(filepath.Base(dir)) {
+	tt.SetTitleBar(ui.TitleBar{Height: 38, Left: 78})
+	if a.git.tree != "main" || a.git.branch != "main" || !tt.HasText(filepath.Base(dir)) {
 		t.Fatalf("side bar: %q", tt.Texts())
 	}
-	a.showBranches()
+	if err := tt.Click(locales.GitSwitchBranch()); err != nil {
+		t.Fatal(err)
+	}
 	if p := a.panel; p == nil || !slices.ContainsFunc(p.list(""), func(it item) bool { return it.label == "topic" }) {
 		t.Fatal("the panel lists no topic branch")
 	}
@@ -778,5 +781,12 @@ func TestGitBar(t *testing.T) {
 	}
 	if got := a.docAt(file).st.Buffer.String(); got != "topic branch\n" {
 		t.Fatalf("tab: %q", got)
+	}
+
+	tree := filepath.Join(t.TempDir(), "side")
+	git("worktree", "add", "-q", "-b", "side", tree)
+	a.switchWorktree(tree)
+	if a.git.tree != "side" || a.git.branch != "side" || a.proj.folders[0] != tree {
+		t.Fatalf("work tree: %+v, folders %q", a.git, a.proj.folders)
 	}
 }

@@ -16,8 +16,12 @@ import (
 type gitRepo struct {
 	dir    string // the folder read
 	root   string // the top of its work tree; "" outside a repository
+	tree   string // the work tree's name: main, or a linked one's folder
 	branch string // or the short hash of a detached HEAD
 }
+
+// mainTree names the repository's main work tree, as Zed does.
+const mainTree = "main"
 
 // hideConsole keeps git from opening a console window on Windows.
 var hideConsole = func(*exec.Cmd) {}
@@ -42,11 +46,16 @@ func runGit(dir string, args ...string) (string, error) {
 
 func readRepo(dir string) gitRepo {
 	r := gitRepo{dir: dir}
-	out, err := runGit(dir, "rev-parse", "--show-toplevel")
-	if err != nil {
+	out, err := runGit(dir, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir")
+	paths := strings.Split(strings.TrimSpace(out), "\n")
+	if err != nil || len(paths) != 3 {
 		return r
 	}
-	r.root = filepath.Clean(strings.TrimSpace(out))
+	r.root, r.tree = filepath.Clean(paths[0]), mainTree
+	// A linked work tree keeps its own git dir in the main one's.
+	if paths[1] != paths[2] {
+		r.tree = filepath.Base(r.root)
+	}
 	if out, err = runGit(dir, "symbolic-ref", "--quiet", "--short", "HEAD"); err != nil {
 		out, _ = runGit(dir, "rev-parse", "--short", "HEAD")
 	}
@@ -163,7 +172,7 @@ func readStashes(root string) []stash {
 	return ss
 }
 
-type worktree struct{ path, branch string }
+type worktree struct{ path, name, branch string }
 
 func readWorktrees(root string) []worktree {
 	out, _ := runGit(root, "worktree", "list", "--porcelain")
@@ -172,7 +181,12 @@ func readWorktrees(root string) []worktree {
 		line = strings.TrimRight(line, "\n")
 		switch k, v, _ := strings.Cut(line, " "); k {
 		case "worktree":
-			ws = append(ws, worktree{path: filepath.Clean(v)})
+			w := worktree{path: filepath.Clean(v), name: filepath.Base(v)}
+			// git lists the main work tree first.
+			if len(ws) == 0 {
+				w.name = mainTree
+			}
+			ws = append(ws, w)
 		case "branch":
 			ws[len(ws)-1].branch = strings.TrimPrefix(v, "refs/heads/")
 		case "bare":
@@ -223,7 +237,7 @@ func (a *app) showWorktrees() {
 		return func() {
 			var items []item
 			for _, w := range ws {
-				it := item{label: filepath.Base(w.path), detail: tildePath(w.path), hint: w.branch, pick: func() { a.switchWorktree(w.path) }}
+				it := item{label: w.name, detail: tildePath(w.path), hint: w.branch, pick: func() { a.switchWorktree(w.path) }}
 				if w.path == root {
 					it.pick = nil
 				}
