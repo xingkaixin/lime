@@ -307,7 +307,6 @@ func (a *app) appearancePage(c *ui.Context) {
 // themes lists the schemes of the dark or the light appearance, to choose
 // its theme from.
 func (a *app) themes(c *ui.Context, dark bool) {
-	ch := a.scheme.chrome()
 	title := locales.SettingsLightTheme()
 	if dark {
 		title = locales.SettingsDarkTheme()
@@ -320,28 +319,43 @@ func (a *app) themes(c *ui.Context, dark bool) {
 				if sc.dark != dark {
 					continue
 				}
-				on := sc == chosen
-				card := ui.ButtonBase(c.Key(sc.name)).Column().Radius(8).Border(1, ch.line).Background(ch.panel).Clip().
-					Label(sc.name).OnClick(func() {
+				a.choiceCard(c, sc.name, sc == chosen, func() {
 					if dark {
 						a.set.DarkTheme = sc.name
 					} else {
 						a.set.LightTheme = sc.name
 					}
 					a.l.saveSettings()
-				})
-				if on {
-					card.BorderColor(a.scheme.accent).Shadow(0, 0, 0, 1, a.scheme.accent)
-				}
-				card.Children(func() { a.themeCard(c, sc, on) })
+				}, func() { themePicture(c, sc) })
 			}
 		})
 	})
 }
 
-// themeCard draws sc as lines of code in its colors, and its name.
-func (a *app) themeCard(c *ui.Context, sc *scheme, on bool) {
+// choiceCard is an option to choose: its picture over its name, ringed
+// and checked while chosen.
+func (a *app) choiceCard(c *ui.Context, name string, on bool, choose func(), picture func()) {
 	ch := a.scheme.chrome()
+	card := ui.ButtonBase(c.Key(name)).Column().Radius(8).Border(1, ch.line).Background(ch.panel).Clip().
+		Label(name).OnClick(choose)
+	if on {
+		card.BorderColor(a.scheme.accent).Shadow(0, 0, 0, 1, a.scheme.accent)
+	}
+	card.Children(func() {
+		ui.Column(c).FillWidth().BorderWidth(0, 0, 1, 0).BorderColor(ch.line).Children(func() {
+			picture()
+			if on {
+				ui.Box(c).Absolute().Top(6).Right(6).Width(16).Height(16).Radius(8).Center().Background(a.scheme.accent).Children(func() {
+					ui.Icon(c, checkIcon).Size(10, 10).TextColor(ui.RGB(255, 255, 255))
+				})
+			}
+		})
+		ui.Text(c, name).FontSize(12).Padding(7, 10).MaxLines(2).Ellipsis("…")
+	})
+}
+
+// themePicture draws sc as lines of code in its colors.
+func themePicture(c *ui.Context, sc *scheme) {
 	tok := func(k editor.TokenKind) ui.Color { return sc.tokens[k].Color }
 	lines := [][]struct {
 		color ui.Color
@@ -351,7 +365,7 @@ func (a *app) themeCard(c *ui.Context, sc *scheme, on bool) {
 		{{tok(editor.TokenType), 20}, {tok(editor.TokenString), 28}},
 		{{tok(editor.TokenComment), 44}},
 	}
-	ui.Column(c).FillWidth().Height(58).Padding(12, 10).Gap(7).Background(sc.bg).BorderWidth(0, 0, 1, 0).BorderColor(ch.line).Children(func() {
+	ui.Column(c).FillWidth().Height(58).Padding(12, 10).Gap(7).Background(sc.bg).Children(func() {
 		for _, l := range lines {
 			ui.Row(c).Gap(4).Children(func() {
 				for _, t := range l {
@@ -359,13 +373,7 @@ func (a *app) themeCard(c *ui.Context, sc *scheme, on bool) {
 				}
 			})
 		}
-		if on {
-			ui.Box(c).Absolute().Top(6).Right(6).Width(16).Height(16).Radius(8).Center().Background(a.scheme.accent).Children(func() {
-				ui.Icon(c, checkIcon).Size(10, 10).TextColor(ui.RGB(255, 255, 255))
-			})
-		}
 	})
-	ui.Text(c, sc.name).FontSize(12).Padding(7, 10).MaxLines(2).Ellipsis("…")
 }
 
 func (a *app) fontsPage(c *ui.Context) {
@@ -476,19 +484,75 @@ func (a *app) editorPage(c *ui.Context) {
 		})
 	})
 	ui.Column(c).FillWidth().Gap(10).Children(func() {
-		a.heading(c, locales.SettingsDiffs(), false)
-		a.settingsGroup(c, func() {
-			a.settingsRow(c, locales.SettingsDiffLayout(), locales.SettingsDiffLayoutDesc(), func() {
-				options := []string{locales.CompareSideBySide(), locales.CompareUnified()}
-				choice := options[0]
-				if a.set.DiffUnified {
-					choice = options[1]
+		a.heading(c, locales.SettingsDiffLayout(), false)
+		ui.Grid(c).FillWidth().Columns(2).Gap(12).Children(func() {
+			for _, unified := range []bool{false, true} {
+				name, picture := locales.CompareSideBySide(), splitPicture
+				if unified {
+					name, picture = locales.CompareUnified(), unifiedPicture
 				}
-				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsDiffLayout()).Changed() {
-					a.set.DiffUnified = choice == options[1]
+				a.choiceCard(c, name, a.set.DiffUnified == unified, func() {
+					a.set.DiffUnified = unified
 					a.l.saveSettings()
-				}
-			})
+				}, func() {
+					ui.Box(c).FillWidth().Height(96).Center().Background(a.scheme.bg).Children(func() {
+						ui.Image(c, picture).TextColor(a.scheme.chrome().text)
+					})
+				})
+			}
 		})
 	})
 }
+
+// splitPicture and unifiedPicture are a diff laid out side by side and
+// unified, in the colors of the text and of lines deleted and added.
+var (
+	splitPicture = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="176" height="76" viewBox="0 0 176 76">
+	<rect x="4" y="6" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="6" width="34" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="4" y="18" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="18" width="52" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="0" y="26" width="87" height="11" fill="#e5534b" fill-opacity=".22"/>
+	<rect x="4" y="30" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="30" width="44" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="0" y="38" width="87" height="11" fill="#e5534b" fill-opacity=".22"/>
+	<rect x="4" y="42" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="42" width="28" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="4" y="66" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="66" width="40" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="87.5" y="0" width="1" height="76" fill="currentColor" fill-opacity=".15"/>
+	<rect x="93" y="6" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="104" y="6" width="34" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="93" y="18" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="104" y="18" width="52" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="89" y="26" width="87" height="11" fill="#2da44e" fill-opacity=".22"/>
+	<rect x="93" y="30" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="104" y="30" width="50" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="89" y="38" width="87" height="11" fill="#2da44e" fill-opacity=".22"/>
+	<rect x="93" y="42" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="104" y="42" width="36" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="89" y="50" width="87" height="11" fill="#2da44e" fill-opacity=".22"/>
+	<rect x="93" y="54" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="104" y="54" width="24" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="93" y="66" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="104" y="66" width="40" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+</svg>`))
+	unifiedPicture = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="176" height="76" viewBox="0 0 176 76">
+	<rect x="4" y="6" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="6" width="34" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="4" y="18" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="18" width="52" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="0" y="26" width="176" height="11" fill="#e5534b" fill-opacity=".22"/>
+	<rect x="4" y="30" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="30" width="44" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="0" y="38" width="176" height="11" fill="#e5534b" fill-opacity=".22"/>
+	<rect x="4" y="42" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="42" width="28" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="0" y="50" width="176" height="11" fill="#2da44e" fill-opacity=".22"/>
+	<rect x="4" y="54" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="54" width="50" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+	<rect x="0" y="62" width="176" height="11" fill="#2da44e" fill-opacity=".22"/>
+	<rect x="4" y="66" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>
+	<rect x="15" y="66" width="36" height="3" rx="1.5" fill="currentColor" fill-opacity=".6"/>
+</svg>`))
+)

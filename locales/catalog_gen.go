@@ -2446,34 +2446,14 @@ func (msgs Messages) SettingsEnsureNewlineDesc() string {
 	return Catalog.Format(msgs.locale, "settingsEnsureNewlineDesc", nil)
 }
 
-// SettingsDiffs says "Diffs"
-// in the language the app shows.
-func SettingsDiffs() string { return In(i18n.Locale()).SettingsDiffs() }
-
-// SettingsDiffs says "Diffs"
-// in the language of msgs.
-func (msgs Messages) SettingsDiffs() string {
-	return Catalog.Format(msgs.locale, "settingsDiffs", nil)
-}
-
-// SettingsDiffLayout says "Layout"
+// SettingsDiffLayout says "Diff Layout"
 // in the language the app shows.
 func SettingsDiffLayout() string { return In(i18n.Locale()).SettingsDiffLayout() }
 
-// SettingsDiffLayout says "Layout"
+// SettingsDiffLayout says "Diff Layout"
 // in the language of msgs.
 func (msgs Messages) SettingsDiffLayout() string {
 	return Catalog.Format(msgs.locale, "settingsDiffLayout", nil)
-}
-
-// SettingsDiffLayoutDesc says "How a commit's diffs lay out when it opens"
-// in the language the app shows.
-func SettingsDiffLayoutDesc() string { return In(i18n.Locale()).SettingsDiffLayoutDesc() }
-
-// SettingsDiffLayoutDesc says "How a commit's diffs lay out when it opens"
-// in the language of msgs.
-func (msgs Messages) SettingsDiffLayoutDesc() string {
-	return Catalog.Format(msgs.locale, "settingsDiffLayoutDesc", nil)
 }
 
 // SettingsClose says "Close"
