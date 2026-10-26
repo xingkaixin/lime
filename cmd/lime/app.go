@@ -218,6 +218,8 @@ type app struct {
 	find    finding
 	proj    project
 	git     gitRepo
+	hist    history
+	sideTab int            // the side bar's: filesTab or historyTab
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
 	prefs   prefs

@@ -790,3 +790,52 @@ func TestGitBar(t *testing.T) {
 		t.Fatalf("work tree: %+v, folders %q", a.git, a.proj.folders)
 	}
 }
+
+// The history lists the work tree's changes and the commits, whose files
+// open diffs that neither side edits.
+func TestHistory(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	git := func(args ...string) {
+		t.Helper()
+		if _, err := runGit(dir, append([]string{"-c", "user.name=t", "-c", "user.email=t@t"}, args...)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	os.WriteFile(file, []byte("one\n"), 0o644)
+	git("add", ".")
+	git("commit", "-q", "-m", "first")
+	os.WriteFile(file, []byte("one\ntwo\n"), 0o644)
+	git("commit", "-q", "-am", "second")
+	os.WriteFile(filepath.Join(dir, "new.txt"), []byte("new\n"), 0o644)
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarHistory())
+	tt.Frame()
+	if !tt.HasText(locales.HistoryUncommitted()) || !tt.HasText("second") || !tt.HasText("first") {
+		t.Fatalf("history: %q", tt.Texts())
+	}
+	if c := a.hist.changes; len(c) != 1 || c[0].status != 'A' || c[0].path != "new.txt" {
+		t.Fatalf("uncommitted: %+v", c)
+	}
+	cm := a.hist.commits[0]
+	a.toggleCommit(cm.hash)
+	f := a.hist.files[cm.hash]
+	if len(f) != 1 || f[0].status != 'M' || f[0].path != "a.txt" {
+		t.Fatalf("files: %+v", f)
+	}
+	a.showChange(cm.hash, cm.short, f[0])
+	d := a.current()
+	if d == nil || d.cmp == nil || d.cmp.diff.Editable || d.name() != "a.txt @ "+cm.short {
+		t.Fatalf("diff tab: %+v", d)
+	}
+	if added, deleted := d.cmp.diff.Stats(); added != 1 || deleted != 0 {
+		t.Fatalf("diff: +%d −%d", added, deleted)
+	}
+}

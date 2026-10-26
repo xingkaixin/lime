@@ -25,6 +25,19 @@ func (a *app) sideBar(c *ui.Context) {
 			a.sideBarEmpty(c)
 			return
 		}
+		if a.git.root != "" {
+			tabs := ui.Tabs(c, &a.sideTab, locales.SideBarFiles(), locales.SideBarHistory()).Margin(0, 8, 4)
+			if tabs.Changed() && a.sideTab == historyTab {
+				a.readHistory()
+			}
+			if a.sideTab == historyTab {
+				if a.hist.root != a.git.root {
+					a.readHistory()
+				}
+				a.historyView(c)
+				return
+			}
+		}
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
 				for _, f := range a.proj.folders {
@@ -34,6 +47,12 @@ func (a *app) sideBar(c *ui.Context) {
 		})
 	})
 }
+
+// The side bar's tabs, while the project has a repository.
+const (
+	filesTab = iota
+	historyTab
+)
 
 // sideBarTitle is the side bar's part of the window's top, level with the
 // tab bars: the work tree and the branch of the project's repository,

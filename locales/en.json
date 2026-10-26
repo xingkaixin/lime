@@ -222,6 +222,13 @@
   "filterProject": "Sublime Project",
 
   "sideBarDropFolder": "Drop a folder here to open it",
+  "sideBarFiles": "Files",
+  "sideBarHistory": "History",
+  "historyUncommitted": "Uncommitted Changes",
+  "historyFiles": "{count, plural, one {# file} other {# files}}",
+  "@historyFiles": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
   "gitSwitchBranch": "Switch Branch",
   "gitSwitchWorktree": "Switch Worktree",
   "gitBranchPlaceholder": "Switch Branch or Apply Stash",
