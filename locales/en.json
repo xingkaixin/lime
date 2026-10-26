@@ -229,6 +229,42 @@
   "@historyFiles": {
     "placeholders": { "count": { "type": "int", "example": "3" } }
   },
+  "timeJustNow": "Just now",
+  "timeMinutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
+  "@timeMinutesAgo": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "timeHoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
+  "@timeHoursAgo": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "timeDaysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+  "@timeDaysAgo": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "timeWeeksAgo": "{count, plural, one {# week ago} other {# weeks ago}}",
+  "@timeWeeksAgo": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "timeMonthsAgo": "{count, plural, one {# month ago} other {# months ago}}",
+  "@timeMonthsAgo": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "timeYearsAgo": "{count, plural, one {# year ago} other {# years ago}}",
+  "@timeYearsAgo": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "commitCollapseAll": "Collapse All",
+  "commitExpandAll": "Expand All",
+  "commitCopySHA": "Copy SHA",
+  "commitCopied": "Copied {hash}",
+  "@commitCopied": {
+    "placeholders": { "hash": { "type": "String", "example": "55a00dc" } }
+  },
+  "commitUnchangedLines": "{count, plural, one {# unchanged line} other {# unchanged lines}}",
+  "@commitUnchangedLines": {
+    "placeholders": { "count": { "type": "int", "example": "12" } }
+  },
   "gitSwitchBranch": "Switch Branch",
   "gitSwitchWorktree": "Switch Worktree",
   "gitBranchPlaceholder": "Switch Branch or Apply Stash",

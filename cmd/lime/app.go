@@ -37,12 +37,15 @@ type doc struct {
 	img     *ui.Bitmap  // an imageDoc's image, once decoded
 	loading bool        // the image is decoding
 	cmp     *comparison // a diffDoc's
+	commit  *commitView // a commitDoc's
 }
 
 func (d *doc) name() string {
 	switch {
 	case d.cmp != nil:
 		return d.cmp.title()
+	case d.commit != nil:
+		return d.commit.title()
 	case d.path == "":
 		return locales.Untitled()
 	}
@@ -187,9 +190,10 @@ type lime struct {
 
 	themeSource mygo.ThemeSource
 	menuState   string
-	fonts       *fontLists // listed as the font settings first show
-	sessionKey  string     // of the session last kept
-	sessionGen  uint64     // numbers the sessions taken to write
+	avatars     map[string]*ui.Bitmap // the pictures of commit authors, by email; nil while loading or for none
+	fonts       *fontLists            // listed as the font settings first show
+	sessionKey  string                // of the session last kept
+	sessionGen  uint64                // numbers the sessions taken to write
 	writing     sync.Mutex
 	written     uint64 // the number of the session last written
 	quitting    bool   // the session is kept and the windows close

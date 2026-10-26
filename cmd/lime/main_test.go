@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -791,8 +793,8 @@ func TestGitBar(t *testing.T) {
 	}
 }
 
-// The history lists the work tree's changes and the commits, whose files
-// open diffs that neither side edits.
+// The history lists the work tree's changes and the commits, each of
+// which opens a tab of the diffs of its files, which neither side edits.
 func TestHistory(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("no git")
@@ -807,10 +809,12 @@ func TestHistory(t *testing.T) {
 	}
 	git("init", "-q", "-b", "main")
 	os.WriteFile(file, []byte("one\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "b.bin"), []byte("x\x00y"), 0o644)
 	git("add", ".")
 	git("commit", "-q", "-m", "first")
 	os.WriteFile(file, []byte("one\ntwo\n"), 0o644)
-	git("commit", "-q", "-am", "second")
+	os.WriteFile(filepath.Join(dir, "b.bin"), []byte("x\x00z"), 0o644)
+	git("commit", "-q", "-am", "second", "-m", "The body.")
 	os.WriteFile(filepath.Join(dir, "new.txt"), []byte("new\n"), 0o644)
 
 	a := newApp("")
@@ -821,21 +825,69 @@ func TestHistory(t *testing.T) {
 	if !tt.HasText(locales.HistoryUncommitted()) || !tt.HasText("second") || !tt.HasText("first") {
 		t.Fatalf("history: %q", tt.Texts())
 	}
-	if c := a.hist.changes; len(c) != 1 || c[0].status != 'A' || c[0].path != "new.txt" {
-		t.Fatalf("uncommitted: %+v", c)
-	}
-	cm := a.hist.commits[0]
-	a.toggleCommit(cm.hash)
-	f := a.hist.files[cm.hash]
-	if len(f) != 1 || f[0].status != 'M' || f[0].path != "a.txt" {
-		t.Fatalf("files: %+v", f)
-	}
-	a.showChange(cm.hash, cm.short, f[0])
+
+	tt.Click("second")
+	tt.Frame()
 	d := a.current()
-	if d == nil || d.cmp == nil || d.cmp.diff.Editable || d.name() != "a.txt @ "+cm.short {
-		t.Fatalf("diff tab: %+v", d)
+	if d == nil || d.commit == nil || d.commit.body != "second\n\nThe body." || len(d.commit.files) != 2 {
+		t.Fatalf("commit tab: %+v", d)
 	}
-	if added, deleted := d.cmp.diff.Stats(); added != 1 || deleted != 0 {
-		t.Fatalf("diff: +%d −%d", added, deleted)
+	text, bin := d.commit.files[0], d.commit.files[1]
+	if text.path != "a.txt" || text.added != 1 || text.deleted != 0 || len(text.hunks) != 1 || len(text.new.lines) != 2 || text.folded {
+		t.Fatalf("a.txt: %+v", text)
+	}
+	if !bin.binary || !bin.folded {
+		t.Fatalf("b.bin: %+v", bin)
+	}
+	if !tt.HasText("The body.") || !tt.HasText("a.txt") {
+		t.Fatalf("commit tab: %q", tt.Texts())
+	}
+	if !tt.HasText("two") {
+		t.Fatalf("a.txt's lines: %q", tt.Texts())
+	}
+	tt.Click(locales.CommitCollapseAll())
+	if !text.folded {
+		t.Fatal("Collapse All left a.txt open")
+	}
+	n := a.docCount()
+	tt.Click("second")
+	if a.docCount() != n {
+		t.Fatal("the commit opened a second tab")
+	}
+
+	a.showCommit(commit{})
+	d = a.current()
+	if f := d.commit.files; len(f) != 1 || f[0].path != "new.txt" || f[0].added != 1 {
+		t.Fatalf("uncommitted: %+v", f)
+	}
+}
+
+func TestCommitRows(t *testing.T) {
+	var old, cur []string
+	for i := 1; i <= 10; i++ {
+		old = append(old, strconv.Itoa(i))
+	}
+	cur = append(append(append(cur, old[:4]...), "five"), old[5:]...)
+	ps, err := editor.ParsePatch("diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -2,7 +2,7 @@\n 2\n 3\n 4\n-5\n+five\n 6\n 7\n 8\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &commitFile{hunks: ps[0].Hunks, old: fileText{lines: old}, new: fileText{lines: cur}}
+	rows := func(unified bool) string {
+		var b strings.Builder
+		for _, r := range f.appendRows(nil, 0, unified) {
+			fmt.Fprintf(&b, "%d:%d/%d ", r.kind, r.old, r.new)
+			if r.kind == rowGap {
+				fmt.Fprintf(&b, "(%d) ", r.count)
+			}
+		}
+		return b.String()
+	}
+	if got, want := rows(false), "3:1/1 (1) 4:2/2 4:3/3 4:4/4 5:5/5 4:6/6 4:7/7 4:8/8 3:9/9 (2) "; got != want {
+		t.Fatalf("side by side:\n got %s\nwant %s", got, want)
+	}
+	f.shown = map[int]bool{1: true}
+	if got, want := rows(true), "3:1/1 (1) 4:2/2 4:3/3 4:4/4 5:5/0 5:0/5 4:6/6 4:7/7 4:8/8 4:9/9 4:10/10 "; got != want {
+		t.Fatalf("unified:\n got %s\nwant %s", got, want)
 	}
 }

@@ -1710,6 +1710,126 @@ func (msgs Messages) HistoryFiles(count int) string {
 	return Catalog.Format(msgs.locale, "historyFiles", map[string]any{"count": count})
 }
 
+// TimeJustNow says "Just now"
+// in the language the app shows.
+func TimeJustNow() string { return In(i18n.Locale()).TimeJustNow() }
+
+// TimeJustNow says "Just now"
+// in the language of msgs.
+func (msgs Messages) TimeJustNow() string {
+	return Catalog.Format(msgs.locale, "timeJustNow", nil)
+}
+
+// TimeMinutesAgo says "{count, plural, one {# minute ago} other {# minutes ago}}"
+// in the language the app shows.
+func TimeMinutesAgo(count int) string { return In(i18n.Locale()).TimeMinutesAgo(count) }
+
+// TimeMinutesAgo says "{count, plural, one {# minute ago} other {# minutes ago}}"
+// in the language of msgs.
+func (msgs Messages) TimeMinutesAgo(count int) string {
+	return Catalog.Format(msgs.locale, "timeMinutesAgo", map[string]any{"count": count})
+}
+
+// TimeHoursAgo says "{count, plural, one {# hour ago} other {# hours ago}}"
+// in the language the app shows.
+func TimeHoursAgo(count int) string { return In(i18n.Locale()).TimeHoursAgo(count) }
+
+// TimeHoursAgo says "{count, plural, one {# hour ago} other {# hours ago}}"
+// in the language of msgs.
+func (msgs Messages) TimeHoursAgo(count int) string {
+	return Catalog.Format(msgs.locale, "timeHoursAgo", map[string]any{"count": count})
+}
+
+// TimeDaysAgo says "{count, plural, one {# day ago} other {# days ago}}"
+// in the language the app shows.
+func TimeDaysAgo(count int) string { return In(i18n.Locale()).TimeDaysAgo(count) }
+
+// TimeDaysAgo says "{count, plural, one {# day ago} other {# days ago}}"
+// in the language of msgs.
+func (msgs Messages) TimeDaysAgo(count int) string {
+	return Catalog.Format(msgs.locale, "timeDaysAgo", map[string]any{"count": count})
+}
+
+// TimeWeeksAgo says "{count, plural, one {# week ago} other {# weeks ago}}"
+// in the language the app shows.
+func TimeWeeksAgo(count int) string { return In(i18n.Locale()).TimeWeeksAgo(count) }
+
+// TimeWeeksAgo says "{count, plural, one {# week ago} other {# weeks ago}}"
+// in the language of msgs.
+func (msgs Messages) TimeWeeksAgo(count int) string {
+	return Catalog.Format(msgs.locale, "timeWeeksAgo", map[string]any{"count": count})
+}
+
+// TimeMonthsAgo says "{count, plural, one {# month ago} other {# months ago}}"
+// in the language the app shows.
+func TimeMonthsAgo(count int) string { return In(i18n.Locale()).TimeMonthsAgo(count) }
+
+// TimeMonthsAgo says "{count, plural, one {# month ago} other {# months ago}}"
+// in the language of msgs.
+func (msgs Messages) TimeMonthsAgo(count int) string {
+	return Catalog.Format(msgs.locale, "timeMonthsAgo", map[string]any{"count": count})
+}
+
+// TimeYearsAgo says "{count, plural, one {# year ago} other {# years ago}}"
+// in the language the app shows.
+func TimeYearsAgo(count int) string { return In(i18n.Locale()).TimeYearsAgo(count) }
+
+// TimeYearsAgo says "{count, plural, one {# year ago} other {# years ago}}"
+// in the language of msgs.
+func (msgs Messages) TimeYearsAgo(count int) string {
+	return Catalog.Format(msgs.locale, "timeYearsAgo", map[string]any{"count": count})
+}
+
+// CommitCollapseAll says "Collapse All"
+// in the language the app shows.
+func CommitCollapseAll() string { return In(i18n.Locale()).CommitCollapseAll() }
+
+// CommitCollapseAll says "Collapse All"
+// in the language of msgs.
+func (msgs Messages) CommitCollapseAll() string {
+	return Catalog.Format(msgs.locale, "commitCollapseAll", nil)
+}
+
+// CommitExpandAll says "Expand All"
+// in the language the app shows.
+func CommitExpandAll() string { return In(i18n.Locale()).CommitExpandAll() }
+
+// CommitExpandAll says "Expand All"
+// in the language of msgs.
+func (msgs Messages) CommitExpandAll() string {
+	return Catalog.Format(msgs.locale, "commitExpandAll", nil)
+}
+
+// CommitCopySHA says "Copy SHA"
+// in the language the app shows.
+func CommitCopySHA() string { return In(i18n.Locale()).CommitCopySHA() }
+
+// CommitCopySHA says "Copy SHA"
+// in the language of msgs.
+func (msgs Messages) CommitCopySHA() string {
+	return Catalog.Format(msgs.locale, "commitCopySHA", nil)
+}
+
+// CommitCopied says "Copied {hash}"
+// in the language the app shows.
+func CommitCopied(hash string) string { return In(i18n.Locale()).CommitCopied(hash) }
+
+// CommitCopied says "Copied {hash}"
+// in the language of msgs.
+func (msgs Messages) CommitCopied(hash string) string {
+	return Catalog.Format(msgs.locale, "commitCopied", map[string]any{"hash": hash})
+}
+
+// CommitUnchangedLines says "{count, plural, one {# unchanged line} other {# unchanged lines}}"
+// in the language the app shows.
+func CommitUnchangedLines(count int) string { return In(i18n.Locale()).CommitUnchangedLines(count) }
+
+// CommitUnchangedLines says "{count, plural, one {# unchanged line} other {# unchanged lines}}"
+// in the language of msgs.
+func (msgs Messages) CommitUnchangedLines(count int) string {
+	return Catalog.Format(msgs.locale, "commitUnchangedLines", map[string]any{"count": count})
+}
+
 // GitSwitchBranch says "Switch Branch"
 // in the language the app shows.
 func GitSwitchBranch() string { return In(i18n.Locale()).GitSwitchBranch() }

@@ -22,6 +22,7 @@ const (
 	imageDoc          // shown as an image
 	binaryDoc         // shown as a note that it is binary
 	diffDoc           // shown as the changes between two texts, cmp's
+	commitDoc         // shown as the changes of a commit, commit's
 )
 
 // imageExts are the images DecodeBitmap reads.

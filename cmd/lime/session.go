@@ -69,8 +69,9 @@ func (a *app) session() sessionWindow {
 	for _, g := range a.groups {
 		sg := sessionGroup{Active: g.active, Docs: []sessionDoc{}}
 		for i, d := range g.docs {
-			// A diff tab's texts are kept in their own tabs.
-			if d.kind == diffDoc {
+			// A diff tab's texts are kept in their own tabs, and git keeps
+			// a commit's.
+			if d.kind == diffDoc || d.kind == commitDoc {
 				if i < g.active {
 					sg.Active--
 				}
