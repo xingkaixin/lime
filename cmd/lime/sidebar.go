@@ -20,7 +20,6 @@ func (a *app) sideBar(c *ui.Context) {
 		if band := titleBand(c); band > 0 {
 			ui.Box(c).FillWidth().Height(band).Shrink(0).DragWindow()
 		}
-		ui.Text(c, locales.SideBarFolders()).FontSize(11).TextColor(ch.muted).Padding(10, 14, 6)
 		if len(a.proj.folders) == 0 {
 			a.sideBarEmpty(c)
 			return
@@ -38,7 +37,7 @@ func (a *app) sideBar(c *ui.Context) {
 // sideBarEmpty asks for a folder, opened from its button or dropped on it.
 func (a *app) sideBarEmpty(c *ui.Context) {
 	ch := a.shell(c)
-	area := ui.Column(c).Grow(1).FillWidth().Margin(0, 8, 8).Padding(16).Gap(12).Center().Radius(c.Theme().Radius).
+	area := ui.Column(c).Grow(1).FillWidth().Margin(8).Padding(16).Gap(12).Center().Radius(c.Theme().Radius).
 		Transition(colorFade)
 	if files := area.DroppedFiles(); files != nil {
 		a.open(files)

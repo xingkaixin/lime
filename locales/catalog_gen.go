@@ -1660,16 +1660,6 @@ func (msgs Messages) FilterProject() string {
 	return Catalog.Format(msgs.locale, "filterProject", nil)
 }
 
-// SideBarFolders says "FOLDERS"
-// in the language the app shows.
-func SideBarFolders() string { return In(i18n.Locale()).SideBarFolders() }
-
-// SideBarFolders says "FOLDERS"
-// in the language of msgs.
-func (msgs Messages) SideBarFolders() string {
-	return Catalog.Format(msgs.locale, "sideBarFolders", nil)
-}
-
 // SideBarDropFolder says "Drop a folder here to open it"
 // in the language the app shows.
 func SideBarDropFolder() string { return In(i18n.Locale()).SideBarDropFolder() }
