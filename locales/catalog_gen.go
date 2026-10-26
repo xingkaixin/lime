@@ -1820,6 +1820,16 @@ func (msgs Messages) CommitCopied(hash string) string {
 	return Catalog.Format(msgs.locale, "commitCopied", map[string]any{"hash": hash})
 }
 
+// CommitUnchangedLines says "{count, plural, one {# unchanged line} other {# unchanged lines}}"
+// in the language the app shows.
+func CommitUnchangedLines(count int) string { return In(i18n.Locale()).CommitUnchangedLines(count) }
+
+// CommitUnchangedLines says "{count, plural, one {# unchanged line} other {# unchanged lines}}"
+// in the language of msgs.
+func (msgs Messages) CommitUnchangedLines(count int) string {
+	return Catalog.Format(msgs.locale, "commitUnchangedLines", map[string]any{"count": count})
+}
+
 // GitSwitchBranch says "Switch Branch"
 // in the language the app shows.
 func GitSwitchBranch() string { return In(i18n.Locale()).GitSwitchBranch() }

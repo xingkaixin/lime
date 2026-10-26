@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -831,7 +833,7 @@ func TestHistory(t *testing.T) {
 		t.Fatalf("commit tab: %+v", d)
 	}
 	text, bin := d.commit.files[0], d.commit.files[1]
-	if text.path != "a.txt" || text.added != 1 || text.deleted != 0 || text.diff == nil || text.diff.Editable || text.folded {
+	if text.path != "a.txt" || text.added != 1 || text.deleted != 0 || len(text.hunks) != 1 || len(text.new.lines) != 2 || text.folded {
 		t.Fatalf("a.txt: %+v", text)
 	}
 	if !bin.binary || !bin.folded {
@@ -839,6 +841,9 @@ func TestHistory(t *testing.T) {
 	}
 	if !tt.HasText("The body.") || !tt.HasText("a.txt") {
 		t.Fatalf("commit tab: %q", tt.Texts())
+	}
+	if !tt.HasText("two") {
+		t.Fatalf("a.txt's lines: %q", tt.Texts())
 	}
 	tt.Click(locales.CommitCollapseAll())
 	if !text.folded {
@@ -854,5 +859,35 @@ func TestHistory(t *testing.T) {
 	d = a.current()
 	if f := d.commit.files; len(f) != 1 || f[0].path != "new.txt" || f[0].added != 1 {
 		t.Fatalf("uncommitted: %+v", f)
+	}
+}
+
+func TestCommitRows(t *testing.T) {
+	var old, cur []string
+	for i := 1; i <= 10; i++ {
+		old = append(old, strconv.Itoa(i))
+	}
+	cur = append(append(append(cur, old[:4]...), "five"), old[5:]...)
+	ps, err := editor.ParsePatch("diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -2,7 +2,7 @@\n 2\n 3\n 4\n-5\n+five\n 6\n 7\n 8\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &commitFile{hunks: ps[0].Hunks, old: fileText{lines: old}, new: fileText{lines: cur}}
+	rows := func(unified bool) string {
+		var b strings.Builder
+		for _, r := range f.appendRows(nil, 0, unified) {
+			fmt.Fprintf(&b, "%d:%d/%d ", r.kind, r.old, r.new)
+			if r.kind == rowGap {
+				fmt.Fprintf(&b, "(%d) ", r.count)
+			}
+		}
+		return b.String()
+	}
+	if got, want := rows(false), "3:1/1 (1) 4:2/2 4:3/3 4:4/4 5:5/5 4:6/6 4:7/7 4:8/8 3:9/9 (2) "; got != want {
+		t.Fatalf("side by side:\n got %s\nwant %s", got, want)
+	}
+	f.shown = map[int]bool{1: true}
+	if got, want := rows(true), "3:1/1 (1) 4:2/2 4:3/3 4:4/4 5:5/0 5:0/5 4:6/6 4:7/7 4:8/8 4:9/9 4:10/10 "; got != want {
+		t.Fatalf("unified:\n got %s\nwant %s", got, want)
 	}
 }

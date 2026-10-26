@@ -261,6 +261,10 @@
   "@commitCopied": {
     "placeholders": { "hash": { "type": "String", "example": "55a00dc" } }
   },
+  "commitUnchangedLines": "{count, plural, one {# unchanged line} other {# unchanged lines}}",
+  "@commitUnchangedLines": {
+    "placeholders": { "count": { "type": "int", "example": "12" } }
+  },
   "gitSwitchBranch": "Switch Branch",
   "gitSwitchWorktree": "Switch Worktree",
   "gitBranchPlaceholder": "Switch Branch or Apply Stash",
