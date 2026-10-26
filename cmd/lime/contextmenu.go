@@ -109,7 +109,19 @@ func (a *app) folderMenu(c *ui.Context, m *ui.Menu, dir string, root bool) {
 	}
 }
 
+// projectMenu makes new files and folders in the first folder, as VS Code's
+// explorer does in its blank space.
 func (a *app) projectMenu(m *ui.Menu) {
+	if len(a.proj.folders) > 0 {
+		dir := a.proj.folders[0]
+		if m.Item(locales.MenuNewFile()).Chosen() {
+			a.startCreate(dir, false)
+		}
+		if m.Item(locales.MenuNewFolder()).Chosen() {
+			a.startCreate(dir, true)
+		}
+		m.Separator()
+	}
 	if m.Item(locales.MenuAddFolderToProject()).Chosen() {
 		a.promptAddFolder()
 	}
