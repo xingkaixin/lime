@@ -1670,6 +1670,46 @@ func (msgs Messages) SideBarDropFolder() string {
 	return Catalog.Format(msgs.locale, "sideBarDropFolder", nil)
 }
 
+// SideBarFiles says "Files"
+// in the language the app shows.
+func SideBarFiles() string { return In(i18n.Locale()).SideBarFiles() }
+
+// SideBarFiles says "Files"
+// in the language of msgs.
+func (msgs Messages) SideBarFiles() string {
+	return Catalog.Format(msgs.locale, "sideBarFiles", nil)
+}
+
+// SideBarHistory says "History"
+// in the language the app shows.
+func SideBarHistory() string { return In(i18n.Locale()).SideBarHistory() }
+
+// SideBarHistory says "History"
+// in the language of msgs.
+func (msgs Messages) SideBarHistory() string {
+	return Catalog.Format(msgs.locale, "sideBarHistory", nil)
+}
+
+// HistoryUncommitted says "Uncommitted Changes"
+// in the language the app shows.
+func HistoryUncommitted() string { return In(i18n.Locale()).HistoryUncommitted() }
+
+// HistoryUncommitted says "Uncommitted Changes"
+// in the language of msgs.
+func (msgs Messages) HistoryUncommitted() string {
+	return Catalog.Format(msgs.locale, "historyUncommitted", nil)
+}
+
+// HistoryFiles says "{count, plural, one {# file} other {# files}}"
+// in the language the app shows.
+func HistoryFiles(count int) string { return In(i18n.Locale()).HistoryFiles(count) }
+
+// HistoryFiles says "{count, plural, one {# file} other {# files}}"
+// in the language of msgs.
+func (msgs Messages) HistoryFiles(count int) string {
+	return Catalog.Format(msgs.locale, "historyFiles", map[string]any{"count": count})
+}
+
 // GitSwitchBranch says "Switch Branch"
 // in the language the app shows.
 func GitSwitchBranch() string { return In(i18n.Locale()).GitSwitchBranch() }

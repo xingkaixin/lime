@@ -21,6 +21,7 @@ All code is `package main` in `cmd/lime`. Keep it one package.
 - `compare.go`: diff tabs, of a tab against a file, a tab, the clipboard or disk
 - `project.go`: folders, `.sublime-project` files, file operations
 - `git.go`: the side bar's work tree and branch, switched from the quick panel
+- `history.go`: the side bar's History tab: commits, their files and diffs
 - `settings.go`, `settingsview.go`, `shortcutsview.go`: settings.json and its dialog
 - `session.go`: hot exit (session.json)
 - `theme.go`: color schemes and the chrome colors derived from them
