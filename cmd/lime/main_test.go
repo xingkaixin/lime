@@ -249,7 +249,7 @@ func TestPanels(t *testing.T) {
 	a.newFile()
 	a.open([]string{dir})
 	tt := ui.NewTester(a.view, 900, 600)
-	if !tt.HasText("FOLDERS") || !tt.HasText("README.md") {
+	if tt.HasText("FOLDERS") || !tt.HasText(filepath.Base(dir)) || !tt.HasText("README.md") {
 		t.Fatalf("side bar: %q", tt.Texts())
 	}
 
