@@ -39,6 +39,14 @@ type rowIcon struct {
 	color      ui.Color
 }
 
+// tint is the icon's colour, or else fallback.
+func (ic rowIcon) tint(fallback ui.Color) ui.Color {
+	if ic.color == (ui.Color{}) {
+		return fallback
+	}
+	return ic.color
+}
+
 func (ic rowIcon) view(c *ui.Context, size float32, tint ui.Color) {
 	if ic.svg != nil {
 		ui.Icon(c, ic.svg).Size(size, size).Shrink(0).TextColor(tint)

@@ -315,11 +315,7 @@ func (a *app) tabIcon(c *ui.Context, d *doc, fg ui.Color) {
 	if d.commit == nil {
 		ic = fileIcon(d.source().path, a.scheme.dark)
 	}
-	tint := ic.color
-	if tint == (ui.Color{}) {
-		tint = fg
-	}
-	ic.view(c, tabIcon, tint)
+	ic.view(c, tabIcon, ic.tint(fg))
 }
 
 func (a *app) statusBar(c *ui.Context) {
