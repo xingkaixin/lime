@@ -33,6 +33,7 @@ func (a *app) makeWindow(r mygo.Rectangle) {
 	a.win.OnFocus(func() {
 		a.l.last, a.l.menuState = a, ""
 		a.syncMenu()
+		a.reloadChanged()
 	})
 	a.win.OnClose(a.closing)
 	a.win.OnClosed(func() { a.l.closed(a) })
