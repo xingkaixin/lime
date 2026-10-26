@@ -839,8 +839,12 @@ func TestHistory(t *testing.T) {
 	if !bin.binary || !bin.folded {
 		t.Fatalf("b.bin: %+v", bin)
 	}
-	if !tt.HasText("The body.") || !tt.HasText("a.txt") {
+	if tt.HasText("The body.") || !tt.HasText("a.txt") {
 		t.Fatalf("commit tab: %q", tt.Texts())
+	}
+	tt.Click(locales.CommitShowMessage())
+	if !tt.HasText("The body.") {
+		t.Fatalf("full message: %q", tt.Texts())
 	}
 	if !tt.HasText("two") {
 		t.Fatalf("a.txt's lines: %q", tt.Texts())

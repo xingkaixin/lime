@@ -1810,6 +1810,26 @@ func (msgs Messages) CommitCopySHA() string {
 	return Catalog.Format(msgs.locale, "commitCopySHA", nil)
 }
 
+// CommitShowMessage says "Show Full Message"
+// in the language the app shows.
+func CommitShowMessage() string { return In(i18n.Locale()).CommitShowMessage() }
+
+// CommitShowMessage says "Show Full Message"
+// in the language of msgs.
+func (msgs Messages) CommitShowMessage() string {
+	return Catalog.Format(msgs.locale, "commitShowMessage", nil)
+}
+
+// CommitHideMessage says "Hide Full Message"
+// in the language the app shows.
+func CommitHideMessage() string { return In(i18n.Locale()).CommitHideMessage() }
+
+// CommitHideMessage says "Hide Full Message"
+// in the language of msgs.
+func (msgs Messages) CommitHideMessage() string {
+	return Catalog.Format(msgs.locale, "commitHideMessage", nil)
+}
+
 // CommitCopied says "Copied {hash}"
 // in the language the app shows.
 func CommitCopied(hash string) string { return In(i18n.Locale()).CommitCopied(hash) }
@@ -2424,6 +2444,36 @@ func SettingsEnsureNewlineDesc() string { return In(i18n.Locale()).SettingsEnsur
 // in the language of msgs.
 func (msgs Messages) SettingsEnsureNewlineDesc() string {
 	return Catalog.Format(msgs.locale, "settingsEnsureNewlineDesc", nil)
+}
+
+// SettingsDiffs says "Diffs"
+// in the language the app shows.
+func SettingsDiffs() string { return In(i18n.Locale()).SettingsDiffs() }
+
+// SettingsDiffs says "Diffs"
+// in the language of msgs.
+func (msgs Messages) SettingsDiffs() string {
+	return Catalog.Format(msgs.locale, "settingsDiffs", nil)
+}
+
+// SettingsDiffLayout says "Layout"
+// in the language the app shows.
+func SettingsDiffLayout() string { return In(i18n.Locale()).SettingsDiffLayout() }
+
+// SettingsDiffLayout says "Layout"
+// in the language of msgs.
+func (msgs Messages) SettingsDiffLayout() string {
+	return Catalog.Format(msgs.locale, "settingsDiffLayout", nil)
+}
+
+// SettingsDiffLayoutDesc says "How a commit's diffs lay out when it opens"
+// in the language the app shows.
+func SettingsDiffLayoutDesc() string { return In(i18n.Locale()).SettingsDiffLayoutDesc() }
+
+// SettingsDiffLayoutDesc says "How a commit's diffs lay out when it opens"
+// in the language of msgs.
+func (msgs Messages) SettingsDiffLayoutDesc() string {
+	return Catalog.Format(msgs.locale, "settingsDiffLayoutDesc", nil)
 }
 
 // SettingsClose says "Close"
