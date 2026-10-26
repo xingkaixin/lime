@@ -137,6 +137,12 @@ var (
 		<path d="M4.5 5v6M11.5 7c0 2.5-2 3-7 4" />
 	</g>
 </svg>`))
+	commitIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+	<g fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round">
+		<circle cx="8" cy="8" r="2.5" />
+		<path d="M.5 8h5M10.5 8h5" />
+	</g>
+</svg>`))
 )
 
 // gitButton is a button of the side bar's repository row, as the work
@@ -242,14 +248,11 @@ func (a *app) treeInput(c *ui.Context, cr *creation, depth int) {
 	if cr.folder {
 		ic = rowIcon{svg: folderIcon}
 	}
-	tint := ic.color
-	if tint == (ui.Color{}) {
-		tint = a.scheme.chrome().muted
-	}
+	tint := ic.tint(a.scheme.chrome().muted)
 	ui.Row(c.Key(cr)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Transition(treeMotion).
 		Children(func() {
-			ic.view(c, tint)
+			ic.view(c, treeIcon, tint)
 			pad := t.Space(0.5)
 			in := ui.TextInputBase(c, &cr.name).AutoFocus().Grow(1).MinWidth(0).Padding(pad).
 				Margin(0, -pad-1).Radius(t.Space(1)).Background(t.Background).Border(1, t.Accent).TextColor(t.Text).
@@ -277,10 +280,7 @@ func (a *app) treeRow(c *ui.Context, path string, depth int, ic rowIcon, selecte
 	row := ui.Row(c.Key(path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Radius(t.Radius).
 		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected).Transition(motion)
-	tint := ic.color
-	if tint == (ui.Color{}) {
-		tint = a.scheme.chrome().muted
-	}
+	tint := ic.tint(a.scheme.chrome().muted)
 	if selected {
 		tint = t.AccentText
 	} else if row.Hovered() {
@@ -291,7 +291,7 @@ func (a *app) treeRow(c *ui.Context, path string, depth int, ic rowIcon, selecte
 		row.Background(hover)
 	}
 	row.Children(func() {
-		ic.view(c, tint)
+		ic.view(c, treeIcon, tint)
 		ui.Text(c, name).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 	})
 	return row

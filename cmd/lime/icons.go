@@ -39,13 +39,21 @@ type rowIcon struct {
 	color      ui.Color
 }
 
-func (ic rowIcon) view(c *ui.Context, tint ui.Color) {
+// tint is the icon's colour, or else fallback.
+func (ic rowIcon) tint(fallback ui.Color) ui.Color {
+	if ic.color == (ui.Color{}) {
+		return fallback
+	}
+	return ic.color
+}
+
+func (ic rowIcon) view(c *ui.Context, size float32, tint ui.Color) {
 	if ic.svg != nil {
-		ui.Icon(c, ic.svg).Size(treeIcon, treeIcon).Shrink(0).TextColor(tint)
+		ui.Icon(c, ic.svg).Size(size, size).Shrink(0).TextColor(tint)
 		return
 	}
-	ui.Box(c).Size(treeIcon, treeIcon).Shrink(0).Center().Children(func() {
-		ui.Text(c, ic.char).Font(ic.font).FontSize(treeIcon * ic.scale).TextColor(tint).SingleLine()
+	ui.Box(c).Size(size, size).Shrink(0).Center().Children(func() {
+		ui.Text(c, ic.char).Font(ic.font).FontSize(size * ic.scale).TextColor(tint).SingleLine()
 	})
 }
 
@@ -116,10 +124,10 @@ func matchFileIcon(p string) int {
 
 // fileIcon returns the icon of the file at p, coloured for a dark theme or
 // a light one: a page of text where no rule matches, as file-icons falls
-// back to.
+// back to, or for no path.
 func fileIcon(p string, dark bool) rowIcon {
 	name, colour := "text", ""
-	if i := matchFileIcon(filepath.ToSlash(p)); i >= 0 {
+	if i := matchFileIcon(filepath.ToSlash(p)); p != "" && i >= 0 {
 		r := fileIconRules[i]
 		name, colour = r.icon, r.light
 		if dark {
