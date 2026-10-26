@@ -307,7 +307,6 @@ func (a *app) appearancePage(c *ui.Context) {
 // themes lists the schemes of the dark or the light appearance, to choose
 // its theme from.
 func (a *app) themes(c *ui.Context, dark bool) {
-	ch := a.scheme.chrome()
 	title := locales.SettingsLightTheme()
 	if dark {
 		title = locales.SettingsDarkTheme()
@@ -320,28 +319,43 @@ func (a *app) themes(c *ui.Context, dark bool) {
 				if sc.dark != dark {
 					continue
 				}
-				on := sc == chosen
-				card := ui.ButtonBase(c.Key(sc.name)).Column().Radius(8).Border(1, ch.line).Background(ch.panel).Clip().
-					Label(sc.name).OnClick(func() {
+				a.choiceCard(c, sc.name, sc == chosen, func() {
 					if dark {
 						a.set.DarkTheme = sc.name
 					} else {
 						a.set.LightTheme = sc.name
 					}
 					a.l.saveSettings()
-				})
-				if on {
-					card.BorderColor(a.scheme.accent).Shadow(0, 0, 0, 1, a.scheme.accent)
-				}
-				card.Children(func() { a.themeCard(c, sc, on) })
+				}, func() { themePicture(c, sc) })
 			}
 		})
 	})
 }
 
-// themeCard draws sc as lines of code in its colors, and its name.
-func (a *app) themeCard(c *ui.Context, sc *scheme, on bool) {
+// choiceCard is an option to choose: its picture over its name, ringed
+// and checked while chosen.
+func (a *app) choiceCard(c *ui.Context, name string, on bool, choose func(), picture func()) {
 	ch := a.scheme.chrome()
+	card := ui.ButtonBase(c.Key(name)).Column().Radius(8).Border(1, ch.line).Background(ch.panel).Clip().
+		Label(name).OnClick(choose)
+	if on {
+		card.BorderColor(a.scheme.accent).Shadow(0, 0, 0, 1, a.scheme.accent)
+	}
+	card.Children(func() {
+		ui.Column(c).FillWidth().BorderWidth(0, 0, 1, 0).BorderColor(ch.line).Children(func() {
+			picture()
+			if on {
+				ui.Box(c).Absolute().Top(6).Right(6).Width(16).Height(16).Radius(8).Center().Background(a.scheme.accent).Children(func() {
+					ui.Icon(c, checkIcon).Size(10, 10).TextColor(ui.RGB(255, 255, 255))
+				})
+			}
+		})
+		ui.Text(c, name).FontSize(12).Padding(7, 10).MaxLines(2).Ellipsis("…")
+	})
+}
+
+// themePicture draws sc as lines of code in its colors.
+func themePicture(c *ui.Context, sc *scheme) {
 	tok := func(k editor.TokenKind) ui.Color { return sc.tokens[k].Color }
 	lines := [][]struct {
 		color ui.Color
@@ -351,7 +365,7 @@ func (a *app) themeCard(c *ui.Context, sc *scheme, on bool) {
 		{{tok(editor.TokenType), 20}, {tok(editor.TokenString), 28}},
 		{{tok(editor.TokenComment), 44}},
 	}
-	ui.Column(c).FillWidth().Height(58).Padding(12, 10).Gap(7).Background(sc.bg).BorderWidth(0, 0, 1, 0).BorderColor(ch.line).Children(func() {
+	ui.Column(c).FillWidth().Height(58).Padding(12, 10).Gap(7).Background(sc.bg).Children(func() {
 		for _, l := range lines {
 			ui.Row(c).Gap(4).Children(func() {
 				for _, t := range l {
@@ -359,13 +373,7 @@ func (a *app) themeCard(c *ui.Context, sc *scheme, on bool) {
 				}
 			})
 		}
-		if on {
-			ui.Box(c).Absolute().Top(6).Right(6).Width(16).Height(16).Radius(8).Center().Background(a.scheme.accent).Children(func() {
-				ui.Icon(c, checkIcon).Size(10, 10).TextColor(ui.RGB(255, 255, 255))
-			})
-		}
 	})
-	ui.Text(c, sc.name).FontSize(12).Padding(7, 10).MaxLines(2).Ellipsis("…")
 }
 
 func (a *app) fontsPage(c *ui.Context) {
