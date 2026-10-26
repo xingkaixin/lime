@@ -1,12 +1,11 @@
 package main
 
 import (
-	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
 )
@@ -17,7 +16,10 @@ const maxCommits = 300
 // uncommitted stands in the history for the work tree's changes.
 const uncommitted = ""
 
-type commit struct{ hash, short, subject, author, date string }
+type commit struct {
+	hash, short, subject, author, email string
+	when                                time.Time
+}
 
 // change is a file a commit changes: added, modified, deleted or renamed
 // (A, M, D, R), with its path before a rename.
@@ -30,23 +32,30 @@ type change struct {
 // tree's changes first, read for root.
 type history struct {
 	root    string
+	github  bool // a remote is on GitHub, which has its authors' avatars
 	commits []commit
-	changes []change            // the work tree's
-	files   map[string][]change // the files of the commits shown open
-	open    map[string]bool
-	gen     int // counts the readings, for the last to win
+	changes []change // the work tree's
+	gen     int      // counts the readings, for the last to win
 }
 
 func readCommits(root string) []commit {
-	out, _ := runGit(root, "log", "-n"+strconv.Itoa(maxCommits), "--format=%H%x1f%h%x1f%s%x1f%an%x1f%as%x1e")
+	out, _ := runGit(root, "log", "-n"+strconv.Itoa(maxCommits), "--format=%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%at%x1e")
 	var cs []commit
 	for _, rec := range strings.Split(out, "\x1e") {
 		f := strings.Split(strings.TrimSpace(rec), "\x1f")
-		if len(f) == 5 {
-			cs = append(cs, commit{f[0], f[1], f[2], f[3], f[4]})
+		if len(f) != 6 {
+			continue
 		}
+		at, _ := strconv.ParseInt(f[5], 10, 64)
+		cs = append(cs, commit{f[0], f[1], f[2], f[3], f[4], time.Unix(at, 0)})
 	}
 	return cs
+}
+
+// onGitHub reports whether a remote of the repository is on GitHub.
+func onGitHub(root string) bool {
+	out, _ := runGit(root, "remote", "-v")
+	return strings.Contains(out, "github.com")
 }
 
 // readChanges reads the files hash changes against its first parent, or
@@ -106,161 +115,77 @@ func (a *app) readHistory() {
 	a.hist.gen++
 	gen := a.hist.gen
 	a.background(func() func() {
-		cs, ch := readCommits(root), readChanges(root, uncommitted)
+		cs, ch, gh := readCommits(root), readChanges(root, uncommitted), onGitHub(root)
 		return func() {
 			if a.hist.gen == gen {
-				a.hist.commits, a.hist.changes = cs, ch
+				a.hist.commits, a.hist.changes, a.hist.github = cs, ch, gh
 			}
 		}
 	})
 }
 
-// toggleCommit shows or hides the files hash changes.
-func (a *app) toggleCommit(hash string) {
-	h := &a.hist
-	if h.open == nil {
-		h.open, h.files = map[string]bool{}, map[string][]change{}
+// ago tells how long ago t was, as Zed's history does.
+func ago(t, now time.Time) string {
+	const day = 24 * time.Hour
+	switch d := now.Sub(t); {
+	case d < time.Minute:
+		return locales.TimeJustNow()
+	case d < time.Hour:
+		return locales.TimeMinutesAgo(int(d / time.Minute))
+	case d < day:
+		return locales.TimeHoursAgo(int(d / time.Hour))
+	case d < 7*day:
+		return locales.TimeDaysAgo(int(d / day))
+	case d < 30*day:
+		return locales.TimeWeeksAgo(int(d / (7 * day)))
+	case d < 365*day:
+		return locales.TimeMonthsAgo(int(d / (30 * day)))
+	default:
+		return locales.TimeYearsAgo(int(d / (365 * day)))
 	}
-	h.open[hash] = !h.open[hash]
-	if _, ok := h.files[hash]; ok || hash == uncommitted || !h.open[hash] {
-		return
-	}
-	root := h.root
-	a.background(func() func() {
-		cs := readChanges(root, hash)
-		return func() {
-			if a.hist.root == root {
-				a.hist.files[hash] = cs
-			}
-		}
-	})
 }
 
-// showChange opens a diff tab of what hash changed in ch, which neither
-// side edits: the commit's first parent against it, or HEAD against the
-// work tree.
-func (a *app) showChange(hash, short string, ch change) {
-	root := a.hist.root
-	oldPath := ch.path
-	if ch.oldPath != "" {
-		oldPath = ch.oldPath
-	}
-	a.background(func() func() {
-		oldRev, newRev := hash+"^", hash
-		if hash == uncommitted {
-			oldRev = "HEAD"
-		}
-		var oldText, newText string
-		if ch.status != 'A' {
-			oldText, _ = runGit(root, "show", oldRev+":"+oldPath)
-		}
-		switch {
-		case ch.status == 'D':
-		case hash == uncommitted:
-			newText, _ = readText(filepath.Join(root, filepath.FromSlash(ch.path)))
-		default:
-			newText, _ = runGit(root, "show", newRev+":"+ch.path)
-		}
-		return func() {
-			if binary(oldText) || binary(newText) {
-				a.notify(locales.PreviewBinary())
-				return
-			}
-			path := filepath.Join(root, filepath.FromSlash(ch.path))
-			lang := editor.LanguageFor(path)
-			old := editor.NewBuffer(oldText)
-			old.SetLanguage(lang)
-			src := newDoc("", newText)
-			src.st.Buffer.SetLanguage(lang)
-			name, oldName := filepath.Base(path), filepath.Base(oldPath)
-			cmp := &comparison{src: src, fixed: true, oldPath: filepath.Join(root, filepath.FromSlash(oldPath)), newPath: path,
-				diff: editor.DiffState{Old: old}}
-			if hash == uncommitted {
-				cmp.oldName, cmp.newName = oldName+" @ HEAD", name
-			} else {
-				cmp.oldName, cmp.newName = oldName+" @ "+short+"^", name+" @ "+short
-			}
-			a.compare(cmp)
-		}
-	})
-}
-
-// binary tells binary text by a NUL in its first 8000 bytes, as fileKind
-// does.
-func binary(s string) bool { return strings.IndexByte(s[:min(len(s), 8000)], 0) >= 0 }
-
-// historyView lists the work tree's changes and the commits, each opening
-// to the files it changes, which open their diffs.
+// historyView lists the work tree's changes and the commits, each of
+// which opens in a tab of its own.
 func (a *app) historyView(c *ui.Context) {
 	h := &a.hist
+	shown := "-"
+	if d := a.current(); d != nil && d.commit != nil {
+		shown = d.commit.hash
+	}
+	now := time.Now()
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
+		ui.Column(c).FillWidth().Padding(0, c.Theme().Space(1)).Role(ui.RoleList).Children(func() {
 			if len(h.changes) > 0 {
-				a.historyRow(c, uncommitted, locales.HistoryUncommitted(), locales.HistoryFiles(len(h.changes)))
+				a.historyRow(c, commit{subject: locales.HistoryUncommitted()}, locales.HistoryFiles(len(h.changes)), shown == uncommitted)
 			}
 			for _, cm := range h.commits {
-				a.historyRow(c, cm.hash, cm.subject, cm.short+" · "+cm.author+" · "+cm.date)
+				a.historyRow(c, cm, cm.author+" · "+ago(cm.when, now)+" · "+cm.short, shown == cm.hash)
 			}
 		})
 	})
 }
 
-func (a *app) historyRow(c *ui.Context, hash, title, detail string) {
-	t := c.Theme()
+func (a *app) historyRow(c *ui.Context, cm commit, detail string, selected bool) {
+	th := c.Theme()
 	ch := a.shell(c)
-	h := &a.hist
-	open := h.open[hash]
-	row := ui.Column(c.Key("commit "+hash)).FillWidth().Padding(t.Space(1), t.Space(2)).Gap(1).Radius(t.Radius).
-		Role(ui.RoleTreeItem).Level(1).Label(title).Expanded(open).Transition(colorFade).OnClick(func() { a.toggleCommit(hash) })
-	if row.Hovered() {
+	row := ui.Column(c.Key("commit "+cm.hash)).FillWidth().Padding(th.Space(1.5), th.Space(2)).Gap(th.Space(1)).Radius(th.Radius).
+		Role(ui.RoleListItem).Label(cm.subject).Selected(selected).Transition(colorFade).OnClick(func() { a.showCommit(cm) })
+	text, muted := ch.text, ch.muted
+	switch {
+	case selected:
+		row.Background(th.Accent)
+		text, muted = th.AccentText, th.AccentText.Alpha(0.8)
+	case row.Hovered():
 		row.Background(ch.hover)
 	}
 	row.Children(func() {
-		ui.Text(c, title).SingleLine().Ellipsis("…").MinWidth(0)
-		ui.Text(c, detail).FontSize(11).TextColor(ch.muted).SingleLine().Ellipsis("…").MinWidth(0)
-	})
-	if !open {
-		return
-	}
-	files := h.changes
-	if hash != uncommitted {
-		files = h.files[hash]
-	}
-	short := ""
-	for _, cm := range h.commits {
-		if cm.hash == hash {
-			short = cm.short
-		}
-	}
-	ui.Column(c.Key("files " + hash)).FillWidth().Transition(treeMotion).Children(func() {
-		for _, f := range files {
-			a.changeRow(c, f, func() { a.showChange(hash, short, f) })
-		}
-	})
-}
-
-// changeRow is a file of a commit: its status, its name, and its folder.
-func (a *app) changeRow(c *ui.Context, f change, onClick func()) {
-	t := c.Theme()
-	ch := a.shell(c)
-	tint := a.scheme.accent
-	switch f.status {
-	case 'A':
-		tint = a.scheme.tokens[editor.TokenInserted].Color
-	case 'D':
-		tint = a.scheme.danger()
-	}
-	row := ui.Row(c.Key(f.path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
-		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + treeIcon + treeGap).Radius(t.Radius).
-		Role(ui.RoleTreeItem).Level(2).Label(f.path).Transition(colorFade).OnClick(onClick)
-	if row.Hovered() {
-		row.Background(ch.hover)
-	}
-	row.Children(func() {
-		ui.Text(c, string(f.status)).FontSize(11).TextColor(tint).Width(treeIcon).Shrink(0).TextAlign(ui.Center)
-		ui.Text(c, filepath.Base(f.path)).SingleLine().Ellipsis("…").Shrink(0).MaxWidth(200)
-		if dir := filepath.Dir(filepath.FromSlash(f.path)); dir != "." {
-			ui.Text(c, dir).FontSize(11).TextColor(ch.muted).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
-		}
+		ui.Text(c, cm.subject).TextColor(text).SingleLine().Ellipsis("…").MinWidth(0)
+		ui.Row(c).FillWidth().Gap(th.Space(1.5)).AlignItems(ui.Center).Children(func() {
+			if cm.hash != uncommitted {
+				a.avatar(c, cm.email, 16)
+			}
+			ui.Text(c, detail).FontSize(11).TextColor(muted).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
+		})
 	})
 }

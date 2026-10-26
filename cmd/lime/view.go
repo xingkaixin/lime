@@ -172,6 +172,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 			a.diffView(c, gi, d)
 			return
 		}
+		if d.commit != nil {
+			a.commitTab(c, gi, d)
+			return
+		}
 		if d.kind != textDoc {
 			a.preview(c, gi, d)
 			return

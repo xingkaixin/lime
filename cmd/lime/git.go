@@ -28,10 +28,14 @@ var hideConsole = func(*exec.Cmd) {}
 
 // runGit runs git in dir, returning what it printed, or what it said of
 // a failure. It blocks, so call it off the main thread.
-func runGit(dir string, args ...string) (string, error) {
+func runGit(dir string, args ...string) (string, error) { return gitWith(dir, "", args...) }
+
+// gitWith runs git as runGit does, with input on its standard input.
+func gitWith(dir, input string, args ...string) (string, error) {
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
 	// Reads alone leave the index as it is, for the git running elsewhere.
 	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
+	cmd.Stdin = strings.NewReader(input)
 	hideConsole(cmd)
 	var out, said bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &said
