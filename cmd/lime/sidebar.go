@@ -53,7 +53,7 @@ func (a *app) sideBarEmpty(c *ui.Context) {
 }
 
 // sideBarIcon is the status bar's button for the side bar, drawn as the
-// file icons are.
+// folder icons are.
 var sideBarIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
 	<g fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round">
 		<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
@@ -108,9 +108,9 @@ var copyMods = func() ui.Modifiers {
 // it.
 func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 	open := a.proj.isOpen(dir, depth == 0)
-	ic, tint := icon("_folder"), a.scheme.chrome().muted
+	ic := rowIcon{svg: folderIcon}
 	if *open {
-		ic, tint = icon("_folder_open"), a.scheme.accent
+		ic = rowIcon{svg: folderOpenIcon, color: a.scheme.accent}
 	}
 	box := ui.Column(c.Key(treeBox(dir))).FillWidth().Radius(c.Theme().Radius).Transition(colorFade)
 	if p, ok := ui.Drop[treeDrag](box); ok && canDrop(string(p), dir) {
@@ -120,7 +120,7 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 		box.Background(a.scheme.accent.Alpha(0.08))
 	}
 	box.Children(func() {
-		row := a.treeRow(c, dir, depth, ic, tint, false).Expanded(*open).OnClick(func() { *open = !*open }).
+		row := a.treeRow(c, dir, depth, ic, false).Expanded(*open).OnClick(func() { *open = !*open }).
 			ContextMenu(func(m *ui.Menu) { a.folderMenu(c, m, dir, depth == 0) })
 		if depth > 0 {
 			treeSource(c, row, dir)
@@ -139,7 +139,7 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 					a.treeDir(c, p, depth+1, cur)
 					continue
 				}
-				row := a.treeRow(c, p, depth+1, fileIcon(e.Name()), a.scheme.chrome().muted, cur != nil && cur.path == p).
+				row := a.treeRow(c, p, depth+1, fileIcon(p, a.scheme.dark), cur != nil && cur.path == p).
 					OnClick(func() { a.open([]string{p}) }).
 					ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
 				treeSource(c, row, p)
@@ -161,14 +161,18 @@ func treeSource(c *ui.Context, row ui.Element, path string) {
 // it; Escape, a press elsewhere or the focus leaving cancels it.
 func (a *app) treeInput(c *ui.Context, cr *creation, depth int) {
 	t := c.Theme()
-	ic, tint := fileIcon(cr.name), a.scheme.chrome().muted
+	ic := fileIcon(filepath.Join(cr.dir, cr.name), a.scheme.dark)
 	if cr.folder {
-		ic = icon("_folder")
+		ic = rowIcon{svg: folderIcon}
+	}
+	tint := ic.color
+	if tint == (ui.Color{}) {
+		tint = a.scheme.chrome().muted
 	}
 	ui.Row(c.Key(cr)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Transition(treeMotion).
 		Children(func() {
-			ui.Icon(c, ic).Size(treeIcon, treeIcon).Shrink(0).TextColor(tint)
+			ic.view(c, tint)
 			pad := t.Space(0.5)
 			in := ui.TextInputBase(c, &cr.name).AutoFocus().Grow(1).MinWidth(0).Padding(pad).
 				Margin(0, -pad-1).Radius(t.Space(1)).Background(t.Background).Border(1, t.Accent).TextColor(t.Text).
@@ -187,7 +191,7 @@ func (a *app) treeInput(c *ui.Context, cr *creation, depth int) {
 		})
 }
 
-func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui.Color, selected bool) ui.Element {
+func (a *app) treeRow(c *ui.Context, path string, depth int, ic rowIcon, selected bool) ui.Element {
 	t := c.Theme()
 	name := filepath.Base(path)
 	motion := treeMotion
@@ -196,6 +200,10 @@ func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui
 	row := ui.Row(c.Key(path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Radius(t.Radius).
 		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected).Transition(motion)
+	tint := ic.color
+	if tint == (ui.Color{}) {
+		tint = a.scheme.chrome().muted
+	}
 	if selected {
 		tint = t.AccentText
 	} else if row.Hovered() {
@@ -206,7 +214,7 @@ func (a *app) treeRow(c *ui.Context, path string, depth int, ic *ui.SVG, tint ui
 		row.Background(hover)
 	}
 	row.Children(func() {
-		ui.Icon(c, ic).Size(treeIcon, treeIcon).Shrink(0).TextColor(tint)
+		ic.view(c, tint)
 		ui.Text(c, name).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 	})
 	return row
