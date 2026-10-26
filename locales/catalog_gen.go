@@ -1810,6 +1810,26 @@ func (msgs Messages) CommitCopySHA() string {
 	return Catalog.Format(msgs.locale, "commitCopySHA", nil)
 }
 
+// CommitShowMessage says "Show Full Message"
+// in the language the app shows.
+func CommitShowMessage() string { return In(i18n.Locale()).CommitShowMessage() }
+
+// CommitShowMessage says "Show Full Message"
+// in the language of msgs.
+func (msgs Messages) CommitShowMessage() string {
+	return Catalog.Format(msgs.locale, "commitShowMessage", nil)
+}
+
+// CommitHideMessage says "Hide Full Message"
+// in the language the app shows.
+func CommitHideMessage() string { return In(i18n.Locale()).CommitHideMessage() }
+
+// CommitHideMessage says "Hide Full Message"
+// in the language of msgs.
+func (msgs Messages) CommitHideMessage() string {
+	return Catalog.Format(msgs.locale, "commitHideMessage", nil)
+}
+
 // CommitCopied says "Copied {hash}"
 // in the language the app shows.
 func CommitCopied(hash string) string { return In(i18n.Locale()).CommitCopied(hash) }

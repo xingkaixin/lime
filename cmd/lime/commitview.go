@@ -22,6 +22,7 @@ type commitView struct {
 	commit
 	root    string
 	body    string // the whole message
+	more    bool   // the whole message shows, not its subject alone
 	files   []*commitFile
 	loaded  bool
 	unified bool
@@ -617,8 +618,29 @@ func (a *app) counts(c *ui.Context, added, deleted int) {
 	ui.Text(c, "−"+strconv.Itoa(deleted)).FontSize(12).TextColor(a.scheme.danger()).Shrink(0)
 }
 
+// moreButton shows the whole message, or its subject alone again.
+func (a *app) moreButton(c *ui.Context, cv *commitView) {
+	ch := a.scheme.chrome()
+	label := locales.CommitShowMessage()
+	if cv.more {
+		label = locales.CommitHideMessage()
+	}
+	btn := ui.ButtonBase(c).Size(20, 20).Radius(4).Center().Transition(colorFade).
+		Label(label).Tooltip(label).OnClick(func() { cv.more = !cv.more })
+	if btn.Hovered() {
+		btn.Background(ch.hover)
+	}
+	btn.Children(func() {
+		chevron := ui.Icon(c, chevronIcon).Size(14, 14).TextColor(ch.muted)
+		if cv.more {
+			chevron.Rotate(180)
+		}
+	})
+}
+
 // commitMessage is the first row: the author's picture, name and email,
-// when, the message, and the hash to copy. The work tree's has none.
+// when, the message's subject, or the whole message while more, and the
+// hash to copy. The work tree's has none.
 func (a *app) commitMessage(c *ui.Context, cv *commitView) {
 	if cv.hash == uncommitted {
 		ui.Box(c).FillWidth().Height(0)
@@ -628,9 +650,19 @@ func (a *app) commitMessage(c *ui.Context, cv *commitView) {
 	ui.Row(c).FillWidth().Padding(16).Gap(12).AlignItems(ui.Start).Background(a.scheme.bg).Children(func() {
 		a.avatar(c, cv.email, 40)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, cv.author).FontSize(13).Bold().TextColor(ch.text)
+			body := strings.TrimSpace(cv.body)
+			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, cv.author).FontSize(13).Bold().TextColor(ch.text)
+				if strings.Contains(body, "\n") {
+					a.moreButton(c, cv)
+				}
+			})
 			ui.Text(c, cv.when.Format("2006-01-02 15:04")+" · "+cv.email).FontSize(12).TextColor(ch.muted).SingleLine().Ellipsis("…")
-			ui.Text(c, cv.body).FontSize(13).TextColor(ch.text).Margin(6, 0, 0, 0)
+			message := cv.subject
+			if cv.more {
+				message = body
+			}
+			ui.Text(c, message).FontSize(13).TextColor(ch.text).Margin(6, 0, 0, 0)
 		})
 		label := locales.CommitCopySHA()
 		btn := ui.ButtonBase(c).Height(22).Padding(0, 8).Radius(4).Shrink(0).Transition(colorFade).

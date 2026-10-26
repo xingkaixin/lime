@@ -257,6 +257,8 @@
   "commitCollapseAll": "Collapse All",
   "commitExpandAll": "Expand All",
   "commitCopySHA": "Copy SHA",
+  "commitShowMessage": "Show Full Message",
+  "commitHideMessage": "Hide Full Message",
   "commitCopied": "Copied {hash}",
   "@commitCopied": {
     "placeholders": { "hash": { "type": "String", "example": "55a00dc" } }

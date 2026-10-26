@@ -183,6 +183,8 @@
   "commitCollapseAll": "全部折叠",
   "commitExpandAll": "全部展开",
   "commitCopySHA": "复制 SHA",
+  "commitShowMessage": "显示完整信息",
+  "commitHideMessage": "收起完整信息",
   "commitCopied": "已复制 {hash}",
   "commitUnchangedLines": "{count, plural, other {# 行未改动}}",
   "gitSwitchBranch": "切换分支",
