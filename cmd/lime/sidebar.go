@@ -137,6 +137,12 @@ var (
 		<path d="M4.5 5v6M11.5 7c0 2.5-2 3-7 4" />
 	</g>
 </svg>`))
+	commitIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+	<g fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round">
+		<circle cx="8" cy="8" r="2.5" />
+		<path d="M.5 8h5M10.5 8h5" />
+	</g>
+</svg>`))
 )
 
 // gitButton is a button of the side bar's repository row, as the work

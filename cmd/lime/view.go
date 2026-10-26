@@ -308,13 +308,13 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 	})
 }
 
-// tabIcon is the icon of d's file, as the side bar shows it, tinted fg
-// where it has no colour. A commit's tab has none.
+// tabIcon is the icon of d's file, as the side bar shows it, or of its
+// commit, tinted fg where it has no colour.
 func (a *app) tabIcon(c *ui.Context, d *doc, fg ui.Color) {
-	if d.commit != nil {
-		return
+	ic := rowIcon{svg: commitIcon}
+	if d.commit == nil {
+		ic = fileIcon(d.source().path, a.scheme.dark)
 	}
-	ic := fileIcon(d.source().path, a.scheme.dark)
 	tint := ic.color
 	if tint == (ui.Color{}) {
 		tint = fg
