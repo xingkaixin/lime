@@ -340,7 +340,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, dir string, active, fo
 	case hovered:
 		bg = ch.hover
 	}
-	row.Background(bg).Label(d.name()).OnClick(func() { a.show(d) }).ContextMenu(func(m *ui.Menu) { a.tabMenu(m, g, d) })
+	row.Background(bg).Label(d.name()).Tooltip(d.path).OnClick(func() { a.show(d) }).ContextMenu(func(m *ui.Menu) { a.tabMenu(m, g, d) })
 	row.Children(func() {
 		a.tabIcon(c, d, fg)
 		tabTitle(c, d, dir, fg)
