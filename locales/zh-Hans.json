@@ -184,6 +184,7 @@
   "changesUnstage": "取消暂存",
   "changesStageAll": "全部暂存",
   "changesUnstageAll": "全部取消暂存",
+  "changesViewAsTree": "以树形显示",
   "changesStagedTitle": "已暂存的改动",
   "changesUnstagedTitle": "未暂存的改动",
   "timeJustNow": "刚刚",

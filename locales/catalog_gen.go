@@ -1820,6 +1820,16 @@ func (msgs Messages) ChangesUnstageAll() string {
 	return Catalog.Format(msgs.locale, "changesUnstageAll", nil)
 }
 
+// ChangesViewAsTree says "View as Tree"
+// in the language the app shows.
+func ChangesViewAsTree() string { return In(i18n.Locale()).ChangesViewAsTree() }
+
+// ChangesViewAsTree says "View as Tree"
+// in the language of msgs.
+func (msgs Messages) ChangesViewAsTree() string {
+	return Catalog.Format(msgs.locale, "changesViewAsTree", nil)
+}
+
 // ChangesStagedTitle says "Staged Changes"
 // in the language the app shows.
 func ChangesStagedTitle() string { return In(i18n.Locale()).ChangesStagedTitle() }

@@ -37,6 +37,9 @@ type settings struct {
 	// DiffUnified lays commits' diffs out one over the other rather than
 	// side by side.
 	DiffUnified bool `json:"diff_unified"`
+	// GitTreeView shows the git panel's changes in the tree of their
+	// folders rather than as a list.
+	GitTreeView bool `json:"git_tree_view"`
 	// Keys are the commands' keys the user changed, the one changed last
 	// last.
 	Keys []keyChange `json:"keys,omitempty"`

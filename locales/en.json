@@ -237,6 +237,7 @@
   "changesUnstage": "Unstage",
   "changesStageAll": "Stage All",
   "changesUnstageAll": "Unstage All",
+  "changesViewAsTree": "View as Tree",
   "changesStagedTitle": "Staged Changes",
   "changesUnstagedTitle": "Unstaged Changes",
   "timeJustNow": "Just now",

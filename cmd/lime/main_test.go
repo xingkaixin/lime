@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -1034,6 +1035,56 @@ func TestStage(t *testing.T) {
 	tt.Frame()
 	if got := staged(); got != "b.txt" {
 		t.Fatalf("Space staged %q", got)
+	}
+}
+
+// The tree shows the changes in their folders, folders first, which open
+// and close, and whose check boxes stage what they hold.
+func TestChangesTree(t *testing.T) {
+	dir, git := newRepo(t)
+	names := []string{"top.txt", "src/b.txt", "src/a/x.txt", "src/a/y.txt"}
+	for _, text := range []string{"1\n", "2\n"} {
+		for _, name := range names {
+			os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755)
+			os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644)
+		}
+		if text == "1\n" {
+			git("add", ".")
+			git("commit", "-q", "-m", "base")
+		}
+	}
+	a := newApp("")
+	a.set.GitTreeView = true
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarGitPanel())
+	tt.Frame()
+	rows := func() string {
+		var b strings.Builder
+		for _, r := range a.changes.rows {
+			switch {
+			case r.dir != "":
+				fmt.Fprintf(&b, "%d:%s/ ", r.depth, path.Base(r.dir))
+			case r.file != nil:
+				fmt.Fprintf(&b, "%d:%s ", r.depth, path.Base(r.file.path))
+			}
+		}
+		return b.String()
+	}
+	if got, want := rows(), "0:src/ 1:a/ 2:x.txt 2:y.txt 1:b.txt 0:top.txt "; got != want {
+		t.Fatalf("tree:\n got %s\nwant %s", got, want)
+	}
+	tt.Click("a")
+	tt.Frame()
+	if got, want := rows(), "0:src/ 1:a/ 1:b.txt 0:top.txt "; got != want {
+		t.Fatalf("a closed:\n got %s\nwant %s", got, want)
+	}
+	box, _ := tt.Find(locales.ChangesStageAll())
+	row, _ := tt.Find("src")
+	tt.ClickAt(box.X+box.W/2, row.Y+row.H/2)
+	tt.Frame()
+	if out, _ := runGit(dir, "diff", "--cached", "--name-only"); strings.Join(strings.Fields(out), " ") != "src/a/x.txt src/a/y.txt src/b.txt" {
+		t.Fatalf("the folder's check box staged %q", out)
 	}
 }
 
