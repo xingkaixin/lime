@@ -74,6 +74,45 @@ func (d *doc) name() string {
 	return filepath.Base(d.path)
 }
 
+// tabDirs returns the shortest parent folders that tell apart the files
+// of docs with the same name, as Zed's and VS Code's tabs show them.
+func tabDirs(docs []*doc) map[*doc]string {
+	byName := make(map[string][]*doc)
+	for _, d := range docs {
+		if d.path != "" && d.cmp == nil && d.commit == nil && d.results == nil {
+			byName[d.name()] = append(byName[d.name()], d)
+		}
+	}
+	dirs := make(map[*doc]string)
+	for _, same := range byName {
+		if len(same) < 2 {
+			continue
+		}
+		for _, d := range same {
+			dirs[d] = shortestDir(d, same)
+		}
+	}
+	return dirs
+}
+
+// shortestDir returns the fewest last folders of d's path that no other
+// of same has, or all of them.
+func shortestDir(d *doc, same []*doc) string {
+	sep := string(filepath.Separator)
+	parts := func(d *doc) []string { return strings.Split(filepath.Dir(d.path), sep) }
+	mine := parts(d)
+	for n := 1; n < len(mine); n++ {
+		tail := mine[len(mine)-n:]
+		if !slices.ContainsFunc(same, func(o *doc) bool {
+			p := parts(o)
+			return o != d && slices.Equal(p[max(len(p)-n, 0):], tail)
+		}) {
+			return strings.Join(tail, sep)
+		}
+	}
+	return filepath.Dir(d.path)
+}
+
 // source is the doc whose text d edits: its own, or a diff tab's new one.
 func (d *doc) source() *doc {
 	if d.cmp != nil {
