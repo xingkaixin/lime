@@ -36,6 +36,9 @@ type settings struct {
 	EnsureNewlineAtEOFOnSave     bool  `json:"ensure_newline_at_eof_on_save"`
 	// AutoComplete shows completions as words are typed.
 	AutoComplete bool `json:"auto_complete"`
+	// DetectIndentation has a file indent as its lines do as it opens,
+	// in place of TabSize and TranslateTabsToSpaces.
+	DetectIndentation bool `json:"detect_indentation"`
 	// DiffUnified lays commits' diffs out one over the other rather than
 	// side by side.
 	DiffUnified bool `json:"diff_unified"`
@@ -79,7 +82,7 @@ func loadSettings(dir string) (settings, error) {
 	s := settings{
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4, AutoComplete: true,
-		GitDiffTarget: "index",
+		GitDiffTarget: "index", DetectIndentation: true,
 	}
 	var err error
 	if dir != "" {
@@ -120,22 +123,10 @@ func (s *settings) locale() string {
 }
 
 // indent is what TranslateTabsToSpaces has indenting insert.
-func (s *settings) indent() editor.IndentStyle {
-	switch {
-	case s.TranslateTabsToSpaces == nil:
-		return editor.IndentAuto
-	case *s.TranslateTabsToSpaces:
-		return editor.IndentSpaces
-	}
-	return editor.IndentTabs
-}
+func (s *settings) indent() editor.IndentStyle { return indentStyle(s.TranslateTabsToSpaces) }
 
 func (s *settings) setIndent(style editor.IndentStyle) {
-	s.TranslateTabsToSpaces = nil
-	if style != editor.IndentAuto {
-		spaces := style == editor.IndentSpaces
-		s.TranslateTabsToSpaces = &spaces
-	}
+	s.TranslateTabsToSpaces = translateTabs(style)
 }
 
 // showScheme makes sc the theme of its appearance, and shows that

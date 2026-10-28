@@ -35,6 +35,10 @@ type doc struct {
 	// text with saved once a version.
 	checked  uint64
 	modified bool
+	// tabSize and indent are the file's own indentation, as detected or
+	// set from View > Indentation; zero values follow the settings.
+	tabSize int
+	indent  editor.IndentStyle
 
 	kind    docKind
 	img     *ui.Bitmap  // an imageDoc's image, once decoded
@@ -531,7 +535,11 @@ func (a *app) open(paths []string) {
 			go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(p)), err.Error())
 			continue
 		}
-		added = append(added, a.add(p, text))
+		d := a.add(p, text)
+		if a.set.DetectIndentation {
+			d.guessIndent()
+		}
+		added = append(added, d)
 		files = append(files, p)
 	}
 	// A window not made yet reads them as it comes to the front, rather

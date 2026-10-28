@@ -466,6 +466,11 @@ func (a *app) editorPage(c *ui.Context) {
 					a.l.saveSettings()
 				}
 			})
+			a.settingsRow(c, locales.SettingsDetectIndentation(), locales.SettingsDetectIndentationDesc(), func() {
+				if ui.Switch(c, &a.set.DetectIndentation).Label(locales.SettingsDetectIndentation()).Changed() {
+					a.l.saveSettings()
+				}
+			})
 		})
 	})
 	ui.Column(c).FillWidth().Gap(10).Children(func() {

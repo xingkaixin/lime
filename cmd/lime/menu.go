@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/i18n"
+	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
 )
@@ -35,7 +37,7 @@ func (l *lime) check(label, id string, typ mygo.MenuItemType) *mygo.MenuItem {
 }
 
 func (l *lime) newMenu() *mygo.Menu {
-	var layoutItems, schemeItems []*mygo.MenuItem
+	var layoutItems, schemeItems, tabWidths []*mygo.MenuItem
 	for _, lo := range layouts {
 		layoutItems = append(layoutItems, l.check(lo.label(locales.In(i18n.Locale())), lo.id(), mygo.MenuItemRadio))
 	}
@@ -47,6 +49,9 @@ func (l *lime) newMenu() *mygo.Menu {
 			}
 		}
 		schemeItems = append(schemeItems, it)
+	}
+	for n := 1; n <= 8; n++ {
+		tabWidths = append(tabWidths, l.check(locales.MenuTabWidth(n), tabWidth(n), mygo.MenuItemRadio))
 	}
 	// Settings go in the app's menu on macOS, and in File elsewhere.
 	settingsItem := l.menuItem(locales.MenuSettings(), "show_settings")
@@ -104,6 +109,16 @@ func (l *lime) newMenu() *mygo.Menu {
 			}},
 			{Label: locales.MenuColorScheme(), Submenu: schemeItems},
 			l.menuItem(locales.MenuSyntax(), "select_syntax"),
+			{Label: locales.MenuIndentation(), Submenu: slices.Concat([]*mygo.MenuItem{
+				l.check(locales.MenuIndentUsingSpaces(), "toggle_setting translate_tabs_to_spaces", mygo.MenuItemCheckbox),
+				mygo.Separator(),
+			}, tabWidths, []*mygo.MenuItem{
+				mygo.Separator(),
+				l.menuItem(locales.MenuGuessIndentation(), "detect_indentation"),
+				mygo.Separator(),
+				l.menuItem(locales.MenuConvertToSpaces(), "expand_tabs"),
+				l.menuItem(locales.MenuConvertToTabs(), "unexpand_tabs"),
+			})},
 			mygo.Separator(),
 			l.check(locales.MenuWordWrap(), "toggle_word_wrap", mygo.MenuItemCheckbox),
 			mygo.Separator(),
@@ -145,7 +160,11 @@ func (a *app) syncMenu() {
 	if l.menu == nil || l.last != a {
 		return
 	}
-	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.scheme.name)
+	tabSize, spaces := a.set.TabSize, a.set.indent() != editor.IndentTabs
+	if d := a.current(); d != nil && d.kind == textDoc {
+		tabSize, spaces = a.indentOf(d)
+	}
+	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.scheme.name, tabSize, spaces)
 	if state == l.menuState {
 		return
 	}
@@ -159,6 +178,8 @@ func (a *app) syncMenu() {
 	check("toggle_word_wrap", a.set.WordWrap)
 	check(a.layout.id(), true)
 	check("scheme "+a.scheme.name, true)
+	check("toggle_setting translate_tabs_to_spaces", spaces)
+	check(tabWidth(tabSize), true)
 }
 
 // pauseMenu takes the keys away from the menu while a key is recorded,
