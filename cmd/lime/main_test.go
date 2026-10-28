@@ -241,6 +241,13 @@ func TestTabOverflow(t *testing.T) {
 	if g.scroll < 600 || i < 12 {
 		t.Fatalf("holding a tab at the end: scrolled %v, the tab at %d", g.scroll, i)
 	}
+	tt.Move(x, y+200)
+	tt.Advance(time.Second)
+	s := g.scroll
+	tt.Move(x, y)
+	if g.scroll != s {
+		t.Fatalf("a tab pulled out and back to the end: scrolled from %v to %v at once", s, g.scroll)
+	}
 	tt.Release(x, y)
 
 	// The current tab moves as the tabs before it close.

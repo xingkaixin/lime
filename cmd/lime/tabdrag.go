@@ -115,17 +115,19 @@ const (
 // tab dragged along them is held at either end of the room.
 func (a *app) dragScroll(c *ui.Context, g *group, room, over float32) {
 	t := a.drag
-	if t == nil || !t.on || t.out || t.g != g {
+	if t == nil || t.g != g {
 		return
 	}
 	x := t.at.X - g.bar.X
 	var dir float32
 	switch {
+	case !t.on || t.out:
 	case x < dragEdge && g.scroll > 0:
 		dir = -1
 	case x > room-dragEdge && g.scroll < over:
 		dir = 1
-	default:
+	}
+	if dir == 0 {
 		t.edge = time.Time{}
 		return
 	}
