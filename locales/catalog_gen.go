@@ -904,6 +904,26 @@ func (msgs Messages) CmdToggleSideBar() string {
 	return Catalog.Format(msgs.locale, "cmdToggleSideBar", nil)
 }
 
+// CmdToggleFilesPanel says "View: Toggle Files Panel"
+// in the language the app shows.
+func CmdToggleFilesPanel() string { return In(i18n.Locale()).CmdToggleFilesPanel() }
+
+// CmdToggleFilesPanel says "View: Toggle Files Panel"
+// in the language of msgs.
+func (msgs Messages) CmdToggleFilesPanel() string {
+	return Catalog.Format(msgs.locale, "cmdToggleFilesPanel", nil)
+}
+
+// CmdToggleGitPanel says "View: Toggle Git Panel"
+// in the language the app shows.
+func CmdToggleGitPanel() string { return In(i18n.Locale()).CmdToggleGitPanel() }
+
+// CmdToggleGitPanel says "View: Toggle Git Panel"
+// in the language of msgs.
+func (msgs Messages) CmdToggleGitPanel() string {
+	return Catalog.Format(msgs.locale, "cmdToggleGitPanel", nil)
+}
+
 // CmdToggleWordWrap says "Word Wrap: Toggle"
 // in the language the app shows.
 func CmdToggleWordWrap() string { return In(i18n.Locale()).CmdToggleWordWrap() }
@@ -1670,24 +1690,34 @@ func (msgs Messages) SideBarDropFolder() string {
 	return Catalog.Format(msgs.locale, "sideBarDropFolder", nil)
 }
 
-// SideBarFiles says "Files"
+// SideBarFilesPanel says "Files Panel"
 // in the language the app shows.
-func SideBarFiles() string { return In(i18n.Locale()).SideBarFiles() }
+func SideBarFilesPanel() string { return In(i18n.Locale()).SideBarFilesPanel() }
 
-// SideBarFiles says "Files"
+// SideBarFilesPanel says "Files Panel"
 // in the language of msgs.
-func (msgs Messages) SideBarFiles() string {
-	return Catalog.Format(msgs.locale, "sideBarFiles", nil)
+func (msgs Messages) SideBarFilesPanel() string {
+	return Catalog.Format(msgs.locale, "sideBarFilesPanel", nil)
 }
 
-// SideBarHistory says "History"
+// SideBarGitPanel says "Git Panel"
 // in the language the app shows.
-func SideBarHistory() string { return In(i18n.Locale()).SideBarHistory() }
+func SideBarGitPanel() string { return In(i18n.Locale()).SideBarGitPanel() }
 
-// SideBarHistory says "History"
+// SideBarGitPanel says "Git Panel"
 // in the language of msgs.
-func (msgs Messages) SideBarHistory() string {
-	return Catalog.Format(msgs.locale, "sideBarHistory", nil)
+func (msgs Messages) SideBarGitPanel() string {
+	return Catalog.Format(msgs.locale, "sideBarGitPanel", nil)
+}
+
+// SideBarNoRepository says "No Git Repository"
+// in the language the app shows.
+func SideBarNoRepository() string { return In(i18n.Locale()).SideBarNoRepository() }
+
+// SideBarNoRepository says "No Git Repository"
+// in the language of msgs.
+func (msgs Messages) SideBarNoRepository() string {
+	return Catalog.Format(msgs.locale, "sideBarNoRepository", nil)
 }
 
 // HistoryUncommitted says "Uncommitted Changes"

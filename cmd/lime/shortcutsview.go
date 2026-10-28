@@ -79,7 +79,8 @@ var shortcutGroups = func() []shortcutGroup {
 			s("slurp_find_string", m.MenuUseSelectionForFind),
 		}},
 		{m.MenuView, []shortcut{
-			s("toggle_side_bar", m.StatusSideBar), s("toggle_word_wrap", m.MenuWordWrap),
+			s("toggle_side_bar", m.StatusSideBar), s("toggle_files_panel", m.SideBarFilesPanel), s("toggle_git_panel", m.SideBarGitPanel),
+			s("toggle_word_wrap", m.MenuWordWrap),
 			s("increase_font_size", m.MenuLargerFont), s("decrease_font_size", m.MenuSmallerFont),
 			s("reset_font_size", m.MenuResetFontSize), s("select_color_scheme", m.ShortcutSelectColorScheme),
 			s("select_syntax", m.CmdSetSyntax), s("show_at_center", m.ShortcutScrollToCursor),

@@ -105,9 +105,14 @@ func makeCommands() []command {
 		{id: "select_last_tab", run: func(a *app) { a.selectTab(-1) }},
 
 		{id: "toggle_side_bar", caption: locales.Messages.CmdToggleSideBar, run: func(a *app) {
-			a.set.SideBar = !a.set.SideBar
-			a.l.saveSettings()
+			p := filesPanel
+			if a.side != noPanel {
+				p = noPanel
+			}
+			a.showPanel(p)
 		}},
+		{id: "toggle_files_panel", caption: locales.Messages.CmdToggleFilesPanel, run: func(a *app) { a.togglePanel(filesPanel) }},
+		{id: "toggle_git_panel", caption: locales.Messages.CmdToggleGitPanel, run: func(a *app) { a.togglePanel(gitPanel) }},
 		{id: "toggle_word_wrap", caption: locales.Messages.CmdToggleWordWrap, run: func(a *app) {
 			a.set.WordWrap = !a.set.WordWrap
 			a.l.saveSettings()

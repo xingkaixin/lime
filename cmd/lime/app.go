@@ -223,7 +223,7 @@ type app struct {
 	proj    project
 	git     gitRepo
 	hist    history
-	sideTab int            // the side bar's: filesTab or historyTab
+	side    sidePanel      // what the side bar shows
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
 	prefs   prefs
@@ -244,6 +244,9 @@ func newApp(dir string) *app { return newLime(dir).newWindow() }
 func (l *lime) newWindow() *app {
 	a := &app{l: l, set: &l.set, layout: layouts[0], groups: []*group{{active: -1}}}
 	a.scheme = l.set.scheme(true)
+	if l.set.SideBar {
+		a.side = filesPanel
+	}
 	l.wins = append(l.wins, a)
 	if l.last == nil {
 		l.last = a

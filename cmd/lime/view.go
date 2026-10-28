@@ -46,7 +46,7 @@ func (a *app) view(c *ui.Context) {
 		a.open(files)
 	}
 	root.Children(func() {
-		if a.set.SideBar {
+		if a.side != noPanel {
 			// The window controls sit over the side bar's top.
 			if w := c.TitleBar().Left; w > 0 {
 				a.set.SideBarWidth = max(a.set.SideBarWidth, w+controlsGap)
@@ -199,7 +199,7 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 		// Without the side bar, the window controls sit before the first
 		// group's tabs, apart from them and outside the bar that dragged
 		// tabs measure.
-		if w := c.TitleBar().Left; gi == 0 && w > 0 && !a.set.SideBar {
+		if w := c.TitleBar().Left; gi == 0 && w > 0 && a.side == noPanel {
 			ui.Box(c).Width(w + controlsGap).Shrink(0).DragWindow()
 		}
 		// Pressing a tab leaves the keyboard in the editor, as in Sublime Text.
@@ -337,7 +337,7 @@ func (a *app) statusBar(c *ui.Context) {
 		}
 	}
 	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6).Gap(8).AlignItems(ui.Center).Background(ch.bg).Children(func() {
-		a.sideBarButton(c)
+		a.panelButtons(c)
 		ui.Text(c, left).FontSize(12).TextColor(ch.muted)
 		if d != nil && d.cmp != nil {
 			a.diffCounts(c, d.cmp)

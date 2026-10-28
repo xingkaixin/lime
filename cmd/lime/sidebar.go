@@ -21,38 +21,58 @@ func (a *app) sideBar(c *ui.Context) {
 			a.readGit()
 		}
 		a.sideBarTitle(c)
-		if len(a.proj.folders) == 0 {
-			a.sideBarEmpty(c)
-			return
-		}
-		if a.git.root != "" {
-			tabs := ui.Tabs(c, &a.sideTab, locales.SideBarFiles(), locales.SideBarHistory()).Margin(0, 8, 4)
-			if tabs.Changed() && a.sideTab == historyTab {
+		switch {
+		case a.side == gitPanel && a.git.root == "":
+			ui.Column(c).Grow(1).FillWidth().Padding(16).Center().Children(func() {
+				ui.Text(c, locales.SideBarNoRepository()).FontSize(12).TextColor(ch.muted).TextAlign(ui.Center)
+			})
+		case a.side == gitPanel:
+			if a.hist.root != a.git.root {
 				a.readHistory()
 			}
-			if a.sideTab == historyTab {
-				if a.hist.root != a.git.root {
-					a.readHistory()
-				}
-				a.historyView(c)
-				return
-			}
-		}
-		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-			ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
-				for _, f := range a.proj.folders {
-					a.treeDir(c, f, 0, cur)
-				}
+			a.historyView(c)
+		case len(a.proj.folders) == 0:
+			a.sideBarEmpty(c)
+		default:
+			ui.Scroll(c).Grow(1).FillWidth().Children(func() {
+				ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
+					for _, f := range a.proj.folders {
+						a.treeDir(c, f, 0, cur)
+					}
+				})
 			})
-		})
+		}
 	})
 }
 
-// The side bar's tabs, while the project has a repository.
+// sidePanel is what the side bar shows; noPanel hides it.
+type sidePanel int
+
 const (
-	filesTab = iota
-	historyTab
+	noPanel sidePanel = iota
+	filesPanel
+	gitPanel
 )
+
+// togglePanel shows p, or hides the side bar while it shows p, as the
+// panel buttons of Zed's status bar do.
+func (a *app) togglePanel(p sidePanel) {
+	if a.side == p {
+		p = noPanel
+	}
+	a.showPanel(p)
+}
+
+// showPanel shows p in the window's side bar, and new windows open with
+// the side bar as it is now.
+func (a *app) showPanel(p sidePanel) {
+	if p == gitPanel && a.side != gitPanel {
+		a.readHistory()
+	}
+	a.side = p
+	a.set.SideBar = p != noPanel
+	a.l.saveSettings()
+}
 
 // sideBarTitle is the side bar's part of the window's top, level with the
 // tab bars: the work tree and the branch of the project's repository,
@@ -95,29 +115,41 @@ func (a *app) sideBarEmpty(c *ui.Context) {
 	})
 }
 
-// sideBarIcon is the status bar's button for the side bar, drawn as the
+// filesIcon is the status bar's button for the files panel, drawn as the
 // folder icons are.
-var sideBarIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+var filesIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
 	<g fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round">
-		<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
-		<path d="M6 2.5v11" />
+		<path d="M2 2.5v8A1.5 1.5 0 003.5 12H7M2 5.5A1.5 1.5 0 003.5 7H7M5 2.5h9M9.5 7H14M9.5 12H14" />
 	</g>
 </svg>`))
 
-// sideBarButton shows and hides the side bar, as Zed's status bar does.
-func (a *app) sideBarButton(c *ui.Context) {
+// panelButtons are the status bar's buttons of the side bar's panels, as
+// Zed's are.
+func (a *app) panelButtons(c *ui.Context) {
+	ui.Row(c).Gap(2).Children(func() {
+		a.panelButton(c, filesPanel, filesIcon, locales.SideBarFilesPanel(), "toggle_files_panel")
+		a.panelButton(c, gitPanel, branchIcon, locales.SideBarGitPanel(), "toggle_git_panel")
+	})
+}
+
+func (a *app) panelButton(c *ui.Context, p sidePanel, icon *ui.SVG, label, id string) {
 	ch := a.shell(c)
-	btn := ui.ButtonBase(c).Width(22).Height(20).Radius(4).Center().Transition(colorFade).
-		Label(locales.StatusSideBar()).Tooltip(locales.StatusSideBar()).OnClick(func() { a.run("toggle_side_bar") })
+	on := a.side == p
+	tint := ch.muted
+	if on {
+		tint = ch.text
+	}
+	tip := label
+	if k := a.l.keys.text(id); k != "" {
+		tip += "  " + k
+	}
+	btn := ui.ToggleBase(c.Key(id), &on).Width(22).Height(20).Radius(4).Center().Transition(colorFade).
+		Label(label).Tooltip(tip).OnClick(func() { a.run(id) })
 	if btn.Hovered() {
 		btn.Background(ch.hover)
 	}
-	tint := ch.muted
-	if a.set.SideBar {
-		tint = ch.text
-	}
 	btn.Children(func() {
-		ui.Icon(c, sideBarIcon).Size(treeIcon, treeIcon).TextColor(tint)
+		ui.Icon(c, icon).Size(treeIcon, treeIcon).TextColor(tint)
 	})
 }
 
