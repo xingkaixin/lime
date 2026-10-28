@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"slices"
 	"testing"
 
@@ -28,6 +29,17 @@ func TestDrawWhiteSpace(t *testing.T) {
 		if err := json.Unmarshal([]byte(tc.json), &w); err != nil || w.mode() != tc.want {
 			t.Errorf("%s: %v %v, want %v", tc.json, w.mode(), err, tc.want)
 		}
+	}
+}
+
+// Rulers with their styles and scroll_past_end as an amount, as Sublime
+// Text takes them, read as the editor shows them.
+func TestSublimeDisplaySettings(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(settingsPath(dir), []byte(`{"rulers": [[80, "solid"], 100], "scroll_past_end": 0.5}`), 0o644)
+	s, err := loadSettings(dir)
+	if err != nil || !slices.Equal(s.Rulers, []int{80, 100}) || !bool(s.ScrollPastEnd) {
+		t.Fatalf("rulers %v, scroll past end %v: %v", s.Rulers, s.ScrollPastEnd, err)
 	}
 }
 

@@ -32,14 +32,14 @@ type settings struct {
 	SideBarWidth float32 `json:"side_bar_width"`
 	TabSize      int     `json:"tab_size"`
 	// Rulers are the columns guides are drawn at.
-	Rulers         []int      `json:"rulers"`
+	Rulers         rulers     `json:"rulers"`
 	DrawWhiteSpace whiteSpace `json:"draw_white_space"`
 	LineNumbers    bool       `json:"line_numbers"`
 	// RelativeLineNumbers numbers lines from the caret's, as Zed's.
-	RelativeLineNumbers bool `json:"relative_line_numbers"`
-	HighlightLine       bool `json:"highlight_line"`
-	DrawIndentGuides    bool `json:"draw_indent_guides"`
-	ScrollPastEnd       bool `json:"scroll_past_end"`
+	RelativeLineNumbers bool    `json:"relative_line_numbers"`
+	HighlightLine       bool    `json:"highlight_line"`
+	DrawIndentGuides    bool    `json:"draw_indent_guides"`
+	ScrollPastEnd       pastEnd `json:"scroll_past_end"`
 	// LinePaddingTop and LinePaddingBottom add DIPs above and below each
 	// line.
 	LinePaddingTop    float32 `json:"line_padding_top"`
@@ -104,7 +104,7 @@ func loadSettings(dir string) (settings, error) {
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4, AutoComplete: true,
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
-		Rulers: []int{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
+		Rulers: rulers{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
 		ScrollPastEnd: true, FontOptions: []string{},
 	}
 	var err error
@@ -163,7 +163,46 @@ func (s *settings) display(st *editor.State) {
 	default:
 		st.LineNumbers = editor.LineNumbersOn
 	}
-	st.NoActiveLine, st.NoIndentGuides, st.NoScrollPastEnd = !s.HighlightLine, !s.DrawIndentGuides, !s.ScrollPastEnd
+	st.NoActiveLine, st.NoIndentGuides, st.NoScrollPastEnd = !s.HighlightLine, !s.DrawIndentGuides, !bool(s.ScrollPastEnd)
+}
+
+// rulers is Sublime Text's rulers: columns, or lists of a column and the
+// ruler's style, which the editor leaves.
+type rulers []int
+
+func (r *rulers) UnmarshalJSON(b []byte) error {
+	var items []any
+	if err := json.Unmarshal(b, &items); err != nil || items == nil {
+		return err
+	}
+	*r = rulers{}
+	for _, it := range items {
+		if l, ok := it.([]any); ok && len(l) > 0 {
+			it = l[0]
+		}
+		if n, ok := it.(float64); ok {
+			*r = append(*r, int(n))
+		}
+	}
+	return nil
+}
+
+// pastEnd is scroll_past_end: a bool, or how far past the end Sublime Text
+// scrolls, of which the editor tells none from some.
+type pastEnd bool
+
+func (p *pastEnd) UnmarshalJSON(b []byte) error {
+	var v any
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	switch v := v.(type) {
+	case bool:
+		*p = pastEnd(v)
+	case float64:
+		*p = v > 0
+	}
+	return nil
 }
 
 // font is the content font, as editors take it.
