@@ -148,8 +148,9 @@ func (a *app) loadCommit(cv *commitView) {
 func readCommit(root, hash string) (string, []*commitFile) {
 	var body string
 	var changes []change
-	// Porcelain, unlike diff-tree, reads the user's diff settings.
-	diff := []string{"diff", "-M", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"}
+	// Porcelain, unlike diff-tree, reads the user's diff settings, but
+	// not textconv: the hunks apply back to the bytes, to stage or discard.
+	diff := []string{"diff", "-M", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/"}
 	// An empty rev names the index.
 	var args []string
 	var oldRev, newRev string

@@ -1538,7 +1538,8 @@ func TestStageHunk(t *testing.T) {
 }
 
 // Discarding a hunk or a file takes the work tree back to the index,
-// whose staged changes stay, and the file's tab shows it.
+// whose staged changes stay, and the file's tab shows it. A textconv
+// changes the diff shown, not the bytes it applies to.
 func TestDiscard(t *testing.T) {
 	dir, git := newRepo(t)
 	var lines []string
@@ -1555,6 +1556,8 @@ func TestDiscard(t *testing.T) {
 	git("add", ".")
 	lines[1], lines[9] = "two", "ten"
 	write()
+	git("config", "diff.upper.textconv", "tr a-z A-Z <")
+	os.WriteFile(filepath.Join(dir, ".git", "info", "attributes"), []byte("*.txt diff=upper\n"), 0o644)
 
 	a := newApp("")
 	a.open([]string{dir, file})
