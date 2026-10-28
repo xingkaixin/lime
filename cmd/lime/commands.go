@@ -132,6 +132,7 @@ func makeCommands() []command {
 
 		{id: "prompt_add_folder", caption: locales.Messages.CmdAddFolder, run: (*app).promptAddFolder},
 		{id: "prompt_open_project", caption: locales.Messages.CmdOpenProject, run: (*app).promptOpenProject},
+		{id: "prompt_select_workspace", caption: locales.Messages.CmdQuickSwitchProject, run: (*app).showWorkspaces},
 		{id: "save_project_as", caption: locales.Messages.CmdSaveProjectAs, run: (*app).promptSaveProject},
 		{id: "close_project", caption: locales.Messages.CmdCloseProject, run: (*app).closeProject},
 		{id: "refresh_folders", caption: locales.Messages.CmdRefreshFolders, run: (*app).refreshFolders},

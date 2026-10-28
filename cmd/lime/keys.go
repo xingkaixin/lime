@@ -229,9 +229,11 @@ var appKeys = func() []appKey {
 	if mac {
 		keys = append(keys, k(cmd|alt, ui.KeyF, "show_panel replace"), k(ctrl|cmd, ui.KeyG, "find_all_under"), k(cmd, ui.KeyT, "show_goto"), k(cmd|alt, ui.KeyS, "save_all"),
 			k(cmd|sh, ui.KeyBracketLeft, "prev_view"), k(cmd|sh, ui.KeyBracketRight, "next_view"),
-			k(cmd|alt, ui.KeyLeft, "prev_view"), k(cmd|alt, ui.KeyRight, "next_view"))
+			k(cmd|alt, ui.KeyLeft, "prev_view"), k(cmd|alt, ui.KeyRight, "next_view"),
+			k(ctrl|cmd, ui.KeyP, "prompt_select_workspace"))
 	} else {
-		keys = append(keys, k(ctrl, ui.KeyH, "show_panel replace"), k(alt, ui.KeyF3, "find_all_under"), k(ctrl, ui.KeyF4, "close"))
+		keys = append(keys, k(ctrl, ui.KeyH, "show_panel replace"), k(alt, ui.KeyF3, "find_all_under"), k(ctrl, ui.KeyF4, "close"),
+			k(ctrl|alt, ui.KeyP, "prompt_select_workspace"))
 	}
 	return keys
 }()

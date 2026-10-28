@@ -184,6 +184,16 @@ func (msgs Messages) MenuOpenFolder() string {
 	return Catalog.Format(msgs.locale, "menuOpenFolder", nil)
 }
 
+// MenuOpenRecent says "Open Recent"
+// in the language the app shows.
+func MenuOpenRecent() string { return In(i18n.Locale()).MenuOpenRecent() }
+
+// MenuOpenRecent says "Open Recent"
+// in the language of msgs.
+func (msgs Messages) MenuOpenRecent() string {
+	return Catalog.Format(msgs.locale, "menuOpenRecent", nil)
+}
+
 // MenuReopenClosedFile says "Reopen Closed File"
 // in the language the app shows.
 func MenuReopenClosedFile() string { return In(i18n.Locale()).MenuReopenClosedFile() }
@@ -192,6 +202,16 @@ func MenuReopenClosedFile() string { return In(i18n.Locale()).MenuReopenClosedFi
 // in the language of msgs.
 func (msgs Messages) MenuReopenClosedFile() string {
 	return Catalog.Format(msgs.locale, "menuReopenClosedFile", nil)
+}
+
+// MenuClearItems says "Clear Items"
+// in the language the app shows.
+func MenuClearItems() string { return In(i18n.Locale()).MenuClearItems() }
+
+// MenuClearItems says "Clear Items"
+// in the language of msgs.
+func (msgs Messages) MenuClearItems() string {
+	return Catalog.Format(msgs.locale, "menuClearItems", nil)
 }
 
 // MenuSave says "Save"
@@ -532,6 +552,16 @@ func MenuOpenProject() string { return In(i18n.Locale()).MenuOpenProject() }
 // in the language of msgs.
 func (msgs Messages) MenuOpenProject() string {
 	return Catalog.Format(msgs.locale, "menuOpenProject", nil)
+}
+
+// MenuQuickSwitchProject says "Quick Switch Project…"
+// in the language the app shows.
+func MenuQuickSwitchProject() string { return In(i18n.Locale()).MenuQuickSwitchProject() }
+
+// MenuQuickSwitchProject says "Quick Switch Project…"
+// in the language of msgs.
+func (msgs Messages) MenuQuickSwitchProject() string {
+	return Catalog.Format(msgs.locale, "menuQuickSwitchProject", nil)
 }
 
 // MenuSaveProjectAs says "Save Project As…"
@@ -1022,6 +1052,16 @@ func CmdOpenProject() string { return In(i18n.Locale()).CmdOpenProject() }
 // in the language of msgs.
 func (msgs Messages) CmdOpenProject() string {
 	return Catalog.Format(msgs.locale, "cmdOpenProject", nil)
+}
+
+// CmdQuickSwitchProject says "Project: Quick Switch Project…"
+// in the language the app shows.
+func CmdQuickSwitchProject() string { return In(i18n.Locale()).CmdQuickSwitchProject() }
+
+// CmdQuickSwitchProject says "Project: Quick Switch Project…"
+// in the language of msgs.
+func (msgs Messages) CmdQuickSwitchProject() string {
+	return Catalog.Format(msgs.locale, "cmdQuickSwitchProject", nil)
 }
 
 // CmdSaveProjectAs says "Project: Save As…"

@@ -69,7 +69,7 @@ func (l *lime) newMenu() *mygo.Menu {
 			l.menuItem(locales.MenuNewWindow(), "new_window"),
 			l.menuItem(locales.MenuOpen(), "prompt_open"),
 			l.menuItem(locales.MenuOpenFolder(), "prompt_open_folder"),
-			l.menuItem(locales.MenuReopenClosedFile(), "reopen_last_file"),
+			l.recentMenu(),
 			mygo.Separator(),
 			l.menuItem(locales.MenuSave(), "save"),
 			l.menuItem(locales.MenuSaveAs(), "prompt_save_as"),
@@ -121,6 +121,7 @@ func (l *lime) newMenu() *mygo.Menu {
 		}},
 		{Label: locales.MenuProject(), Submenu: []*mygo.MenuItem{
 			l.menuItem(locales.MenuOpenProject(), "prompt_open_project"),
+			l.menuItem(locales.MenuQuickSwitchProject(), "prompt_select_workspace"),
 			l.menuItem(locales.MenuSaveProjectAs(), "save_project_as"),
 			l.menuItem(locales.MenuCloseProject(), "close_project"),
 			mygo.Separator(),
