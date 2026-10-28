@@ -280,6 +280,8 @@
   "settingsFollowLanguage": "跟随语言",
   "settingsTabs": "Tab",
   "settingsSpaces": "空格",
+  "settingsDetectIndentation": "检测缩进",
+  "settingsDetectIndentationDesc": "打开文件时沿用文件里已有的缩进方式和宽度",
   "settingsOnSave": "保存时",
   "settingsTrimWhiteSpace": "删除行尾空白",
   "settingsTrimWhiteSpaceDesc": "保存前删除每行末尾的空格和 Tab",

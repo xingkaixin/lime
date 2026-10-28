@@ -417,6 +417,8 @@
   "settingsFollowLanguage": "Follow Language",
   "settingsTabs": "Tabs",
   "settingsSpaces": "Spaces",
+  "settingsDetectIndentation": "Detect Indentation",
+  "settingsDetectIndentationDesc": "Opens each file with the indentation its lines use",
   "settingsOnSave": "On Save",
   "settingsTrimWhiteSpace": "Trim Trailing White Space",
   "settingsTrimWhiteSpaceDesc": "Removes spaces and tabs at the end of each line",

@@ -50,6 +50,10 @@ type sessionDoc struct {
 	// Raw is the unsaved text in place of Text when it isn't UTF-8, as of
 	// a GBK file, which a JSON string would turn into U+FFFD.
 	Raw []byte `json:"raw,omitempty"`
+	// TabSize and TranslateTabsToSpaces are the file's own indentation,
+	// unset where it follows the settings.
+	TabSize               int   `json:"tab_size,omitempty"`
+	TranslateTabsToSpaces *bool `json:"translate_tabs_to_spaces,omitempty"`
 	// unsaved is the text Text or Raw takes as the session is written, off the
 	// main thread.
 	unsaved *editor.Snapshot
@@ -87,7 +91,7 @@ func (a *app) session() sessionWindow {
 				}
 				continue
 			}
-			sd := sessionDoc{Path: d.path, Syntax: syntaxName(d.st.Buffer.Language())}
+			sd := sessionDoc{Path: d.path, Syntax: syntaxName(d.st.Buffer.Language()), TabSize: d.tabSize, TranslateTabsToSpaces: translateTabs(d.indent)}
 			if d.dirty() {
 				snap := d.st.Buffer.Snapshot()
 				sd.unsaved = &snap
@@ -163,7 +167,7 @@ func (l *lime) sessionChanged() bool {
 		for _, g := range a.groups {
 			fmt.Fprint(&b, "|", g.active)
 			for _, d := range g.docs {
-				fmt.Fprint(&b, ",", d.path, d.st.Buffer.Version(), d.dirty(), syntaxName(d.st.Buffer.Language()))
+				fmt.Fprint(&b, ",", d.path, d.st.Buffer.Version(), d.dirty(), syntaxName(d.st.Buffer.Language()), d.tabSize, d.indent)
 			}
 		}
 	}
@@ -223,6 +227,11 @@ func (a *app) restore(s sessionWindow) {
 		g := a.groups[gi]
 		for _, sd := range sg.Docs {
 			if d := restoreDoc(sd); d != nil {
+				// A file following the settings, as all did in sessions before
+				// files had their own indentation, detects its own.
+				if d.tabSize == 0 && d.indent == editor.IndentAuto && a.set.DetectIndentation {
+					d.guessIndent()
+				}
 				g.docs = append(g.docs, d)
 			}
 		}
@@ -257,6 +266,7 @@ func restoreDoc(sd sessionDoc) *doc {
 		disk = text
 	}
 	d := newDoc(sd.Path, disk)
+	d.tabSize, d.indent = sd.TabSize, indentStyle(sd.TranslateTabsToSpaces)
 	if sd.Text != nil {
 		d.st.Buffer.Set(*sd.Text)
 	}

@@ -171,7 +171,7 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		}
 		d.st.Theme, d.st.Bindings = s.editorTheme(), a.l.keys.editor
 		d.st.SoftWrap = a.set.WordWrap
-		d.st.TabSize, d.st.Indent = a.set.TabSize, a.set.indent()
+		a.applyIndent(d)
 		d.st.Font.Family, d.st.Font.Size = a.set.ContentFont, a.set.FontSize
 		d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
 		if d.cmp != nil {

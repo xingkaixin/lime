@@ -2784,6 +2784,26 @@ func (msgs Messages) SettingsSpaces() string {
 	return Catalog.Format(msgs.locale, "settingsSpaces", nil)
 }
 
+// SettingsDetectIndentation says "Detect Indentation"
+// in the language the app shows.
+func SettingsDetectIndentation() string { return In(i18n.Locale()).SettingsDetectIndentation() }
+
+// SettingsDetectIndentation says "Detect Indentation"
+// in the language of msgs.
+func (msgs Messages) SettingsDetectIndentation() string {
+	return Catalog.Format(msgs.locale, "settingsDetectIndentation", nil)
+}
+
+// SettingsDetectIndentationDesc says "Opens each file with the indentation its lines use"
+// in the language the app shows.
+func SettingsDetectIndentationDesc() string { return In(i18n.Locale()).SettingsDetectIndentationDesc() }
+
+// SettingsDetectIndentationDesc says "Opens each file with the indentation its lines use"
+// in the language of msgs.
+func (msgs Messages) SettingsDetectIndentationDesc() string {
+	return Catalog.Format(msgs.locale, "settingsDetectIndentationDesc", nil)
+}
+
 // SettingsOnSave says "On Save"
 // in the language the app shows.
 func SettingsOnSave() string { return In(i18n.Locale()).SettingsOnSave() }
