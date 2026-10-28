@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
@@ -44,6 +45,7 @@ type doc struct {
 	// buffer has as \n.
 	savedEnding string
 	cr          bool
+	enc         *fileEncoding // the file's; nil is UTF-8
 
 	kind    docKind
 	img     *ui.Bitmap  // an imageDoc's image, once decoded
@@ -439,15 +441,15 @@ type reload struct {
 
 // changedOnDisk reads the files of the window's tabs that changed since
 // they were opened or saved. It blocks, so call it off the main thread.
-func changedOnDisk(docs []*doc, stamps []stamp) []reload {
+func changedOnDisk(docs []*doc, stamps []stamp, encs []*fileEncoding) []reload {
 	var rs []reload
 	for i, d := range docs {
 		now := stampOf(d.path)
 		if now == stamps[i] || now == (stamp{}) {
 			continue
 		}
-		if text, err := readText(d.path); err == nil {
-			rs = append(rs, reload{d, stamps[i], now, text})
+		if raw, err := readText(d.path); err == nil {
+			rs = append(rs, reload{d, stamps[i], now, encs[i].decode(raw)})
 		}
 	}
 	return rs
@@ -459,9 +461,10 @@ func changedOnDisk(docs []*doc, stamps []stamp) []reload {
 func (a *app) reloadChanged() {
 	var docs []*doc
 	var stamps []stamp
+	var encs []*fileEncoding
 	for _, d := range a.allDocs() {
 		if d.path != "" && d.kind == textDoc && d.cmp == nil {
-			docs, stamps = append(docs, d), append(stamps, d.disk)
+			docs, stamps, encs = append(docs, d), append(stamps, d.disk), append(encs, d.encoding())
 		}
 	}
 	if len(docs) == 0 {
@@ -469,7 +472,7 @@ func (a *app) reloadChanged() {
 	}
 	a.readBases(docs...)
 	a.background(func() func() {
-		rs := changedOnDisk(docs, stamps)
+		rs := changedOnDisk(docs, stamps, encs)
 		return func() { a.applyReloads(rs) }
 	})
 }
@@ -544,12 +547,14 @@ func (a *app) open(paths []string) {
 			files = append(files, p)
 			continue
 		}
-		text, err := readText(p)
+		raw, err := readText(p)
 		if err != nil {
 			go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(p)), err.Error())
 			continue
 		}
-		d := a.add(p, text)
+		enc := detectEncoding(raw, a.set.FallbackEncoding)
+		d := a.add(p, enc.decode(raw))
+		d.enc = enc
 		if a.set.DetectIndentation {
 			d.guessIndent()
 		}
@@ -625,6 +630,14 @@ func (a *app) write(d *doc, path string) error {
 	if d.cr {
 		out = bytes.ReplaceAll(out, []byte("\n"), []byte("\r"))
 	}
+	// A character the encoding has none for saves the file as UTF-8, as
+	// in Sublime Text.
+	enc := d.encoding()
+	if data, err := enc.encode(out); err == nil {
+		out = data
+	} else {
+		enc = utf8Encoding
+	}
 	if err := os.WriteFile(path, out, mode); err != nil {
 		go mygo.Dialog.Error(locales.DialogUnableToSave(filepath.Base(path)), err.Error())
 		return err
@@ -638,6 +651,10 @@ func (a *app) write(d *doc, path string) error {
 	}
 	d.st.Buffer.MarkSaved()
 	d.saved, d.savedEnding = snap, d.lineEnding()
+	if enc != d.encoding() {
+		go mygo.Dialog.Error(locales.DialogSavedAsUTF8(filepath.Base(path)), locales.DialogNotRepresentable(d.encoding().title(locales.In(i18n.Locale()))))
+	}
+	d.enc = enc
 	if d.base == "" || d.saved.Len() > largeFile {
 		d.diffDisk()
 	}

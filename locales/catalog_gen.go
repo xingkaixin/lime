@@ -544,6 +544,26 @@ func (msgs Messages) MenuMacOS9() string {
 	return Catalog.Format(msgs.locale, "menuMacOS9", nil)
 }
 
+// EncodingWindows1252 says "Western (Windows 1252)"
+// in the language the app shows.
+func EncodingWindows1252() string { return In(i18n.Locale()).EncodingWindows1252() }
+
+// EncodingWindows1252 says "Western (Windows 1252)"
+// in the language of msgs.
+func (msgs Messages) EncodingWindows1252() string {
+	return Catalog.Format(msgs.locale, "encodingWindows1252", nil)
+}
+
+// EncodingISO88591 says "Western (ISO 8859-1)"
+// in the language the app shows.
+func EncodingISO88591() string { return In(i18n.Locale()).EncodingISO88591() }
+
+// EncodingISO88591 says "Western (ISO 8859-1)"
+// in the language of msgs.
+func (msgs Messages) EncodingISO88591() string {
+	return Catalog.Format(msgs.locale, "encodingISO88591", nil)
+}
+
 // MenuWordWrap says "Word Wrap"
 // in the language the app shows.
 func MenuWordWrap() string { return In(i18n.Locale()).MenuWordWrap() }
@@ -1760,6 +1780,28 @@ func DialogUnableToOpen(name string) string { return In(i18n.Locale()).DialogUna
 // in the language of msgs.
 func (msgs Messages) DialogUnableToOpen(name string) string {
 	return Catalog.Format(msgs.locale, "dialogUnableToOpen", map[string]any{"name": name})
+}
+
+// DialogSavedAsUTF8 says "Saved {name} as UTF-8"
+// in the language the app shows.
+func DialogSavedAsUTF8(name string) string { return In(i18n.Locale()).DialogSavedAsUTF8(name) }
+
+// DialogSavedAsUTF8 says "Saved {name} as UTF-8"
+// in the language of msgs.
+func (msgs Messages) DialogSavedAsUTF8(name string) string {
+	return Catalog.Format(msgs.locale, "dialogSavedAsUTF8", map[string]any{"name": name})
+}
+
+// DialogNotRepresentable says "Not all characters are representable in {encoding}."
+// in the language the app shows.
+func DialogNotRepresentable(encoding string) string {
+	return In(i18n.Locale()).DialogNotRepresentable(encoding)
+}
+
+// DialogNotRepresentable says "Not all characters are representable in {encoding}."
+// in the language of msgs.
+func (msgs Messages) DialogNotRepresentable(encoding string) string {
+	return Catalog.Format(msgs.locale, "dialogNotRepresentable", map[string]any{"encoding": encoding})
 }
 
 // DialogUnableToSave says "Unable to save {name}"

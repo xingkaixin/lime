@@ -56,6 +56,8 @@
   "menuWindows": "Windows",
   "menuUnix": "Unix",
   "menuMacOS9": "Mac OS 9",
+  "encodingWindows1252": "Western (Windows 1252)",
+  "encodingISO88591": "Western (ISO 8859-1)",
   "menuWordWrap": "Word Wrap",
   "menuLargerFont": "Larger Font",
   "menuSmallerFont": "Smaller Font",
@@ -206,6 +208,14 @@
   "dialogUnableToOpen": "Unable to open {name}",
   "@dialogUnableToOpen": {
     "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogSavedAsUTF8": "Saved {name} as UTF-8",
+  "@dialogSavedAsUTF8": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogNotRepresentable": "Not all characters are representable in {encoding}.",
+  "@dialogNotRepresentable": {
+    "placeholders": { "encoding": { "type": "String", "example": "GBK" } }
   },
   "dialogUnableToSave": "Unable to save {name}",
   "@dialogUnableToSave": {

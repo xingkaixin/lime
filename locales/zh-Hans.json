@@ -53,6 +53,8 @@
   "menuWindows": "Windows",
   "menuUnix": "Unix",
   "menuMacOS9": "Mac OS 9",
+  "encodingWindows1252": "西欧语言 (Windows 1252)",
+  "encodingISO88591": "西欧语言 (ISO 8859-1)",
   "menuWordWrap": "自动换行",
   "menuLargerFont": "增大字号",
   "menuSmallerFont": "减小字号",
@@ -177,6 +179,8 @@
   "promptNewName": "新名称：",
 
   "dialogUnableToOpen": "无法打开 {name}",
+  "dialogSavedAsUTF8": "已将 {name} 存为 UTF-8",
+  "dialogNotRepresentable": "有些字符无法用 {encoding} 表示。",
   "dialogUnableToSave": "无法保存 {name}",
   "dialogUnableToRename": "无法重命名 {name}",
   "dialogUnableToMove": "无法移动 {name}",
