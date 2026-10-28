@@ -555,6 +555,10 @@ func (a *app) uncommit() {
 		out, err := runGit(root, "log", "-1", "--format=%P%x00%B", "HEAD")
 		parents, body, _ := strings.Cut(out, "\x00")
 		body = strings.TrimSpace(body)
+		detail := locales.DialogUncommitDetail()
+		if headPushed(root) {
+			detail += " " + locales.DialogPushedDetail()
+		}
 		return func() {
 			switch n := len(strings.Fields(parents)); {
 			case err != nil || n == 0:
@@ -566,7 +570,7 @@ func (a *app) uncommit() {
 				return
 			}
 			subject, _, _ := strings.Cut(body, "\n")
-			a.confirm(locales.DialogUncommit(subject), locales.DialogUncommitDetail(), locales.ButtonUncommit(), func() {
+			a.confirm(locales.DialogUncommit(subject), detail, locales.ButtonUncommit(), func() {
 				w := &a.changes
 				a.gitRunWith("", func() {
 					if w.root == root && w.message == "" {
@@ -576,6 +580,13 @@ func (a *app) uncommit() {
 			})
 		}
 	})
+}
+
+// headPushed reports whether the upstream has HEAD already, from which
+// amending or uncommitting HEAD makes the branch diverge.
+func headPushed(root string) bool {
+	_, err := runGit(root, "merge-base", "--is-ancestor", "HEAD", "@{upstream}")
+	return err == nil
 }
 
 // commitBox is the message of the commit to make and its button. The
@@ -590,13 +601,29 @@ func (a *app) commitBox(c *ui.Context) {
 		if !ready {
 			return
 		}
-		msg := w.message
-		a.gitRunWith(msg, func() {
-			if w.message == msg {
-				w.message = w.draft
+		msg, root := w.message, w.root
+		run := func() {
+			a.gitRunWith(msg, func() {
+				if w.message == msg {
+					w.message = w.draft
+				}
+				w.amend, w.draft = false, ""
+			}, args...)
+		}
+		if !w.amend {
+			run()
+			return
+		}
+		a.background(func() func() {
+			pushed := headPushed(root)
+			return func() {
+				if pushed {
+					a.confirm(locales.DialogAmendPushed(), locales.DialogPushedDetail(), locales.ChangesCommit(), run)
+					return
+				}
+				run()
 			}
-			w.amend, w.draft = false, ""
-		}, args...)
+		})
 	}
 	ui.Column(c).FillWidth().Shrink(0).Padding(8).Gap(8).BorderWidth(1, 0, 0, 0).BorderColor(ch.line).Children(func() {
 		ui.TextArea(c.Key("commitMessage"), &w.message).MinHeight(0).Lines(2, 10).FillWidth().FontSize(13).

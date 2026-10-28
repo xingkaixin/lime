@@ -2318,6 +2318,26 @@ func (msgs Messages) DialogUncommitDetail() string {
 	return Catalog.Format(msgs.locale, "dialogUncommitDetail", nil)
 }
 
+// DialogAmendPushed says "Amend a commit that is already pushed?"
+// in the language the app shows.
+func DialogAmendPushed() string { return In(i18n.Locale()).DialogAmendPushed() }
+
+// DialogAmendPushed says "Amend a commit that is already pushed?"
+// in the language of msgs.
+func (msgs Messages) DialogAmendPushed() string {
+	return Catalog.Format(msgs.locale, "dialogAmendPushed", nil)
+}
+
+// DialogPushedDetail says "The branch will then diverge from its upstream, and Lime has no force push."
+// in the language the app shows.
+func DialogPushedDetail() string { return In(i18n.Locale()).DialogPushedDetail() }
+
+// DialogPushedDetail says "The branch will then diverge from its upstream, and Lime has no force push."
+// in the language of msgs.
+func (msgs Messages) DialogPushedDetail() string {
+	return Catalog.Format(msgs.locale, "dialogPushedDetail", nil)
+}
+
 // FilterProject says "Sublime Project"
 // in the language the app shows.
 func FilterProject() string { return In(i18n.Locale()).FilterProject() }

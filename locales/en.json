@@ -319,6 +319,8 @@
     "placeholders": { "subject": { "type": "String", "example": "Fix the build" } }
   },
   "dialogUncommitDetail": "Its changes go back to the staged changes.",
+  "dialogAmendPushed": "Amend a commit that is already pushed?",
+  "dialogPushedDetail": "The branch will then diverge from its upstream, and Lime has no force push.",
   "filterProject": "Sublime Project",
 
   "sideBarDropFolder": "Drop a folder here to open it",
