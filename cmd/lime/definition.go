@@ -21,14 +21,17 @@ var definers = map[string]bool{
 	"union": true,
 }
 
-// symbol is a name a definition defines, at its offset in the text.
+// symbol is a name a definition defines, or a Markdown heading's text, at
+// its offset in the text.
 type symbol struct {
-	name string
-	at   int
+	name  string
+	at    int
+	level int // a heading's, from 1; 0 for a definition
 }
 
 // symbols lists the definitions of text in language l: the name after a
-// definer, or a function after a type or a name, as C's int f(.
+// definer, or a function after a type or a name, as C's int f(; and the
+// headings of Markdown.
 func symbols(l *editor.Language, text string) []symbol {
 	if l == nil || l.Tokenizer == nil {
 		return nil
@@ -39,15 +42,19 @@ func symbols(l *editor.Language, text string) []symbol {
 	at := 0
 	for line := range strings.SplitSeq(text, "\n") {
 		toks, state = l.Tokenizer.Tokenize(line, state, toks[:0])
+		if h, ok := heading(line, toks); ok {
+			h.at += at
+			syms = append(syms, h)
+		}
 		start, prev := 0, editor.TokenText
 		for _, t := range toks {
 			switch word := line[start:t.End]; {
 			case t.Kind == editor.TokenKeyword && definers[word]:
 				if name, i := definedAfter(line, t.End, l.WordChars); name != "" {
-					syms = append(syms, symbol{name, at + i})
+					syms = append(syms, symbol{name, at + i, 0})
 				}
 			case t.Kind == editor.TokenFunction && (prev == editor.TokenType || prev == editor.TokenVariable):
-				syms = append(syms, symbol{word, at + start})
+				syms = append(syms, symbol{word, at + start, 0})
 			}
 			if t.Kind != editor.TokenText {
 				prev = t.Kind
@@ -57,6 +64,26 @@ func symbols(l *editor.Language, text string) []symbol {
 		at += len(line) + 1
 	}
 	return syms
+}
+
+// heading is the symbol of line when it is a Markdown heading of #s.
+// Setext headings are left out: their underline also ends a front matter.
+func heading(line string, toks []editor.Token) (symbol, bool) {
+	t := strings.TrimLeft(line, " ")
+	if len(toks) == 0 || toks[0].Kind != editor.TokenHeading || !strings.HasPrefix(t, "#") {
+		return symbol{}, false
+	}
+	level := len(t) - len(strings.TrimLeft(t, "#"))
+	rest := strings.TrimLeft(t[level:], " \t")
+	text := strings.TrimRight(rest, " \t")
+	// The #s that may close it, as in "## Title ##".
+	if s := strings.TrimRight(text, "#"); s == "" || strings.HasSuffix(s, " ") || strings.HasSuffix(s, "\t") {
+		text = strings.TrimRight(s, " \t")
+	}
+	if text == "" {
+		return symbol{}, false
+	}
+	return symbol{text, len(line) - len(rest), level}, true
 }
 
 // definedAfter is the name a definer ending at i in line defines, and
@@ -169,7 +196,7 @@ func (a *app) gotoDefinition(d *doc, off int) {
 func definitionsIn(d *doc, name string) []definition {
 	var defs []definition
 	for _, s := range symbols(d.st.Buffer.Language(), d.st.Buffer.String()) {
-		if s.name == name {
+		if s.name == name && s.level == 0 {
 			defs = append(defs, definition{d, s.at})
 		}
 	}
