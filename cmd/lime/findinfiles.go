@@ -233,19 +233,21 @@ type found struct {
 // main thread.
 func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found {
 	var res found
+	// Files are told apart by their real paths: a link to a file, as
+	// CLAUDE.md to AGENTS.md, is the file, whose tab has its text.
 	seen := make(map[string]bool)
-	byPath := make(map[string]source)
+	byReal := make(map[string]source)
 	for _, s := range open {
 		if s.path != "" {
-			byPath[s.path] = s
+			byReal[realPath(s.path)] = s
 		}
 	}
-	look := func(s source) bool {
-		if s.path != "" {
-			if seen[s.path] {
+	look := func(s source, real string) bool {
+		if real != "" {
+			if seen[real] {
 				return true
 			}
-			seen[s.path] = true
+			seen[real] = true
 		}
 		var text string
 		var ok bool
@@ -269,13 +271,13 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found
 	for _, p := range sc.paths {
 		if p == openFiles {
 			for _, s := range open {
-				if ctx.Err() != nil || sc.wants(filepath.Base(s.name)) && !look(s) {
+				if ctx.Err() != nil || sc.wants(filepath.Base(s.name)) && !look(s, realPath(s.path)) {
 					return res
 				}
 			}
 			continue
 		}
-		more := true
+		more, root := true, realPath(p)
 		filepath.WalkDir(p, func(path string, e fs.DirEntry, err error) error {
 			if !more || ctx.Err() != nil {
 				return filepath.SkipAll
@@ -290,11 +292,15 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found
 				}
 			case !regular(path, e.Type()):
 			case sc.wants(name) && !excluded(name, fileExclude) && !excluded(name, binaryFiles):
-				s, ok := byPath[path]
+				real := root + path[len(p):]
+				if e.Type()&fs.ModeSymlink != 0 {
+					real = realPath(path)
+				}
+				s, ok := byReal[real]
 				if !ok {
 					s = source{name: path, path: path}
 				}
-				more = look(s)
+				more = look(s, real)
 			}
 			return nil
 		})
@@ -303,6 +309,14 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found
 		}
 	}
 	return res
+}
+
+// realPath is path with its links followed.
+func realPath(path string) string {
+	if r, err := filepath.EvalSymlinks(path); err == nil {
+		return r
+	}
+	return path
 }
 
 // regular reports whether the file at path, of type t, is a file of its

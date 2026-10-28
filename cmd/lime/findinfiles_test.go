@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -65,5 +66,31 @@ func TestFindInFiles(t *testing.T) {
 	a.searchInFiles()
 	if a.docCount() != n || a.current() != res {
 		t.Fatalf("a second search opened another tab: %d tabs, want %d", a.docCount(), n)
+	}
+}
+
+// A file on disk matches a regular expression as its tab would, \r\n
+// read as \n, and a link to a file is the file: its tab's text is searched
+// once.
+func TestFindInLinkedFiles(t *testing.T) {
+	dir := t.TempDir()
+	agents, claude := filepath.Join(dir, "AGENTS.md"), filepath.Join(dir, "CLAUDE.md")
+	os.WriteFile(agents, []byte("foo\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "crlf.txt"), []byte("foo\r\nbar\r\n"), 0o644)
+	if err := os.Symlink("AGENTS.md", claude); err != nil {
+		t.Skip(err)
+	}
+	a := newApp("")
+	a.addFolder(dir)
+	a.open([]string{agents})
+	a.current().st.Buffer.Set("foo\nfoo\n")
+	a.fif.query, a.fif.regex, a.fif.where = "foo$", true, openFolders
+	a.searchInFiles()
+	text := a.current().st.Buffer.String()
+	if want := locales.FindResultsHeader(2, "foo$"); !strings.HasPrefix(text, want) {
+		t.Fatalf("results:\n%s\nwant them to start %q", text, want)
+	}
+	if want := locales.FindResultsSummary(3, 2) + "\n"; !strings.HasSuffix(text, want) {
+		t.Fatalf("results:\n%s\nwant them to end %q", text, want)
 	}
 }
