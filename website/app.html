@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Lime</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  #mygo { position: fixed; inset: 0; }
+  /* Lime has no finger scrolling, and a finger dragging over it would
+     otherwise hold the page still: on touch screens the page scrolls. */
+  @media (pointer: coarse) { #mygo canvas { touch-action: pan-y; } }
+</style>
+<script src="fs.js"></script>
+<script src="git.js"></script>
+<script src="wasm_exec.js"></script>
+<script>
+const home = "/home/you", project = "/lime"
+const config = home + "/.config/Lime"
+process.cwd = () => project
+process.chdir = () => {}
+
+// The page around the demo picks the theme; alone, the demo follows the
+// browser.
+try {
+  const page = parent !== window && parent.document.documentElement
+  if (page) {
+    const sync = () => {
+      const t = page.dataset.theme
+      if (t) document.documentElement.dataset.mygoTheme = t
+      else delete document.documentElement.dataset.mygoTheme
+    }
+    sync()
+    new MutationObserver(sync).observe(page, { attributes: true, attributeFilter: ["data-theme"] })
+  }
+} catch {}
+
+// The tabs the demo opens with: a file, and in it a word to select, found
+// in its context, that recurs for Quick Add Next to find.
+const open = [["cmd/lime/commands.go", "type command struct", "command"], ["cmd/lime/keys.go"], ["AGENTS.md"]]
+
+// limePress presses keys in the demo, as "Ctrl+Shift+P" or a chord,
+// "Ctrl+K Ctrl+B", in the keymap Lime has in browsers, Linux's. On a Mac
+// the browser's Command is Control, so Control goes as Command.
+const mac = navigator.platform.startsWith("Mac")
+const codes = { ",": "Comma", Up: "ArrowUp", Down: "ArrowDown", Left: "ArrowLeft", Right: "ArrowRight" }
+globalThis.limePress = (keys) => {
+  const input = document.querySelector("textarea")
+  if (!input) return
+  input.focus()
+  for (const stroke of keys.split(" ")) {
+    const mods = stroke.split("+")
+    const name = mods.pop()
+    const ctrl = mods.includes("Ctrl")
+    const init = {
+      key: name.length === 1 ? name.toLowerCase() : codes[name] || name,
+      code: codes[name] || (/^\d$/.test(name) ? "Digit" + name : /^[A-Z]$/.test(name) ? "Key" + name : name),
+      shiftKey: mods.includes("Shift"), altKey: mods.includes("Alt"), ctrlKey: ctrl && !mac, metaKey: ctrl && mac,
+      bubbles: true, cancelable: true,
+    }
+    input.dispatchEvent(new KeyboardEvent("keydown", init))
+    input.dispatchEvent(new KeyboardEvent("keyup", init))
+  }
+}
+
+// The page scrolls on where Lime has nothing left to scroll. MyGo draws
+// only what changed, so a wheel that moves nothing in Lime asks for no
+// frame; the page then takes it. A scroll of the page that the demo comes
+// under goes on scrolling the page while the wheel turns, as browsers
+// latch a scroll to where it began.
+if (parent !== window) {
+  let frame = null, id = 0, requested = false, busy = false, pageUntil = 0
+  const raf = requestAnimationFrame.bind(window), caf = cancelAnimationFrame.bind(window)
+  window.requestAnimationFrame = (fn) => {
+    requested = true
+    frame = fn
+    return id = raf((t) => {
+      frame = null
+      fn(t)
+    })
+  }
+  window.cancelAnimationFrame = (n) => {
+    if (n === id) frame = null
+    caf(n)
+  }
+  const latch = () => { pageUntil = performance.now() + 300 }
+  const toPage = (e) => {
+    latch()
+    const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * innerHeight : e.deltaY
+    parent.scrollBy({ top: dy, behavior: "instant" })
+  }
+  try { parent.addEventListener("wheel", latch, { passive: true }) } catch {}
+  addEventListener("wheel", (e) => {
+    if (e.ctrlKey) return
+    if (performance.now() < pageUntil) {
+      e.stopPropagation()
+      e.preventDefault()
+      toPage(e)
+      return
+    }
+    // MyGo asks for no frame while one is pending: the frame a caret's
+    // blink or the pointer asked for draws now, so that what this wheel
+    // asks for is its own. A frame that asks for the next, as an
+    // animation does, leaves it unknown.
+    if (frame) {
+      const fn = frame
+      frame = null
+      caf(id)
+      fn(performance.now())
+    }
+    busy = frame !== null
+    requested = false
+  }, { capture: true, passive: false })
+  addEventListener("wheel", (e) => {
+    if (!e.ctrlKey && !busy && !requested && Math.abs(e.deltaY) > Math.abs(e.deltaX)) toPage(e)
+  }, { passive: true })
+}
+
+// fetchWasm fetches Lime, telling the page how much of it came: size()
+// is its size, once demo.json tells it.
+async function fetchWasm(size) {
+  const res = await fetch("lime.wasm", { cache: "no-cache" })
+  if (!res.ok) throw new Error(`lime.wasm: ${res.status}`)
+  const [counted, compiled] = res.body.tee()
+  ;(async () => {
+    const r = counted.getReader()
+    let got = 0, told = 0
+    for (;;) {
+      const { done, value } = await r.read()
+      if (done) break
+      got += value.length
+      const part = size() ? Math.min(got / size(), 1) : 0
+      if (part - told >= 0.01) {
+        told = part
+        parent.postMessage({ lime: "progress", value: part }, "*")
+      }
+    }
+  })()
+  return new Response(compiled, { headers: { "Content-Type": "application/wasm" } })
+}
+
+async function start() {
+  let demo
+  const [wasm] = await Promise.all([
+    fetchWasm(() => demo?.wasmSize),
+    fetch("demo.json", { cache: "no-cache" }).then((r) => r.json()).then((d) => { demo = d }),
+  ])
+  const files = Object.fromEntries(limeGit.load(project, demo))
+  for (const [p, text] of Object.entries(files)) limeFS.put(project + "/" + p, text)
+  limeFS.mkdirs("/tmp")
+  limeFS.put(config + "/settings.json", JSON.stringify({ language: "en", appearance: "system" }))
+  limeFS.put(config + "/session.json", JSON.stringify({
+    windows: [{
+      layout: "Single", focus: 0, folders: [project], side_bar: "files",
+      groups: [{ active: 0, docs: open.map(([p, context, word]) => {
+        const doc = { path: project + "/" + p, syntax: "" }
+        if (context) {
+          const at = files[p].indexOf(context) + context.indexOf(word)
+          doc.sels = [[at, at + word.length]]
+        }
+        return doc
+      }) }],
+      bounds: { x: 0, y: 0, width: 0, height: 0 },
+    }],
+  }))
+  const go = new Go()
+  go.argv = ["lime"]
+  go.env = { HOME: home, XDG_CONFIG_HOME: home + "/.config", TMPDIR: "/tmp" }
+  const { instance } = await WebAssembly.instantiateStreaming(wasm, go.importObject)
+  parent.postMessage({ lime: "running" }, "*")
+  await go.run(instance)
+}
+start().catch((e) => {
+  console.error(e)
+  parent.postMessage({ lime: "failed", error: String(e) }, "*")
+})
+</script>
+</head>
+<body><div id="mygo"></div></body>
+</html>
