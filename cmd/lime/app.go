@@ -108,6 +108,9 @@ type group struct {
 	active int     // -1 while empty
 	bar    ui.Rect // the tab bar as the last frame laid it out, in the window
 	tabW   float32 // the width of its tabs, all the same
+	scroll float32 // how far its tabs are scrolled left, when they do not fit
+	shown  *doc    // the tab last scrolled into view
+	at     int     // where it was
 	blank  *doc    // the editor shown without tabs, which typing makes a tab
 }
 

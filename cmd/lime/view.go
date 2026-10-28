@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"time"
 	"unicode/utf8"
@@ -212,12 +213,12 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 		}
 		g.bar = bar.LayoutBounds()
 		bar.Children(func() {
-			// Tabs that do not fit go out of sight before the new tab button
-			// does. Tabs that fit are not clipped: the row shrinks at once as
+			// Tabs that do not fit scroll, and leave the new tab button in
+			// sight. Tabs that fit are not clipped: the row shrinks at once as
 			// one closes, and would cut off those still sliding into place.
 			tabs := ui.Row(c).Shrink(1).MinWidth(0).AlignItems(ui.Stretch)
-			if tabs.LayoutBounds().W < float32(len(g.docs))*tabMinW {
-				tabs.ClipX()
+			if over := a.scrollTabs(c, g, tabs.LayoutBounds().W); over > 0 {
+				tabs.ClipX().HandleInput(func(ev ui.InputEvent) bool { return g.wheel(ev, over) })
 			}
 			tabs.Children(func() {
 				// A tab's menu closes tabs as the loop builds them.
@@ -238,6 +239,38 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 			}
 		})
 	})
+}
+
+// scrollTabs scrolls the tabs of g that do not fit in room, the width the
+// bar has for them: to show the current tab once it changes or moves, as
+// tabs before it close, and along while the tab dragged is held at either
+// end (dragScroll). It returns how far they scroll.
+func (a *app) scrollTabs(c *ui.Context, g *group, room float32) float32 {
+	// Tabs that do not fit have all shrunk to tabMinW.
+	over := float32(len(g.docs))*tabMinW - room
+	// The first frame has not laid the bar out yet.
+	if d := g.current(); (d != g.shown || g.active != g.at) && (room > 0 || d == nil) {
+		g.shown, g.at = d, g.active
+		x := float32(g.active) * tabMinW
+		g.scroll = min(max(g.scroll, x+tabMinW-room), x)
+	}
+	a.dragScroll(c, g, room, over)
+	g.scroll = max(min(g.scroll, over), 0)
+	return over
+}
+
+// wheel scrolls the tabs of g, over DIPs wider than the room they show in,
+// either way a wheel or touchpad turns, as in Sublime Text and Zed.
+func (g *group) wheel(ev ui.InputEvent, over float32) bool {
+	if ev.Kind != ui.InputScroll {
+		return false
+	}
+	d := ev.DX
+	if math.Abs(float64(ev.DY)) > math.Abs(float64(ev.DX)) {
+		d = ev.DY
+	}
+	g.scroll = max(min(g.scroll+d, over), 0)
+	return true
 }
 
 func (a *app) newTabButton(c *ui.Context, gi int) {
@@ -276,6 +309,9 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 	row := ui.Row(c.Key(key(d))).Transition(motion).AlignItems(ui.Center).Gap(6).Padding(0, 6, 0, 14).Width(200).Shrink(1).MinWidth(tabMinW)
 	if i == 0 {
 		g.tabW = row.LayoutBounds().W
+	}
+	if g.scroll != 0 {
+		row.Translate(-g.scroll, 0)
 	}
 	// The tab dragged leaves a gap, and shows under the pointer.
 	if a.dragTab(row, g, i, d) {

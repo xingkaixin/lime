@@ -199,6 +199,68 @@ func TestTabDrag(t *testing.T) {
 	}
 }
 
+// Tabs that do not fit scroll: to show the current one, by a touchpad or
+// wheel either way, and along while a tab dragged is held at an end.
+func TestTabOverflow(t *testing.T) {
+	a := newApp("")
+	for i := range 40 {
+		a.add(fmt.Sprintf("/tmp/%02d", i), "")
+	}
+	tt := ui.NewTester(a.view, 900, 300)
+	tt.Frame()
+	g := a.groups[0]
+	whole := func(name string) bool {
+		r, _ := tt.Find(name)
+		return r.W == tabMinW
+	}
+	if !whole("39") {
+		t.Fatalf("the tab opened last is out of sight: scrolled %v", g.scroll)
+	}
+	tabs := ui.Cmd
+	if !mac {
+		tabs = ui.Alt
+	}
+	tt.Key(tabs, ui.Key1)
+	tt.Frame()
+	if !whole("00") {
+		t.Fatalf("the first tab chosen is out of sight: scrolled %v", g.scroll)
+	}
+	tt.Scroll(g.bar.X+100, g.bar.Y+10, 0, 150)
+	if g.scroll != 150 {
+		t.Fatalf("scrolling down over the tabs: scrolled %v, want 150", g.scroll)
+	}
+
+	r, _ := tt.Find("02")
+	x, y := r.X+20, r.Y+17
+	tt.Press(x, y)
+	for ; x < g.bar.X+g.bar.W-30; x += 40 {
+		tt.Move(x, y)
+	}
+	tt.Advance(time.Second)
+	i := slices.IndexFunc(g.docs, func(d *doc) bool { return d.name() == "02" })
+	if g.scroll < 600 || i < 12 {
+		t.Fatalf("holding a tab at the end: scrolled %v, the tab at %d", g.scroll, i)
+	}
+	tt.Move(x, y+200)
+	tt.Advance(time.Second)
+	s := g.scroll
+	tt.Move(x, y)
+	if g.scroll != s {
+		t.Fatalf("a tab pulled out and back to the end: scrolled from %v to %v at once", s, g.scroll)
+	}
+	tt.Release(x, y)
+
+	// The current tab moves as the tabs before it close.
+	a.show(g.docs[30])
+	tt.Frame()
+	a.closeTabs(g.docs[:30], func(*doc) bool { return true })
+	tt.Frame()
+	tt.Advance(time.Second)
+	if !whole(a.current().name()) {
+		t.Fatalf("closing the tabs to the left: the current tab is out of sight: scrolled %v", g.scroll)
+	}
+}
+
 func TestGroups(t *testing.T) {
 	if !mac {
 		t.Skip("the test presses macOS keys")
