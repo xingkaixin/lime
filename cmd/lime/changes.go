@@ -325,44 +325,62 @@ func (a *app) confirm(message, detail, button string, yes func()) {
 	}()
 }
 
+// trashed reports whether discarding f, not staged, moves its file to
+// the Trash: an untracked file, or one added with intent to add, whose
+// text git has none of.
+func trashed(f change) bool { return f.status == '?' || f.status == 'A' }
+
 func (a *app) confirmDiscard(files []change) {
 	var detail []string
-	if slices.ContainsFunc(files, func(f change) bool { return f.status != '?' }) {
+	if slices.ContainsFunc(files, func(f change) bool { return !trashed(f) }) {
 		detail = append(detail, locales.DialogDiscardLost())
 	}
-	if slices.ContainsFunc(files, func(f change) bool { return f.status == '?' }) {
+	if slices.ContainsFunc(files, trashed) {
 		detail = append(detail, locales.DialogDiscardUntracked())
 	}
 	a.confirm(locales.DialogDiscardFiles(len(files)), strings.Join(detail, " "), locales.ButtonDiscard(), func() { a.discardFiles(files) })
 }
 
 // discardFiles discards the changes of files not staged: a tracked file
-// takes the index's text again, and an untracked one moves to the Trash,
-// whence it can come back.
+// takes the index's text again, and a new one moves to the Trash, whence
+// it can come back.
 func (a *app) discardFiles(files []change) {
 	root := a.git.root
-	var tracked strings.Builder
-	var untracked []string
+	var tracked, added strings.Builder
+	var trash []string
 	for _, f := range files {
-		if f.status == '?' {
-			untracked = append(untracked, filepath.Join(root, filepath.FromSlash(f.path)))
-		} else {
+		switch {
+		case !trashed(f):
 			tracked.WriteString(f.path + "\x00")
+			continue
+		case f.status == 'A':
+			added.WriteString(f.path + "\x00")
 		}
+		trash = append(trash, filepath.Join(root, filepath.FromSlash(f.path)))
 	}
-	paths := tracked.String()
+	paths, unadd := tracked.String(), added.String()
 	a.background(func() func() {
 		var failed string
 		var err error
-		for _, p := range untracked {
-			if err = mygo.Shell.TrashItem(p); err != nil {
-				failed = p
-				break
+		// A file added with intent to add leaves the index first: restore
+		// would empty it.
+		if unadd != "" {
+			gitWrites.Lock()
+			_, err = gitWith(root, unadd, "--literal-pathspecs", "rm", "--cached", "-q", "--pathspec-from-file=-", "--pathspec-file-nul")
+			gitWrites.Unlock()
+		}
+		for i := 0; err == nil && i < len(trash); i++ {
+			if err = mygo.Shell.TrashItem(trash[i]); err != nil {
+				failed = trash[i]
 			}
 		}
 		return func() {
-			if err != nil {
+			switch {
+			case failed != "":
 				go mygo.Dialog.Error(locales.DialogUnableToDelete(filepath.Base(failed)), err.Error())
+			case err != nil:
+				msg, _, _ := strings.Cut(err.Error(), "\n")
+				a.notifyError(msg)
 			}
 			if paths != "" {
 				a.gitRunWith(paths, nil, "--literal-pathspecs", "restore", "--pathspec-from-file=-", "--pathspec-file-nul")

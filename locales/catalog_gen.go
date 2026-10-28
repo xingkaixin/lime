@@ -2208,11 +2208,11 @@ func (msgs Messages) DialogDiscardLost() string {
 	return Catalog.Format(msgs.locale, "dialogDiscardLost", nil)
 }
 
-// DialogDiscardUntracked says "Untracked files move to the Trash."
+// DialogDiscardUntracked says "New files move to the Trash."
 // in the language the app shows.
 func DialogDiscardUntracked() string { return In(i18n.Locale()).DialogDiscardUntracked() }
 
-// DialogDiscardUntracked says "Untracked files move to the Trash."
+// DialogDiscardUntracked says "New files move to the Trash."
 // in the language of msgs.
 func (msgs Messages) DialogDiscardUntracked() string {
 	return Catalog.Format(msgs.locale, "dialogDiscardUntracked", nil)
