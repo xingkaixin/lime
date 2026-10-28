@@ -250,6 +250,7 @@
   "sideBarNoRepository": "没有 Git 仓库",
   "gitChanges": "改动",
   "gitHistory": "历史",
+  "historyAllCommits": "显示全部提交",
   "changesConflicts": "冲突",
   "changesStaged": "已暂存",
   "changesUnstaged": "未暂存",

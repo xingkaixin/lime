@@ -2488,6 +2488,16 @@ func (msgs Messages) GitHistory() string {
 	return Catalog.Format(msgs.locale, "gitHistory", nil)
 }
 
+// HistoryAllCommits says "Show All Commits"
+// in the language the app shows.
+func HistoryAllCommits() string { return In(i18n.Locale()).HistoryAllCommits() }
+
+// HistoryAllCommits says "Show All Commits"
+// in the language of msgs.
+func (msgs Messages) HistoryAllCommits() string {
+	return Catalog.Format(msgs.locale, "historyAllCommits", nil)
+}
+
 // ChangesConflicts says "Conflicts"
 // in the language the app shows.
 func ChangesConflicts() string { return In(i18n.Locale()).ChangesConflicts() }

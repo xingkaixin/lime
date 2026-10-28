@@ -340,6 +340,7 @@
   "sideBarNoRepository": "No Git Repository",
   "gitChanges": "Changes",
   "gitHistory": "History",
+  "historyAllCommits": "Show All Commits",
   "changesConflicts": "Conflicts",
   "changesStaged": "Staged",
   "changesUnstaged": "Unstaged",
