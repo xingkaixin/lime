@@ -1,10 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"errors"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -24,30 +20,9 @@ type gitRepo struct {
 // mainTree names the repository's main work tree, as Zed does.
 const mainTree = "main"
 
-// hideConsole keeps git from opening a console window on Windows.
-var hideConsole = func(*exec.Cmd) {}
-
 // runGit runs git in dir, returning what it printed, or what it said of
 // a failure. It blocks, so call it off the main thread.
 func runGit(dir string, args ...string) (string, error) { return gitWith(dir, "", args...) }
-
-// gitWith runs git as runGit does, with input on its standard input.
-func gitWith(dir, input string, args ...string) (string, error) {
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	// Reads alone leave the index as it is, for the git running elsewhere.
-	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
-	cmd.Stdin = strings.NewReader(input)
-	hideConsole(cmd)
-	var out, said bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &said
-	if err := cmd.Run(); err != nil {
-		if msg := strings.TrimSpace(said.String()); msg != "" {
-			return "", errors.New(msg)
-		}
-		return "", err
-	}
-	return out.String(), nil
-}
 
 func readRepo(dir string) gitRepo {
 	r := gitRepo{dir: dir}
