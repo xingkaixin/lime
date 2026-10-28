@@ -1830,6 +1830,36 @@ func (msgs Messages) ChangesViewAsTree() string {
 	return Catalog.Format(msgs.locale, "changesViewAsTree", nil)
 }
 
+// ChangesMessage says "Commit Message"
+// in the language the app shows.
+func ChangesMessage() string { return In(i18n.Locale()).ChangesMessage() }
+
+// ChangesMessage says "Commit Message"
+// in the language of msgs.
+func (msgs Messages) ChangesMessage() string {
+	return Catalog.Format(msgs.locale, "changesMessage", nil)
+}
+
+// ChangesCommit says "Commit"
+// in the language the app shows.
+func ChangesCommit() string { return In(i18n.Locale()).ChangesCommit() }
+
+// ChangesCommit says "Commit"
+// in the language of msgs.
+func (msgs Messages) ChangesCommit() string {
+	return Catalog.Format(msgs.locale, "changesCommit", nil)
+}
+
+// ChangesCommitTracked says "Commit Tracked"
+// in the language the app shows.
+func ChangesCommitTracked() string { return In(i18n.Locale()).ChangesCommitTracked() }
+
+// ChangesCommitTracked says "Commit Tracked"
+// in the language of msgs.
+func (msgs Messages) ChangesCommitTracked() string {
+	return Catalog.Format(msgs.locale, "changesCommitTracked", nil)
+}
+
 // ChangesStagedTitle says "Staged Changes"
 // in the language the app shows.
 func ChangesStagedTitle() string { return In(i18n.Locale()).ChangesStagedTitle() }

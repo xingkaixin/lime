@@ -24,14 +24,15 @@ const (
 // changes is the side bar's Changes tab: the work tree's changes, read
 // for root, by section.
 type changes struct {
-	root   string
-	files  [3][]change
-	gen    int // counts the readings, for the last to win
-	list   ui.ListState
-	sel    ui.Selection[changeKey]
-	cur    int // the row chosen last, -1 for none
-	rows   []changeRow
-	closed map[changeKey]bool // the folders closed in the tree
+	root    string
+	files   [3][]change
+	gen     int // counts the readings, for the last to win
+	list    ui.ListState
+	sel     ui.Selection[changeKey]
+	cur     int // the row chosen last, -1 for none
+	rows    []changeRow
+	closed  map[changeKey]bool // the folders closed in the tree
+	message string             // of the commit to make
 }
 
 // changeKey names a row of the Changes tab: a section's header, of no
@@ -365,8 +366,13 @@ var treeViewIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/sv
 </svg>`))
 
 // changesView lists the work tree's changes by section, each file of
-// which shows its diff.
+// which shows its diff, over the message of the commit to make.
 func (a *app) changesView(c *ui.Context) {
+	a.changesList(c)
+	a.commitBox(c)
+}
+
+func (a *app) changesList(c *ui.Context) {
 	w := &a.changes
 	w.layRows(a.set.GitTreeView)
 	if len(w.rows) == 0 {
@@ -398,6 +404,54 @@ func (a *app) changesView(c *ui.Context) {
 			w.toggle(w.rows[w.cur].key, open)
 		}
 	}
+}
+
+// commitArgs are the arguments of the git that commits the changes
+// staged, or with none, the tracked files' changes, as Zed's Commit
+// Tracked does, with the label of its button; ready when there are
+// changes to commit and a message.
+func (w *changes) commitArgs() (args []string, label string, ready bool) {
+	args, label = []string{"commit", "-F", "-"}, locales.ChangesCommit()
+	ready = len(w.files[staged]) > 0
+	if !ready {
+		args, label = []string{"commit", "-a", "-F", "-"}, locales.ChangesCommitTracked()
+		ready = slices.ContainsFunc(w.files[unstaged], func(f change) bool { return f.status != '?' })
+	}
+	return args, label, ready && strings.TrimSpace(w.message) != ""
+}
+
+// commitBox is the message of the commit to make and its button. The
+// message clears once the commit is made, unless edited meanwhile.
+func (a *app) commitBox(c *ui.Context) {
+	w := &a.changes
+	ch := a.shell(c)
+	_, label, ready := w.commitArgs()
+	commit := func() {
+		args, _, ready := w.commitArgs()
+		if !ready {
+			return
+		}
+		msg := w.message
+		a.gitRunWith(msg, func() {
+			if w.message == msg {
+				w.message = ""
+			}
+		}, args...)
+	}
+	ui.Column(c).FillWidth().Shrink(0).Padding(8).Gap(8).BorderWidth(1, 0, 0, 0).BorderColor(ch.line).Children(func() {
+		ui.TextArea(c.Key("commitMessage"), &w.message).MinHeight(0).Lines(2, 10).FillWidth().FontSize(13).
+			Placeholder(locales.ChangesMessage()).Label(locales.ChangesMessage()).OnShortcut(ui.Cmd, ui.KeyEnter, commit)
+		th := c.Theme()
+		btn := ui.ButtonBase(c.Key("commit")).FillWidth().Height(28).Radius(6).Center().Background(th.Accent).
+			Transition(colorFade).Label(label).Disabled(!ready).OnClick(commit)
+		switch {
+		case !ready:
+			btn.Opacity(0.5)
+		case btn.Hovered():
+			btn.Background(th.Accent.Mix(th.AccentText, 0.1))
+		}
+		btn.Children(func() { ui.Text(c, label).FontSize(13).TextColor(th.AccentText) })
+	})
 }
 
 // stageBox is the check box of a file of sec, or of all of them: checked

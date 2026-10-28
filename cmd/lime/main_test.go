@@ -1088,6 +1088,56 @@ func TestChangesTree(t *testing.T) {
 	}
 }
 
+// The Changes tab commits the changes staged, or with none, the tracked
+// files' changes; a failing commit keeps its message.
+func TestCommit(t *testing.T) {
+	dir, git := newRepo(t)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("1\n"), 0o644)
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("2\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "u.txt"), []byte("u\n"), 0o644)
+	last := func() string {
+		t.Helper()
+		out, _ := runGit(dir, "log", "-1", "--format=%B")
+		return strings.TrimSpace(out)
+	}
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarGitPanel())
+	tt.Frame()
+	tt.Click(locales.ChangesMessage())
+	tt.Type("Track a\n\nThe body.")
+	tt.Click(locales.ChangesCommitTracked())
+	tt.Frame()
+	if got := last(); got != "Track a\n\nThe body." {
+		t.Fatalf("message: %q", got)
+	}
+	if out, _ := runGit(dir, "status", "--porcelain"); out != "?? u.txt\n" || a.changes.message != "" {
+		t.Fatalf("after Commit Tracked: status %q, message %q", out, a.changes.message)
+	}
+
+	git("add", "u.txt")
+	os.WriteFile(filepath.Join(dir, ".git", "hooks", "pre-commit"), []byte("#!/bin/sh\necho no >&2\nexit 1\n"), 0o755)
+	a.readChanges()
+	tt.Frame()
+	tt.Click(locales.ChangesMessage())
+	tt.Type("Add u")
+	tt.Key(ui.Cmd, ui.KeyEnter)
+	tt.Frame()
+	if last() != "Track a\n\nThe body." || a.changes.message != "Add u" || !a.notice.err {
+		t.Fatalf("a failing commit: last %q, message %q, error %v", last(), a.changes.message, a.notice.err)
+	}
+	os.Remove(filepath.Join(dir, ".git", "hooks", "pre-commit"))
+	tt.Click(locales.ChangesCommit())
+	tt.Frame()
+	if last() != "Add u" {
+		t.Fatalf("Commit: %q", last())
+	}
+}
+
 func TestCommitRows(t *testing.T) {
 	var old, cur []string
 	for i := 1; i <= 10; i++ {
