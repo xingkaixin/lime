@@ -203,7 +203,7 @@ func TestTabDrag(t *testing.T) {
 // wheel either way, and along while a tab dragged is held at an end.
 func TestTabOverflow(t *testing.T) {
 	a := newApp("")
-	for i := range 30 {
+	for i := range 40 {
 		a.add(fmt.Sprintf("/tmp/%02d", i), "")
 	}
 	tt := ui.NewTester(a.view, 900, 300)
@@ -213,7 +213,7 @@ func TestTabOverflow(t *testing.T) {
 		r, _ := tt.Find(name)
 		return r.W == tabMinW
 	}
-	if !whole("29") {
+	if !whole("39") {
 		t.Fatalf("the tab opened last is out of sight: scrolled %v", g.scroll)
 	}
 	tabs := ui.Cmd
@@ -242,6 +242,16 @@ func TestTabOverflow(t *testing.T) {
 		t.Fatalf("holding a tab at the end: scrolled %v, the tab at %d", g.scroll, i)
 	}
 	tt.Release(x, y)
+
+	// The current tab moves as the tabs before it close.
+	a.show(g.docs[30])
+	tt.Frame()
+	a.closeTabs(g.docs[:30], func(*doc) bool { return true })
+	tt.Frame()
+	tt.Advance(time.Second)
+	if !whole(a.current().name()) {
+		t.Fatalf("closing the tabs to the left: the current tab is out of sight: scrolled %v", g.scroll)
+	}
 }
 
 func TestGroups(t *testing.T) {

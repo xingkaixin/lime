@@ -98,6 +98,9 @@ func (a *app) makeWay(g *group) {
 	cur := g.current()
 	g.docs = slices.Insert(slices.Delete(g.docs, i, i+1), to, t.d)
 	g.active = slices.Index(g.docs, cur)
+	// The tab goes where the pointer shows it: the tabs scroll only as it
+	// is held at an end (dragScroll).
+	g.at = g.active
 }
 
 // dragEdge is how near an end of the tabs that do not fit the pointer
