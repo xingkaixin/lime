@@ -721,6 +721,31 @@ func TestDeleteBlankLines(t *testing.T) {
 	}
 }
 
+// swap_case swaps each selection, or the word at each caret, a word with
+// several carets once, and selects what it swapped.
+func TestSwapCase(t *testing.T) {
+	sel := func(a, h int) editor.Selection { return editor.Selection{Anchor: a, Head: h} }
+	for _, c := range []struct {
+		text string
+		sels []editor.Selection
+		want string
+		then []editor.Selection
+	}{
+		{"Hello World", []editor.Selection{sel(11, 0)}, "hELLO wORLD", []editor.Selection{sel(0, 11)}},
+		{"fooBar baz", []editor.Selection{sel(1, 1), sel(4, 4), sel(8, 8)}, "FOObAR BAZ", []editor.Selection{sel(0, 6), sel(7, 10)}},
+		{"a  b", []editor.Selection{sel(2, 2)}, "a  b", []editor.Selection{sel(2, 2)}},
+		{"ı x", []editor.Selection{sel(0, 0), sel(3, 3)}, "I X", []editor.Selection{sel(0, 1), sel(2, 3)}},
+	} {
+		a := newApp("")
+		st := a.add("", c.text).st
+		st.SetSelections(c.sels...)
+		a.run("swap_case")
+		if got := st.Buffer.String(); got != c.want || !slices.Equal(st.Selections(), c.then) {
+			t.Errorf("swap_case %q: %q %v, want %q %v", c.text, got, st.Selections(), c.want, c.then)
+		}
+	}
+}
+
 func TestFormatJSON(t *testing.T) {
 	a := newApp("")
 	st := a.add("a.json", "{\"a\": [1, 2], \"b\": {}}\n").st

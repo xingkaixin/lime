@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/egoist/mygo/ui/editor"
 
@@ -147,6 +148,11 @@ func makeCommands() []command {
 		edit("upper_case", locales.Messages.CmdUpperCase, editor.Uppercase),
 		edit("lower_case", locales.Messages.CmdLowerCase, editor.Lowercase),
 		edit("title_case", locales.Messages.CmdTitleCase, editor.TitleCase),
+		{id: "swap_case", caption: locales.Messages.CmdSwapCase, run: withDoc(func(_ *app, d *doc) { swapCase(d.st) })},
+		edit("convert_to_snake", locales.Messages.CmdSnakeCase, editor.SnakeCase),
+		edit("convert_to_dash", locales.Messages.CmdKebabCase, editor.KebabCase),
+		edit("convert_to_camel", locales.Messages.CmdCamelCase, editor.CamelCase),
+		edit("convert_to_pascal", locales.Messages.CmdPascalCase, editor.PascalCase),
 		edit("sort_lines", locales.Messages.CmdSortLines, editor.SortLinesCaseInsensitive),
 		edit("sort_lines_case_sensitive", locales.Messages.CmdSortLinesCaseSensitive, editor.SortLines),
 		edit("reverse_lines", locales.Messages.CmdReverseLines, editor.ReverseLines),
@@ -265,6 +271,51 @@ func deleteBlankLines(st *editor.State, surplus bool) {
 		}
 	}
 	st.Buffer.Edit(edits...)
+}
+
+// swapCase swaps the case of each selection, or of the word at a caret,
+// as Sublime Text's swap_case does, and selects what it swapped, as the
+// editor's upper_case does.
+func swapCase(st *editor.State) {
+	t := st.Buffer.Snapshot()
+	chars := wordChars(st.Buffer)
+	var spans [][2]int
+	for _, s := range st.Selections() {
+		a, z := min(s.Anchor, s.Head), max(s.Anchor, s.Head)
+		if a == z {
+			line := t.LineOf(a)
+			start, text := t.LineStart(line), t.Line(line)
+			a, z = start+wordStart(text, a-start, chars), start+wordEnd(text, a-start, chars)
+		}
+		spans = append(spans, [2]int{a, z})
+	}
+	// Carets in one word, or by a selection, take its word once.
+	slices.SortFunc(spans, func(x, y [2]int) int { return x[0] - y[0] })
+	merged := spans[:1]
+	for _, sp := range spans[1:] {
+		if last := &merged[len(merged)-1]; sp[0] < last[1] {
+			last[1] = max(last[1], sp[1])
+		} else {
+			merged = append(merged, sp)
+		}
+	}
+	var edits []editor.Edit
+	var sels []editor.Selection
+	delta := 0
+	for _, sp := range merged {
+		old := t.Slice(sp[0], sp[1])
+		swapped := strings.Map(func(r rune) rune {
+			if unicode.IsUpper(r) {
+				return unicode.ToLower(r)
+			}
+			return unicode.ToUpper(r)
+		}, old)
+		edits = append(edits, editor.Edit{Start: sp[0], End: sp[1], Text: swapped})
+		sels = append(sels, editor.Selection{Anchor: sp[0] + delta, Head: sp[0] + delta + len(swapped)})
+		delta += len(swapped) - len(old)
+	}
+	st.Buffer.Edit(edits...)
+	st.SetSelections(sels...)
 }
 
 // formatJSON indents, or with minify compacts, the JSON of each selection,

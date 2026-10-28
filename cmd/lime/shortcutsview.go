@@ -70,6 +70,8 @@ var shortcutGroups = func() []shortcutGroup {
 		}},
 		{m.ShortcutGroupText, []shortcut{
 			s("upper_case", m.CmdUpperCase), s("lower_case", m.CmdLowerCase), s("title_case", m.CmdTitleCase),
+			s("swap_case", m.CmdSwapCase), s("convert_to_snake", m.CmdSnakeCase), s("convert_to_dash", m.CmdKebabCase),
+			s("convert_to_camel", m.CmdCamelCase), s("convert_to_pascal", m.CmdPascalCase),
 			s("sort_lines", m.CmdSortLines), s("sort_lines_case_sensitive", m.CmdSortLinesCaseSensitive),
 			s("reverse_lines", m.CmdReverseLines), s("unique_lines", m.CmdUniqueLines),
 			s("delete_blank_lines", m.CmdDeleteBlankLines), s("delete_blank_lines surplus", m.CmdDeleteSurplusBlankLines),
