@@ -249,6 +249,7 @@
   "replace": "替换",
   "replaceAll": "全部替换",
   "findWhere": "位置",
+  "findSearching": "正在查找…",
   "findResults": "查找结果",
   "findResultsSearching": "正在查找“{query}”…",
   "findResultsHeader": "{count, plural, other {在 # 个文件中查找“{query}”}}",

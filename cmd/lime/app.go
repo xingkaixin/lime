@@ -726,7 +726,7 @@ func (a *app) remove(d *doc) {
 		return
 	}
 	if d == a.fif.tab {
-		a.fif.stop()
+		a.fif.finding.stop()
 	}
 	if d.path != "" {
 		a.closed = append(a.closed, d.path)

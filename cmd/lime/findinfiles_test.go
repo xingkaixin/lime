@@ -110,7 +110,7 @@ func TestReplaceInFiles(t *testing.T) {
 	d.st.Buffer.Set("foo(1) foo(2) foo(9)\n")
 
 	a.fif.query, a.fif.regex, a.fif.where = `foo\((\d)\)`, true, openFolders
-	m, sc, open, ctx := a.prepareSearch()
+	m, sc, open, ctx := a.prepareSearch(&a.fif.replacing)
 	res := searchFiles(ctx, m, sc, open, math.MaxInt)
 	if res.matches != 4 || len(res.files) != 2 {
 		t.Fatalf("found %d matches in %d files, want 4 in 2", res.matches, len(res.files))

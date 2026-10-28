@@ -2476,6 +2476,16 @@ func (msgs Messages) FindWhere() string {
 	return Catalog.Format(msgs.locale, "findWhere", nil)
 }
 
+// FindSearching says "Searching…"
+// in the language the app shows.
+func FindSearching() string { return In(i18n.Locale()).FindSearching() }
+
+// FindSearching says "Searching…"
+// in the language of msgs.
+func (msgs Messages) FindSearching() string {
+	return Catalog.Format(msgs.locale, "findSearching", nil)
+}
+
 // FindResults says "Find Results"
 // in the language the app shows.
 func FindResults() string { return In(i18n.Locale()).FindResults() }

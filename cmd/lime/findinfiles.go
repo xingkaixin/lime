@@ -44,14 +44,36 @@ type findInFiles struct {
 	focus                      bool // the query takes the focus as the panel next shows
 	input                      ui.Handle
 	tab                        *doc // the Find Results tab, which each search fills anew
-	cancel                     context.CancelFunc
+	finding, replacing         job  // Find's search going on, and Replace's
 }
 
-func (f *findInFiles) stop() {
-	if f.cancel != nil {
-		f.cancel()
-		f.cancel = nil
+// job is a search going on, which the next one of its kind stops.
+type job struct{ cancel context.CancelFunc }
+
+func (j *job) start() context.Context {
+	j.stop()
+	ctx, cancel := context.WithCancel(context.Background())
+	j.cancel = cancel
+	return ctx
+}
+
+func (j *job) stop() {
+	if j.cancel != nil {
+		j.cancel()
+		j.cancel = nil
 	}
+}
+
+func (j *job) running() bool { return j.cancel != nil }
+
+// finish ends the search of ctx, reporting whether it is the job's, which
+// nothing stopped.
+func (j *job) finish(ctx context.Context) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	j.stop()
+	return true
 }
 
 // showFindInFiles opens the panel, looking in where when given. The query
@@ -83,6 +105,7 @@ func (a *app) showFindInFiles(where string) {
 
 func (a *app) closeFindInFiles() {
 	a.fif.open = false
+	a.fif.replacing.stop()
 	a.focusGroup(a.focus)
 }
 
@@ -375,10 +398,10 @@ func readSearched(path string) (string, bool) {
 	return strings.ReplaceAll(b.String(), "\r\n", "\n"), true
 }
 
-// prepareSearch makes the matcher of the panel's query and the sources of its
-// Where, and stops the search going on; nil when the query is none, or
-// no regular expression.
-func (a *app) prepareSearch() (*matcher, scope, []source, context.Context) {
+// prepareSearch makes the matcher of the panel's query and the sources of
+// its Where, and starts j anew; nil when the query is none, or no regular
+// expression.
+func (a *app) prepareSearch(j *job) (*matcher, scope, []source, context.Context) {
 	f := &a.fif
 	if f.query == "" {
 		return nil, scope{}, nil, nil
@@ -398,30 +421,17 @@ func (a *app) prepareSearch() (*matcher, scope, []source, context.Context) {
 			open = append(open, s)
 		}
 	}
-	f.stop()
-	ctx, cancel := context.WithCancel(context.Background())
-	f.cancel = cancel
-	return m, parseWhere(f.where, a.proj.folders), open, ctx
-}
-
-// finish ends the search of ctx, reporting whether it is the one going
-// on, which a later one has not stopped.
-func (f *findInFiles) finish(ctx context.Context) bool {
-	if ctx.Err() != nil {
-		return false
-	}
-	f.stop()
-	return true
+	return m, parseWhere(f.where, a.proj.folders), open, j.start()
 }
 
 // searchInFiles runs the panel's search into the Find Results tab, off
 // the main thread in the app, stopping the one going on.
 func (a *app) searchInFiles() {
-	m, sc, open, ctx := a.prepareSearch()
+	f := &a.fif
+	m, sc, open, ctx := a.prepareSearch(&f.finding)
 	if m == nil {
 		return
 	}
-	f := &a.fif
 	f.open = false
 	d := a.resultsTab()
 	d.results.show(d, locales.FindResultsSearching(f.query)+"\n", nil, nil)
@@ -429,7 +439,7 @@ func (a *app) searchInFiles() {
 	a.background(func() func() {
 		res := searchFiles(ctx, m, sc, open, maxResults)
 		return func() {
-			if !f.finish(ctx) {
+			if !f.finding.finish(ctx) {
 				return
 			}
 			text, hits, spans := formatResults(locales.FindResultsHeader(res.searched, query)+opts, res)
@@ -438,19 +448,19 @@ func (a *app) searchInFiles() {
 	})
 }
 
-// replaceInFiles finds the panel's query as searchInFiles does, then asks
-// to replace the matches, as Sublime Text does.
+// replaceInFiles finds the panel's query as searchInFiles does, with no
+// limit, then asks to replace the matches, as Sublime Text does.
 func (a *app) replaceInFiles() {
-	m, sc, open, ctx := a.prepareSearch()
+	f := &a.fif
+	m, sc, open, ctx := a.prepareSearch(&f.replacing)
 	if m == nil {
 		return
 	}
-	f := &a.fif
 	with := f.replace
 	a.background(func() func() {
 		res := searchFiles(ctx, m, sc, open, math.MaxInt)
 		return func() {
-			if !f.finish(ctx) {
+			if !f.replacing.finish(ctx) {
 				return
 			}
 			if res.matches == 0 {
@@ -742,12 +752,20 @@ func (a *app) findInFilesBar(c *ui.Context) {
 		row(func() {
 			gap()
 			field(&f.where, locales.FindWhere())
-			ui.Box(c).Width(findSlotW).Shrink(0)
+			status := ""
+			if f.replacing.running() {
+				status = locales.FindSearching()
+			}
+			ui.Text(c, status).Width(findSlotW).Shrink(0).FontSize(12).TextColor(ch.muted).SingleLine().Ellipsis("…").Role(ui.RoleStatus)
 		})
 		row(func() {
 			gap()
 			field(&f.replace, locales.Replace())
-			button(locales.Replace(), a.replaceInFiles)
+			if f.replacing.running() {
+				button(locales.ButtonCancel(), f.replacing.stop)
+			} else {
+				button(locales.Replace(), a.replaceInFiles)
+			}
 		})
 	})
 	if f.focus {

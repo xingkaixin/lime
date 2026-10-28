@@ -368,6 +368,7 @@
   "replace": "Replace",
   "replaceAll": "Replace All",
   "findWhere": "Where",
+  "findSearching": "Searching…",
   "findResults": "Find Results",
   "findResultsSearching": "Searching for “{query}”…",
   "@findResultsSearching": {
