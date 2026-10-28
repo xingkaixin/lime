@@ -38,6 +38,7 @@ type doc struct {
 	loading bool        // the image is decoding
 	cmp     *comparison // a diffDoc's
 	commit  *commitView // a commitDoc's
+	words   *wordList   // the text's words, as wordList last found them
 }
 
 func (d *doc) name() string {
