@@ -210,6 +210,7 @@ func (a *app) reopen(d *doc, e *fileEncoding) {
 	d.diffDisk()
 	a.l.diskChanged(d)
 	d.disk = stampOf(d.path)
+	a.readBases(d)
 }
 
 // encodingButton shows d's encoding, and reopens or saves d in another

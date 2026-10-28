@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -79,5 +80,29 @@ func TestEncodingKeepsBytes(t *testing.T) {
 		if got, _ := os.ReadFile(p); string(got) != raw || d.encoding() != utf8Encoding {
 			t.Errorf("saved %q in %s, want %q", got, d.encoding().name, raw)
 		}
+	}
+}
+
+// A file in GBK, committed and unchanged since, shows no changes in the
+// gutter.
+func TestEncodingDiffBase(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	dir := t.TempDir()
+	p := filepath.Join(dir, "a.txt")
+	os.WriteFile(p, []byte("\xc4\xe3\xba\xc3\n"), 0o644)
+	for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"commit", "-q", "-m", "first"}} {
+		if _, err := runGit(dir, append([]string{"-c", "user.name=t", "-c", "user.email=t@t"}, args...)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a := newApp("")
+	a.set.FallbackEncoding = "GBK"
+	a.open([]string{p})
+	a.reloadChanged()
+	d := a.current()
+	if base, text := d.st.DiffBase.String(), d.st.Buffer.String(); base != text || d.base == "" {
+		t.Fatalf("base %q (%q), text %q", base, d.base, text)
 	}
 }
