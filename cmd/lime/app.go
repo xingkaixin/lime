@@ -41,6 +41,7 @@ type doc struct {
 	loading bool        // the image is decoding
 	cmp     *comparison // a diffDoc's
 	commit  *commitView // a commitDoc's
+	results *results    // a findDoc's
 	// words are the text's words as wordList last found them, while
 	// scanning finds them again; asked is the completions last asked for.
 	words    *wordList
@@ -54,6 +55,8 @@ func (d *doc) name() string {
 		return d.cmp.title()
 	case d.commit != nil:
 		return d.commit.title()
+	case d.results != nil:
+		return locales.FindResults()
 	case d.path == "":
 		return locales.Untitled()
 	}
@@ -239,6 +242,7 @@ type app struct {
 	scroll  *peek // what a closed panel scrolls back to (scrollBack)
 	jumps   jumps
 	find    finding
+	fif     findInFiles
 	proj    project
 	git     gitRepo
 	hist    history
@@ -365,7 +369,7 @@ func (a *app) syncFocus(ctrlHeld bool) {
 	}
 	// Only a text's editor binds the focus: a place that no element binds
 	// would wait for one, and leave the focus the user moves unfollowed.
-	if p.d.kind != textDoc {
+	if p.d.kind != textDoc && p.d.kind != findDoc {
 		a.focused = place{}
 	}
 }
@@ -731,6 +735,9 @@ func (a *app) closeCurrent() {
 func (a *app) remove(d *doc) {
 	if !a.take(d) {
 		return
+	}
+	if d == a.fif.tab {
+		a.fif.stop()
 	}
 	if d.path != "" {
 		a.closed = append(a.closed, d.path)

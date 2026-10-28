@@ -99,6 +99,10 @@ func (a *app) folderMenu(c *ui.Context, m *ui.Menu, dir string, root bool) {
 	if m.Item(locales.MenuDeleteFolder()).Chosen() {
 		a.trash(dir, true)
 	}
+	m.Separator()
+	if m.Item(locales.MenuFindInFolder()).Chosen() {
+		a.showFindInFiles(dir)
+	}
 	if !root {
 		return
 	}

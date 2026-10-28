@@ -34,6 +34,7 @@
   "menuQuickAddNext": "Quick Add Next",
   "menuQuickSkipNext": "Quick Skip Next",
   "menuUseSelectionForFind": "Use Selection for Find",
+  "menuFindInFiles": "Find in Files…",
   "menuView": "View",
   "menuSideBar": "Side Bar",
   "menuLayout": "Layout",
@@ -66,6 +67,7 @@
   "menuCopyPath": "Copy Path",
   "menuNewFolder": "New Folder…",
   "menuDeleteFolder": "Delete Folder",
+  "menuFindInFolder": "Find in Folder…",
   "menuRemoveFolder": "Remove Folder from Project",
   "menuCloseTab": "Close Tab",
   "menuCloseTabsToLeft": "Close Tabs to the Left",
@@ -369,6 +371,25 @@
   "findAll": "Find All",
   "replace": "Replace",
   "replaceAll": "Replace All",
+  "findWhere": "Where",
+  "findResults": "Find Results",
+  "findResultsSearching": "Searching for “{query}”…",
+  "@findResultsSearching": {
+    "placeholders": { "query": { "type": "String", "example": "main" } }
+  },
+  "findResultsHeader": "Searching {count, plural, one {# file} other {# files}} for “{query}”",
+  "@findResultsHeader": {
+    "placeholders": { "count": { "type": "int", "example": "12" }, "query": { "type": "String", "example": "main" } }
+  },
+  "findResultsSummary": "{matches, plural, one {# match} other {# matches}} {files, plural, one {in # file} other {across # files}}",
+  "@findResultsSummary": {
+    "placeholders": { "matches": { "type": "int", "example": "5" }, "files": { "type": "int", "example": "2" } }
+  },
+  "findResultsLimit": "Stopped at {count} matches",
+  "@findResultsLimit": {
+    "placeholders": { "count": { "type": "int", "example": "10000" } }
+  },
+  "statusInvalidRegex": "Invalid regular expression",
 
   "menuSettings": "Settings…",
   "cmdSettings": "Preferences: Settings",
@@ -507,6 +528,8 @@
     "placeholders": { "level": { "type": "int", "example": "2" } }
   },
   "shortcutGotoDefinition": "Goto Definition",
+  "shortcutNextResult": "Next Result",
+  "shortcutPrevResult": "Previous Result",
   "shortcutNextTab": "Next Tab",
   "shortcutPrevTab": "Previous Tab",
   "shortcutNextTabInStack": "Next Recently Used Tab",

@@ -57,6 +57,7 @@ func (a *app) view(c *ui.Context) {
 		} else {
 			a.groupsView(c)
 		}
+		a.findInFilesBar(c)
 		a.statusBar(c)
 		a.draggedTab(c)
 	})
@@ -179,6 +180,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		}
 		if d.commit != nil {
 			a.commitTab(c, gi, d)
+			return
+		}
+		if d.results != nil {
+			a.resultsView(c, g, d)
 			return
 		}
 		if d.kind != textDoc {

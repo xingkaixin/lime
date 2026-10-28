@@ -91,6 +91,8 @@ func (l *lime) newMenu() *mygo.Menu {
 			l.menuItem(locales.MenuQuickSkipNext(), "find_under_expand_skip"),
 			mygo.Separator(),
 			l.menuItem(locales.MenuUseSelectionForFind(), "slurp_find_string"),
+			mygo.Separator(),
+			l.menuItem(locales.MenuFindInFiles(), "show_panel find_in_files"),
 		}},
 		{Label: locales.MenuView(), Submenu: []*mygo.MenuItem{
 			l.check(locales.MenuSideBar(), "toggle_side_bar", mygo.MenuItemCheckbox),

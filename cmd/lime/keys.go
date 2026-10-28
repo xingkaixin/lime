@@ -188,6 +188,7 @@ var appKeys = func() []appKey {
 		k(cmd, ui.KeyMinus, "decrease_font_size"),
 		k(cmd, ui.KeyF, "show_panel find"), k(cmd, ui.KeyI, "show_panel find"), k(cmd|sh, ui.KeyI, "show_panel find"),
 		k(cmd, ui.KeyE, "slurp_find_string"), k(cmd, ui.KeyD, "find_under_expand"),
+		k(cmd|sh, ui.KeyF, "show_panel find_in_files"), k(0, ui.KeyF4, "next_result"), k(sh, ui.KeyF4, "prev_result"),
 		k(cmd, ui.KeyComma, "show_settings"),
 		k(cmd, ui.KeyB, "toggle_side_bar"),
 		// Zed's keys, which Sublime Text has no panels for.

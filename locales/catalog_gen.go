@@ -354,6 +354,16 @@ func (msgs Messages) MenuUseSelectionForFind() string {
 	return Catalog.Format(msgs.locale, "menuUseSelectionForFind", nil)
 }
 
+// MenuFindInFiles says "Find in Files…"
+// in the language the app shows.
+func MenuFindInFiles() string { return In(i18n.Locale()).MenuFindInFiles() }
+
+// MenuFindInFiles says "Find in Files…"
+// in the language of msgs.
+func (msgs Messages) MenuFindInFiles() string {
+	return Catalog.Format(msgs.locale, "menuFindInFiles", nil)
+}
+
 // MenuView says "View"
 // in the language the app shows.
 func MenuView() string { return In(i18n.Locale()).MenuView() }
@@ -672,6 +682,16 @@ func MenuDeleteFolder() string { return In(i18n.Locale()).MenuDeleteFolder() }
 // in the language of msgs.
 func (msgs Messages) MenuDeleteFolder() string {
 	return Catalog.Format(msgs.locale, "menuDeleteFolder", nil)
+}
+
+// MenuFindInFolder says "Find in Folder…"
+// in the language the app shows.
+func MenuFindInFolder() string { return In(i18n.Locale()).MenuFindInFolder() }
+
+// MenuFindInFolder says "Find in Folder…"
+// in the language of msgs.
+func (msgs Messages) MenuFindInFolder() string {
+	return Catalog.Format(msgs.locale, "menuFindInFolder", nil)
 }
 
 // MenuRemoveFolder says "Remove Folder from Project"
@@ -2486,6 +2506,80 @@ func (msgs Messages) ReplaceAll() string {
 	return Catalog.Format(msgs.locale, "replaceAll", nil)
 }
 
+// FindWhere says "Where"
+// in the language the app shows.
+func FindWhere() string { return In(i18n.Locale()).FindWhere() }
+
+// FindWhere says "Where"
+// in the language of msgs.
+func (msgs Messages) FindWhere() string {
+	return Catalog.Format(msgs.locale, "findWhere", nil)
+}
+
+// FindResults says "Find Results"
+// in the language the app shows.
+func FindResults() string { return In(i18n.Locale()).FindResults() }
+
+// FindResults says "Find Results"
+// in the language of msgs.
+func (msgs Messages) FindResults() string {
+	return Catalog.Format(msgs.locale, "findResults", nil)
+}
+
+// FindResultsSearching says "Searching for “{query}”…"
+// in the language the app shows.
+func FindResultsSearching(query string) string { return In(i18n.Locale()).FindResultsSearching(query) }
+
+// FindResultsSearching says "Searching for “{query}”…"
+// in the language of msgs.
+func (msgs Messages) FindResultsSearching(query string) string {
+	return Catalog.Format(msgs.locale, "findResultsSearching", map[string]any{"query": query})
+}
+
+// FindResultsHeader says "Searching {count, plural, one {# file} other {# files}} for “{query}”"
+// in the language the app shows.
+func FindResultsHeader(count int, query string) string {
+	return In(i18n.Locale()).FindResultsHeader(count, query)
+}
+
+// FindResultsHeader says "Searching {count, plural, one {# file} other {# files}} for “{query}”"
+// in the language of msgs.
+func (msgs Messages) FindResultsHeader(count int, query string) string {
+	return Catalog.Format(msgs.locale, "findResultsHeader", map[string]any{"count": count, "query": query})
+}
+
+// FindResultsSummary says "{matches, plural, one {# match} other {# matches}} {files, plural, one {in # file} other {across # files}}"
+// in the language the app shows.
+func FindResultsSummary(matches int, files int) string {
+	return In(i18n.Locale()).FindResultsSummary(matches, files)
+}
+
+// FindResultsSummary says "{matches, plural, one {# match} other {# matches}} {files, plural, one {in # file} other {across # files}}"
+// in the language of msgs.
+func (msgs Messages) FindResultsSummary(matches int, files int) string {
+	return Catalog.Format(msgs.locale, "findResultsSummary", map[string]any{"matches": matches, "files": files})
+}
+
+// FindResultsLimit says "Stopped at {count} matches"
+// in the language the app shows.
+func FindResultsLimit(count int) string { return In(i18n.Locale()).FindResultsLimit(count) }
+
+// FindResultsLimit says "Stopped at {count} matches"
+// in the language of msgs.
+func (msgs Messages) FindResultsLimit(count int) string {
+	return Catalog.Format(msgs.locale, "findResultsLimit", map[string]any{"count": count})
+}
+
+// StatusInvalidRegex says "Invalid regular expression"
+// in the language the app shows.
+func StatusInvalidRegex() string { return In(i18n.Locale()).StatusInvalidRegex() }
+
+// StatusInvalidRegex says "Invalid regular expression"
+// in the language of msgs.
+func (msgs Messages) StatusInvalidRegex() string {
+	return Catalog.Format(msgs.locale, "statusInvalidRegex", nil)
+}
+
 // MenuSettings says "Settings…"
 // in the language the app shows.
 func MenuSettings() string { return In(i18n.Locale()).MenuSettings() }
@@ -3526,6 +3620,26 @@ func ShortcutGotoDefinition() string { return In(i18n.Locale()).ShortcutGotoDefi
 // in the language of msgs.
 func (msgs Messages) ShortcutGotoDefinition() string {
 	return Catalog.Format(msgs.locale, "shortcutGotoDefinition", nil)
+}
+
+// ShortcutNextResult says "Next Result"
+// in the language the app shows.
+func ShortcutNextResult() string { return In(i18n.Locale()).ShortcutNextResult() }
+
+// ShortcutNextResult says "Next Result"
+// in the language of msgs.
+func (msgs Messages) ShortcutNextResult() string {
+	return Catalog.Format(msgs.locale, "shortcutNextResult", nil)
+}
+
+// ShortcutPrevResult says "Previous Result"
+// in the language the app shows.
+func ShortcutPrevResult() string { return In(i18n.Locale()).ShortcutPrevResult() }
+
+// ShortcutPrevResult says "Previous Result"
+// in the language of msgs.
+func (msgs Messages) ShortcutPrevResult() string {
+	return Catalog.Format(msgs.locale, "shortcutPrevResult", nil)
 }
 
 // ShortcutNextTab says "Next Tab"
