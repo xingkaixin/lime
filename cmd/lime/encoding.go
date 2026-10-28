@@ -217,6 +217,7 @@ func (a *app) reopen(d *doc, e *fileEncoding) {
 func (a *app) encodingButton(c *ui.Context, d *doc) {
 	tx := locales.In(i18n.Locale())
 	name := d.encoding().title(tx)
+	// The longest of the status bar's items gives way in a narrow window.
 	a.statusMenu(c, name, locales.StatusEncoding(name), func(m *ui.Menu) {
 		m.Submenu(locales.MenuReopenWithEncoding(), func(m *ui.Menu) {
 			for _, e := range encodings {
@@ -232,5 +233,5 @@ func (a *app) encodingButton(c *ui.Context, d *doc) {
 				}
 			}
 		})
-	})
+	}).Shrink(1).MinWidth(0)
 }
