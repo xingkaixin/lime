@@ -11,6 +11,7 @@
   "buttonDelete": "删除",
   "buttonReplace": "替换",
   "buttonKeepBoth": "保留两者",
+  "buttonDiscard": "丢弃",
 
   "menuFile": "文件",
   "menuNewFile": "新建文件",
@@ -217,6 +218,9 @@
   "dialogUnsavedLost": "未保存的更改会丢失。",
   "dialogItemExists": "{folder} 中已有名为 {name} 的项目。",
   "dialogReplaceDetail": "替换会把原有的项目移到废纸篓。",
+  "dialogDiscardFiles": "{count, plural, other {要丢弃 # 个文件的改动吗？}}",
+  "dialogDiscardLost": "未暂存的改动丢弃后无法恢复。",
+  "dialogDiscardUntracked": "未跟踪的文件会移到废纸篓。",
   "filterProject": "Sublime 项目",
 
   "sideBarDropFolder": "将文件夹拖到这里打开",
@@ -239,6 +243,7 @@
   "changesCommitTracked": "提交已跟踪的改动",
   "changesStagedTitle": "已暂存的改动",
   "changesUnstagedTitle": "未暂存的改动",
+  "changesDiscard": "丢弃改动",
   "timeJustNow": "刚刚",
   "timeMinutesAgo": "{count, plural, other {# 分钟前}}",
   "timeHoursAgo": "{count, plural, other {# 小时前}}",

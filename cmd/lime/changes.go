@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"lime/locales"
@@ -301,6 +302,76 @@ func (a *app) changeMenu(m *ui.Menu) {
 	if m.Item(locales.ChangesUnstage()).Disabled(len(toUnstage) == 0).Chosen() {
 		a.stageFiles(toUnstage, true)
 	}
+	m.Separator()
+	if m.Item(locales.ChangesDiscard()).Disabled(len(toStage) == 0).Chosen() {
+		a.confirmDiscard(toStage)
+	}
+}
+
+// confirm asks before what can't be undone, and runs yes if the user
+// goes ahead.
+func (a *app) confirm(message, detail, button string, yes func()) {
+	go func() {
+		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:  a.win,
+			Type:    mygo.MessageWarning,
+			Message: message,
+			Detail:  detail,
+			Buttons: []string{button, locales.ButtonCancel()},
+		})
+		if res.Button == 0 {
+			a.win.Update(yes)
+		}
+	}()
+}
+
+func (a *app) confirmDiscard(files []change) {
+	var detail []string
+	if slices.ContainsFunc(files, func(f change) bool { return f.status != '?' }) {
+		detail = append(detail, locales.DialogDiscardLost())
+	}
+	if slices.ContainsFunc(files, func(f change) bool { return f.status == '?' }) {
+		detail = append(detail, locales.DialogDiscardUntracked())
+	}
+	a.confirm(locales.DialogDiscardFiles(len(files)), strings.Join(detail, " "), locales.ButtonDiscard(), func() { a.discardFiles(files) })
+}
+
+// discardFiles discards the changes of files not staged: a tracked file
+// takes the index's text again, and an untracked one moves to the Trash,
+// whence it can come back.
+func (a *app) discardFiles(files []change) {
+	root := a.git.root
+	var tracked strings.Builder
+	var untracked []string
+	for _, f := range files {
+		if f.status == '?' {
+			untracked = append(untracked, filepath.Join(root, filepath.FromSlash(f.path)))
+		} else {
+			tracked.WriteString(f.path + "\x00")
+		}
+	}
+	paths := tracked.String()
+	a.background(func() func() {
+		var failed string
+		var err error
+		for _, p := range untracked {
+			if err = mygo.Shell.TrashItem(p); err != nil {
+				failed = p
+				break
+			}
+		}
+		return func() {
+			if err != nil {
+				go mygo.Dialog.Error(locales.DialogUnableToDelete(filepath.Base(failed)), err.Error())
+			}
+			if paths != "" {
+				a.gitRunWith(paths, nil, "--literal-pathspecs", "restore", "--pathspec-from-file=-", "--pathspec-file-nul")
+				return
+			}
+			a.refreshFolders()
+			a.readGit()
+		}
+	})
 }
 
 // showChange shows the change of r: the diffs of its section, at its

@@ -134,6 +134,16 @@ func (msgs Messages) ButtonKeepBoth() string {
 	return Catalog.Format(msgs.locale, "buttonKeepBoth", nil)
 }
 
+// ButtonDiscard says "Discard"
+// in the language the app shows.
+func ButtonDiscard() string { return In(i18n.Locale()).ButtonDiscard() }
+
+// ButtonDiscard says "Discard"
+// in the language of msgs.
+func (msgs Messages) ButtonDiscard() string {
+	return Catalog.Format(msgs.locale, "buttonDiscard", nil)
+}
+
 // MenuFile says "File"
 // in the language the app shows.
 func MenuFile() string { return In(i18n.Locale()).MenuFile() }
@@ -2168,6 +2178,36 @@ func (msgs Messages) DialogReplaceDetail() string {
 	return Catalog.Format(msgs.locale, "dialogReplaceDetail", nil)
 }
 
+// DialogDiscardFiles says "{count, plural, one {Discard the changes to # file?} other {Discard the changes to # files?}}"
+// in the language the app shows.
+func DialogDiscardFiles(count int) string { return In(i18n.Locale()).DialogDiscardFiles(count) }
+
+// DialogDiscardFiles says "{count, plural, one {Discard the changes to # file?} other {Discard the changes to # files?}}"
+// in the language of msgs.
+func (msgs Messages) DialogDiscardFiles(count int) string {
+	return Catalog.Format(msgs.locale, "dialogDiscardFiles", map[string]any{"count": count})
+}
+
+// DialogDiscardLost says "Changes that aren't staged can't be recovered."
+// in the language the app shows.
+func DialogDiscardLost() string { return In(i18n.Locale()).DialogDiscardLost() }
+
+// DialogDiscardLost says "Changes that aren't staged can't be recovered."
+// in the language of msgs.
+func (msgs Messages) DialogDiscardLost() string {
+	return Catalog.Format(msgs.locale, "dialogDiscardLost", nil)
+}
+
+// DialogDiscardUntracked says "Untracked files move to the Trash."
+// in the language the app shows.
+func DialogDiscardUntracked() string { return In(i18n.Locale()).DialogDiscardUntracked() }
+
+// DialogDiscardUntracked says "Untracked files move to the Trash."
+// in the language of msgs.
+func (msgs Messages) DialogDiscardUntracked() string {
+	return Catalog.Format(msgs.locale, "dialogDiscardUntracked", nil)
+}
+
 // FilterProject says "Sublime Project"
 // in the language the app shows.
 func FilterProject() string { return In(i18n.Locale()).FilterProject() }
@@ -2376,6 +2416,16 @@ func ChangesUnstagedTitle() string { return In(i18n.Locale()).ChangesUnstagedTit
 // in the language of msgs.
 func (msgs Messages) ChangesUnstagedTitle() string {
 	return Catalog.Format(msgs.locale, "changesUnstagedTitle", nil)
+}
+
+// ChangesDiscard says "Discard Changes"
+// in the language the app shows.
+func ChangesDiscard() string { return In(i18n.Locale()).ChangesDiscard() }
+
+// ChangesDiscard says "Discard Changes"
+// in the language of msgs.
+func (msgs Messages) ChangesDiscard() string {
+	return Catalog.Format(msgs.locale, "changesDiscard", nil)
 }
 
 // TimeJustNow says "Just now"

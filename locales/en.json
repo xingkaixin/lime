@@ -11,6 +11,7 @@
   "buttonDelete": "Delete",
   "buttonReplace": "Replace",
   "buttonKeepBoth": "Keep Both",
+  "buttonDiscard": "Discard",
 
   "menuFile": "File",
   "menuNewFile": "New File",
@@ -292,6 +293,12 @@
     }
   },
   "dialogReplaceDetail": "Replacing it moves the one there to the Trash.",
+  "dialogDiscardFiles": "{count, plural, one {Discard the changes to # file?} other {Discard the changes to # files?}}",
+  "@dialogDiscardFiles": {
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "dialogDiscardLost": "Changes that aren't staged can't be recovered.",
+  "dialogDiscardUntracked": "Untracked files move to the Trash.",
   "filterProject": "Sublime Project",
 
   "sideBarDropFolder": "Drop a folder here to open it",
@@ -314,6 +321,7 @@
   "changesCommitTracked": "Commit Tracked",
   "changesStagedTitle": "Staged Changes",
   "changesUnstagedTitle": "Unstaged Changes",
+  "changesDiscard": "Discard Changes",
   "timeJustNow": "Just now",
   "timeMinutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
   "@timeMinutesAgo": {
