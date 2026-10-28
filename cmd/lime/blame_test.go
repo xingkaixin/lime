@@ -13,7 +13,7 @@ import (
 // Blame tells the commit of each line of the file as saved: the lines
 // edited since show none, and the others keep theirs where they moved.
 // The caret's line shows its blame once the caret rests there, which Tab
-// does not insert.
+// does not insert, and a click on the column opens the commit.
 func TestBlame(t *testing.T) {
 	dir, git := newRepo(t)
 	file := filepath.Join(dir, "a.txt")
@@ -78,6 +78,15 @@ func TestBlame(t *testing.T) {
 	a.save(d)
 	if got := subjects(); got != "-,first,first,-,-" {
 		t.Fatalf("blame after saving: %q", got)
+	}
+
+	a.showPanel(noPanel)
+	a.run("toggle_blame")
+	tt.Frame()
+	tt.ClickAt(10, tabBarHeight+float32(d.st.LineTop(1)-d.st.ScrollY())+4)
+	tt.Frame()
+	if cur := a.current(); cur.commit == nil || cur.commit.subject != "first" || cur.commit.root != d.blame.root {
+		t.Fatalf("the column opened %q", cur.name())
 	}
 }
 

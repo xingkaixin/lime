@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,8 +16,10 @@ import (
 )
 
 // Blame tells who last changed the lines, as Zed's does: the caret's line
-// at its end once the caret rests there (inline_blame). git blames the
-// file as saved, so the lines edited since show none.
+// at its end once the caret rests there (inline_blame), and each block of
+// lines in a column beside the line numbers (Toggle Blame), a click on
+// which opens its commit. git blames the file as saved, so the lines
+// edited since show none.
 
 // maxBlameLines is the most lines a file blames: git reads the history of
 // each, and its output parses whole.
@@ -36,6 +39,8 @@ type blamed struct {
 
 // blaming is what a doc keeps of its blame.
 type blaming struct {
+	shown bool // the column shows, as Toggle Blame left it
+
 	root    string    // the top of the file's repository
 	lines   []*blamed // by line of the saved text, nil for none
 	saved   uint64    // the version of the saved text lines are of
@@ -67,7 +72,25 @@ func (d *doc) blameable() bool {
 	return runtime.GOOS != "js" && d.plain() && d.path != "" && d.base != "" && !d.cr && d.saved.LineCount() <= maxBlameLines
 }
 
-// syncBlame reads d's blame while it shows, and shows it at the end of the
+// currentBlameable reports whether the current tab shows its blame.
+func currentBlameable(a *app) bool {
+	d := a.current()
+	return d != nil && d.blameable()
+}
+
+// toggleBlame shows or hides the column of the current tab's blame.
+func (a *app) toggleBlame() {
+	d := a.current()
+	if d == nil || !d.blameable() {
+		return
+	}
+	if d.blame == nil {
+		d.blame = &blaming{at: -1}
+	}
+	d.blame.shown = !d.blame.shown
+}
+
+// syncBlame reads d's blame where it shows, and shows it at the end of the
 // caret's line once the caret rests there.
 func (a *app) syncBlame(c *ui.Context, d *doc) {
 	inline := a.set.InlineBlame && d == a.current()
@@ -80,10 +103,11 @@ func (a *app) syncBlame(c *ui.Context, d *doc) {
 		d.blame = b
 	}
 	if !d.blameable() {
+		b.shown = false
 		b.hideInline(d.st)
 		return
 	}
-	if inline {
+	if inline || b.shown {
 		a.readBlame(d)
 		b.mapLines(d)
 	}
@@ -413,10 +437,98 @@ func inlineBlame(bl *blamed, now time.Time, room int) string {
 	return who + sep + string(subject)
 }
 
-// withBlame builds d's editor with view, whose width the blame fits in.
-func (a *app) withBlame(c *ui.Context, d *doc, view func() ui.Element) {
-	e := view()
-	if d.blame != nil {
-		d.blame.width = e.LayoutBounds().W
+// blameAuthor is how many characters of an author's name the column shows.
+const blameAuthor = 12
+
+// blameLabel is what the column shows of a block's commit: its hash,
+// author and date, in columns.
+func blameLabel(bl *blamed) string {
+	if bl.hash == uncommitted {
+		return locales.BlameNotCommitted()
 	}
+	author := []rune(bl.author)
+	if len(author) > blameAuthor {
+		author = append(author[:blameAuthor-1], '…')
+	}
+	return bl.short + " " + string(author) + strings.Repeat(" ", blameAuthor-len(author)) + " " + bl.when.Format("2006-01-02")
+}
+
+// withBlame builds d's editor with view, after the column of its blame
+// while Toggle Blame shows it. The column paints after the editor, which
+// scrolls its lines as it paints.
+func (a *app) withBlame(c *ui.Context, d *doc, view func() ui.Element) {
+	b := d.blame
+	if b == nil || !b.shown {
+		e := view()
+		if b != nil {
+			b.width = e.LayoutBounds().W
+		}
+		return
+	}
+	st := d.st
+	font, size := a.codeFont(), st.Font.Size-1
+	span := ui.Span{Text: strings.Repeat("0", len("0000000  2006-01-02")+blameAuthor), Font: font, Size: size}
+	w, h := c.MeasureText(0, span)
+	w += 16
+	// The editor's lines are LineHeight times as high as its font, 1.5 for 0.
+	pad := (st.Font.Size*cmp.Or(st.LineHeight, 1.5) - h) / 2
+	color := st.Theme.LineNumber
+	row := ui.Row(c).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch)
+	row.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		col := ui.Rect{X: r.X, Y: r.Y, W: w, H: r.H}
+		p.Clip(col, 0, func() { b.paint(p, col, d, ui.Span{Font: font, Size: size, Color: color}, pad) })
+	})
+	row.Children(func() {
+		ui.Box(c).Width(w).Shrink(0).Background(st.Theme.Background).BorderWidth(0, 1, 0, 0).BorderColor(color.Alpha(0.2)).
+			Cursor(ui.CursorPointer).HandleInput(func(ev ui.InputEvent) bool {
+			switch ev.Kind {
+			case ui.InputScroll:
+				st.SetScrollY(st.ScrollY() + float64(ev.DY))
+				return true
+			case ui.InputPointerDown:
+				if bl := b.lineOf(d, lineAt(st, float64(ev.Y))); ev.Button == 0 && bl != nil && bl.hash != uncommitted {
+					a.showCommitIn(b.root, bl.commit).at = bl.path
+				}
+				return true
+			}
+			return false
+		})
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() { b.width = view().LayoutBounds().W })
+	})
+}
+
+// paint labels the first line in view of each block of lines of a
+// commit, in the column r.
+func (b *blaming) paint(p *ui.Painter, r ui.Rect, d *doc, style ui.Span, pad float32) {
+	st := d.st
+	first, last := st.VisibleLines()
+	scroll := st.ScrollY()
+	var prev *blamed
+	prevTop := -1.0
+	for line := first; line <= last; line++ {
+		top := st.LineTop(line)
+		// A line a fold hides takes no room.
+		if top == prevTop {
+			continue
+		}
+		prevTop = top
+		bl := b.lineOf(d, line)
+		if bl != nil && bl != prev {
+			label := style
+			label.Text = blameLabel(bl)
+			p.RichText(r.X+8, r.Y+float32(top-scroll)+pad, 0, label)
+		}
+		prev = bl
+	}
+}
+
+// lineAt is the line in view at y, from the editor's top.
+func lineAt(st *editor.State, y float64) int {
+	first, last := st.VisibleLines()
+	y += st.ScrollY()
+	line := first
+	for l := first; l <= last && st.LineTop(l) <= y; l++ {
+		line = l
+	}
+	return line
 }

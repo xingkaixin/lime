@@ -100,8 +100,11 @@ func (cv *commitView) title() string {
 }
 
 // showCommit opens a tab of cm's changes, or shows the one open.
-func (a *app) showCommit(cm commit) *commitView {
-	root := a.git.root
+func (a *app) showCommit(cm commit) *commitView { return a.showCommitIn(a.git.root, cm) }
+
+// showCommitIn opens a tab of cm's changes in the repository at root, or
+// shows the one open.
+func (a *app) showCommitIn(root string, cm commit) *commitView {
 	for _, d := range a.allDocs() {
 		if cv := d.commit; cv != nil && cv.hash == cm.hash && cv.root == root {
 			a.show(d)
