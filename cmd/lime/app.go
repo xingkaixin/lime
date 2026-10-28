@@ -39,6 +39,11 @@ type doc struct {
 	// set from View > Indentation; zero values follow the settings.
 	tabSize int
 	indent  editor.IndentStyle
+	// savedEnding is the line ending on disk, which the buffer changes
+	// without a new version. cr has the lines end in \r alone, which the
+	// buffer has as \n.
+	savedEnding string
+	cr          bool
 
 	kind    docKind
 	img     *ui.Bitmap  // an imageDoc's image, once decoded
@@ -79,9 +84,13 @@ func (d *doc) source() *doc {
 // a commit or an image.
 func (d *doc) plain() bool { return d.kind == textDoc && d.cmp == nil && d.commit == nil }
 
-// dirty reports whether the text differs from the saved one, as
-// Buffer.Modified does, which copies both texts out at every call.
+// dirty reports whether the text or its line ending differs from the
+// saved one, as Buffer.Modified does, which copies both texts out at
+// every call.
 func (d *doc) dirty() bool {
+	if d.lineEnding() != d.savedEnding {
+		return true
+	}
 	s := d.st.Buffer.Snapshot()
 	if s.Version() == d.saved.Version() {
 		return false
@@ -394,8 +403,10 @@ func (a *app) cycleTabs(step int) {
 
 // newDoc makes a tab of the file at path holding text, its text on disk.
 func newDoc(path, text string) *doc {
+	text, ending := splitLines(text)
 	buf := editor.NewBuffer(text)
-	d := &doc{path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, saved: buf.Snapshot()}
+	d := &doc{path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, saved: buf.Snapshot(), savedEnding: ending}
+	d.setLineEnding(ending)
 	if path != "" {
 		buf.SetLanguage(editor.LanguageFor(path))
 		d.diffDisk()
@@ -474,7 +485,10 @@ func (a *app) applyReloads(rs []reload) {
 		if d.dirty() {
 			continue
 		}
-		d.st.Buffer.Set(r.text)
+		text, ending := splitLines(r.text)
+		d.st.Buffer.Set(text)
+		d.setLineEnding(ending)
+		d.savedEnding = ending
 		d.st.Buffer.MarkSaved()
 		d.saved = d.st.Buffer.Snapshot()
 		if d.base == "" || d.saved.Len() > largeFile {
@@ -607,7 +621,11 @@ func (a *app) write(d *doc, path string) error {
 	if fi, err := os.Stat(path); err == nil {
 		mode, created = fi.Mode().Perm(), false
 	}
-	if err := os.WriteFile(path, b.Bytes(), mode); err != nil {
+	out := b.Bytes()
+	if d.cr {
+		out = bytes.ReplaceAll(out, []byte("\n"), []byte("\r"))
+	}
+	if err := os.WriteFile(path, out, mode); err != nil {
 		go mygo.Dialog.Error(locales.DialogUnableToSave(filepath.Base(path)), err.Error())
 		return err
 	}
@@ -619,7 +637,7 @@ func (a *app) write(d *doc, path string) error {
 		d.st.Buffer.SetLanguage(editor.LanguageFor(path))
 	}
 	d.st.Buffer.MarkSaved()
-	d.saved = snap
+	d.saved, d.savedEnding = snap, d.lineEnding()
 	if d.base == "" || d.saved.Len() > largeFile {
 		d.diffDisk()
 	}

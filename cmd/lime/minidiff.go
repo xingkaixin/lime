@@ -45,7 +45,8 @@ func (a *app) readBases(docs ...*doc) {
 				case o.id == "":
 					d.diffDisk()
 				default:
-					d.setDiffBase(o.id, o.text)
+					text, _ := splitLines(o.text)
+					d.setDiffBase(o.id, text)
 				}
 			}
 		}

@@ -504,6 +504,46 @@ func (msgs Messages) MenuConvertToTabs() string {
 	return Catalog.Format(msgs.locale, "menuConvertToTabs", nil)
 }
 
+// MenuLineEndings says "Line Endings"
+// in the language the app shows.
+func MenuLineEndings() string { return In(i18n.Locale()).MenuLineEndings() }
+
+// MenuLineEndings says "Line Endings"
+// in the language of msgs.
+func (msgs Messages) MenuLineEndings() string {
+	return Catalog.Format(msgs.locale, "menuLineEndings", nil)
+}
+
+// MenuWindows says "Windows"
+// in the language the app shows.
+func MenuWindows() string { return In(i18n.Locale()).MenuWindows() }
+
+// MenuWindows says "Windows"
+// in the language of msgs.
+func (msgs Messages) MenuWindows() string {
+	return Catalog.Format(msgs.locale, "menuWindows", nil)
+}
+
+// MenuUnix says "Unix"
+// in the language the app shows.
+func MenuUnix() string { return In(i18n.Locale()).MenuUnix() }
+
+// MenuUnix says "Unix"
+// in the language of msgs.
+func (msgs Messages) MenuUnix() string {
+	return Catalog.Format(msgs.locale, "menuUnix", nil)
+}
+
+// MenuMacOS9 says "Mac OS 9"
+// in the language the app shows.
+func MenuMacOS9() string { return In(i18n.Locale()).MenuMacOS9() }
+
+// MenuMacOS9 says "Mac OS 9"
+// in the language of msgs.
+func (msgs Messages) MenuMacOS9() string {
+	return Catalog.Format(msgs.locale, "menuMacOS9", nil)
+}
+
 // MenuWordWrap says "Word Wrap"
 // in the language the app shows.
 func MenuWordWrap() string { return In(i18n.Locale()).MenuWordWrap() }
@@ -1570,6 +1610,22 @@ func CmdConvertToTabs() string { return In(i18n.Locale()).CmdConvertToTabs() }
 // in the language of msgs.
 func (msgs Messages) CmdConvertToTabs() string {
 	return Catalog.Format(msgs.locale, "cmdConvertToTabs", nil)
+}
+
+// CmdLineEndings says "Line Endings: {name}"
+// in the language the app shows.
+//
+// A line ending in the command palette, and the status bar's line ending
+// button to assistive technology.
+func CmdLineEndings(name string) string { return In(i18n.Locale()).CmdLineEndings(name) }
+
+// CmdLineEndings says "Line Endings: {name}"
+// in the language of msgs.
+//
+// A line ending in the command palette, and the status bar's line ending
+// button to assistive technology.
+func (msgs Messages) CmdLineEndings(name string) string {
+	return Catalog.Format(msgs.locale, "cmdLineEndings", map[string]any{"name": name})
 }
 
 // PanelLabel says "Quick panel"

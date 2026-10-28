@@ -49,6 +49,10 @@
   "menuGuessIndentation": "根据内容推测设置",
   "menuConvertToSpaces": "将缩进转换为空格",
   "menuConvertToTabs": "将缩进转换为 Tab",
+  "menuLineEndings": "换行符",
+  "menuWindows": "Windows",
+  "menuUnix": "Unix",
+  "menuMacOS9": "Mac OS 9",
   "menuWordWrap": "自动换行",
   "menuLargerFont": "增大字号",
   "menuSmallerFont": "减小字号",
@@ -157,6 +161,7 @@
   "cmdGuessIndentation": "缩进：根据内容推测设置",
   "cmdConvertToSpaces": "缩进：转换为空格",
   "cmdConvertToTabs": "缩进：转换为 Tab",
+  "cmdLineEndings": "换行符：{name}",
 
   "panelLabel": "快速面板",
   "panelCommandPalette": "命令面板",
