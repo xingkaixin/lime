@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,5 +93,37 @@ func TestFindInLinkedFiles(t *testing.T) {
 	}
 	if want := locales.FindResultsSummary(3, 2) + "\n"; !strings.HasSuffix(text, want) {
 		t.Fatalf("results:\n%s\nwant them to end %q", text, want)
+	}
+}
+
+// Replace in Files replaces in the tabs' text, a regular expression's $1
+// expanded, opening the files not open, and saves none.
+func TestReplaceInFiles(t *testing.T) {
+	dir := t.TempDir()
+	one, two := filepath.Join(dir, "one.go"), filepath.Join(dir, "two.go")
+	os.WriteFile(one, []byte("foo(1) foo(2)\n"), 0o644)
+	os.WriteFile(two, []byte("x := foo(3)\n"), 0o644)
+	a := newApp("")
+	a.addFolder(dir)
+	a.open([]string{one})
+	d := a.current()
+	d.st.Buffer.Set("foo(1) foo(2) foo(9)\n")
+
+	a.fif.query, a.fif.regex, a.fif.where = `foo\((\d)\)`, true, openFolders
+	m, sc, open, ctx := a.prepareSearch()
+	res := searchFiles(ctx, m, sc, open, math.MaxInt)
+	if res.matches != 4 || len(res.files) != 2 {
+		t.Fatalf("found %d matches in %d files, want 4 in 2", res.matches, len(res.files))
+	}
+	a.replaceFound(m, "bar[$1]", res)
+	if got := d.st.Buffer.String(); got != "bar[1] bar[2] bar[9]\n" || !d.dirty() {
+		t.Fatalf("one.go: %q, unsaved %v", got, d.dirty())
+	}
+	d2 := a.docAt(two)
+	if d2 == nil || d2.st.Buffer.String() != "x := bar[3]\n" || !d2.dirty() {
+		t.Fatalf("two.go not opened with its match replaced, unsaved")
+	}
+	if b, _ := os.ReadFile(two); string(b) != "x := foo(3)\n" {
+		t.Fatalf("two.go saved: %q", b)
 	}
 }

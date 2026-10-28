@@ -2540,6 +2540,30 @@ func (msgs Messages) StatusInvalidRegex() string {
 	return Catalog.Format(msgs.locale, "statusInvalidRegex", nil)
 }
 
+// StatusReplacedInFiles says "{count, plural, one {Replaced # occurrence} other {Replaced # occurrences}} {files, plural, one {in # file} other {ac…"
+// in the language the app shows.
+func StatusReplacedInFiles(count int, files int) string {
+	return In(i18n.Locale()).StatusReplacedInFiles(count, files)
+}
+
+// StatusReplacedInFiles says "{count, plural, one {Replaced # occurrence} other {Replaced # occurrences}} {files, plural, one {in # file} other {ac…"
+// in the language of msgs.
+func (msgs Messages) StatusReplacedInFiles(count int, files int) string {
+	return Catalog.Format(msgs.locale, "statusReplacedInFiles", map[string]any{"count": count, "files": files})
+}
+
+// DialogReplaceInFiles says "{count, plural, one {Replace # occurrence} other {Replace # occurrences}} {files, plural, one {in # file?} other {acr…"
+// in the language the app shows.
+func DialogReplaceInFiles(count int, files int) string {
+	return In(i18n.Locale()).DialogReplaceInFiles(count, files)
+}
+
+// DialogReplaceInFiles says "{count, plural, one {Replace # occurrence} other {Replace # occurrences}} {files, plural, one {in # file?} other {acr…"
+// in the language of msgs.
+func (msgs Messages) DialogReplaceInFiles(count int, files int) string {
+	return Catalog.Format(msgs.locale, "dialogReplaceInFiles", map[string]any{"count": count, "files": files})
+}
+
 // MenuSettings says "Settings…"
 // in the language the app shows.
 func MenuSettings() string { return In(i18n.Locale()).MenuSettings() }

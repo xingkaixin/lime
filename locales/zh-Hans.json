@@ -255,6 +255,8 @@
   "findResultsSummary": "{matches, plural, other {# 处匹配}}，{files, plural, other {共 # 个文件}}",
   "findResultsLimit": "已达到 {count} 处匹配，查找停止",
   "statusInvalidRegex": "正则表达式无效",
+  "statusReplacedInFiles": "{count, plural, other {已替换 # 处}}{files, plural, other {，共 # 个文件}}",
+  "dialogReplaceInFiles": "{count, plural, other {要替换 # 处匹配}}{files, plural, other {，共 # 个文件吗？}}",
 
   "menuSettings": "设置…",
   "cmdSettings": "偏好设置：设置",
