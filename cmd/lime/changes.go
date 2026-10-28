@@ -546,6 +546,33 @@ func (a *app) amendChanged() {
 	})
 }
 
+// uncommit takes HEAD back into the staged changes after asking, as
+// Zed's Uncommit does, and its message into the box when that is empty:
+// not the first commit, which has no parent to go back to.
+func (a *app) uncommit() {
+	root := a.git.root
+	a.background(func() func() {
+		out, err := runGit(root, "log", "-1", "--format=%P%x00%B", "HEAD")
+		parents, body, _ := strings.Cut(out, "\x00")
+		body = strings.TrimSpace(body)
+		return func() {
+			if err != nil || strings.TrimSpace(parents) == "" {
+				a.notifyError(locales.StatusNoParentCommit())
+				return
+			}
+			subject, _, _ := strings.Cut(body, "\n")
+			a.confirm(locales.DialogUncommit(subject), locales.DialogUncommitDetail(), locales.ButtonUncommit(), func() {
+				w := &a.changes
+				a.gitRunWith("", func() {
+					if w.root == root && w.message == "" {
+						w.message = body
+					}
+				}, "reset", "--soft", "HEAD~1")
+			})
+		}
+	})
+}
+
 // commitBox is the message of the commit to make and its button. The
 // message clears once the commit is made, unless edited meanwhile, or
 // after amending, is the one typed before.

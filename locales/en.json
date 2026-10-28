@@ -12,6 +12,7 @@
   "buttonReplace": "Replace",
   "buttonKeepBoth": "Keep Both",
   "buttonDiscard": "Discard",
+  "buttonUncommit": "Uncommit",
 
   "menuFile": "File",
   "menuNewFile": "New File",
@@ -211,6 +212,7 @@
   "cmdCreateBranch": "Git: Create Branch…",
   "cmdDeleteBranch": "Git: Delete Branch…",
   "cmdRenameBranch": "Git: Rename Branch…",
+  "cmdUncommit": "Git: Uncommit",
 
   "panelLabel": "Quick panel",
   "panelCommandPalette": "Command Palette",
@@ -312,6 +314,11 @@
     "placeholders": { "name": { "type": "String", "example": "topic" } }
   },
   "dialogBranchCommitsLost": "The commits only it has are lost.",
+  "dialogUncommit": "Uncommit “{subject}”?",
+  "@dialogUncommit": {
+    "placeholders": { "subject": { "type": "String", "example": "Fix the build" } }
+  },
+  "dialogUncommitDetail": "Its changes go back to the staged changes.",
   "filterProject": "Sublime Project",
 
   "sideBarDropFolder": "Drop a folder here to open it",
@@ -445,6 +452,7 @@
     "placeholders": { "char": { "type": "String", "example": "}" } }
   },
   "statusIncompleteJSON": "Invalid JSON: unexpected end of input",
+  "statusNoParentCommit": "HEAD has no parent commit to go back to",
   "statusNoDefinition": "No definition of “{name}”",
   "@statusNoDefinition": {
     "placeholders": { "name": { "type": "String", "example": "newDoc" } }
