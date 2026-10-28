@@ -51,6 +51,7 @@ func (a *app) sideBar(c *ui.Context) {
 			})
 		}
 	})
+	a.proj.forgetHidden()
 }
 
 // sidePanel is what the side bar shows; noPanel hides it.
@@ -257,7 +258,7 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 			if cr := a.proj.create; cr != nil && cr.dir == dir {
 				a.treeInput(c, cr, depth+1)
 			}
-			for _, e := range a.proj.list(dir) {
+			for _, e := range a.shownDir(dir) {
 				p := filepath.Join(dir, e.Name())
 				if e.IsDir() {
 					a.treeDir(c, p, depth+1, cur)

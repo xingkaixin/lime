@@ -366,6 +366,14 @@ func TestSideBar(t *testing.T) {
 	if err := tt.Click("src"); err != nil || *a.proj.isOpen(filepath.Dir(main), false) {
 		t.Fatalf("a second click on src leaves it open: %v", err)
 	}
+	// A closed folder is no longer followed on disk, so it is read again
+	// as it opens.
+	tt.Advance(time.Second)
+	os.WriteFile(filepath.Join(dir, "src", "util.go"), nil, 0o644)
+	tt.Click("src")
+	if tt.Advance(time.Second); !tt.HasText("util.go") {
+		t.Fatal("src reopened leaves out a file made while it was closed")
+	}
 
 	files, git := locales.SideBarFilesPanel(), locales.SideBarGitPanel()
 	for i, s := range []struct {

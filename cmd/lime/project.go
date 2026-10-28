@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -40,15 +41,26 @@ func excluded(name string, patterns []string) bool {
 	return false
 }
 
+// leftOut reports whether the side bar leaves out the file or folder
+// named name.
+func leftOut(name string, dir bool) bool {
+	if dir {
+		return excluded(name, folderExclude)
+	}
+	return excluded(name, fileExclude)
+}
+
 // project is the folders of the window, kept in a .sublime-project file
 // once saved.
 type project struct {
 	path    string
 	folders []string
-	open    map[string]*bool         // folders of the side bar shown open
-	dirs    map[string][]os.DirEntry // folders read, for the side bar
-	files   []string                 // the folders' files, for Goto Anything
-	gen     int                      // counts the indexings, for the last to win
+	open    map[string]*bool              // folders of the side bar shown open
+	dirs    map[string][]os.DirEntry      // folders read, for the side bar
+	watches map[string]context.CancelFunc // folders followed on disk while shown
+	shown   map[string]bool               // folders the side bar listed as it built
+	files   []string                      // the folders' files, for Goto Anything
+	gen     int                           // counts the indexings, for the last to win
 	create  *creation
 	// jump has the side bar show the next frame without motion: another
 	// project or a rename replaced the rows' paths, not their places.
@@ -98,12 +110,7 @@ func (p *project) list(dir string) []os.DirEntry {
 		return es
 	}
 	es, _ := os.ReadDir(dir)
-	es = slices.DeleteFunc(es, func(e os.DirEntry) bool {
-		if e.IsDir() {
-			return excluded(e.Name(), folderExclude)
-		}
-		return excluded(e.Name(), fileExclude)
-	})
+	es = slices.DeleteFunc(es, func(e os.DirEntry) bool { return leftOut(e.Name(), e.IsDir()) })
 	slices.SortStableFunc(es, func(x, y os.DirEntry) int {
 		if x.IsDir() != y.IsDir() {
 			if x.IsDir() {
@@ -118,6 +125,85 @@ func (p *project) list(dir string) []os.DirEntry {
 	}
 	p.dirs[dir] = es
 	return es
+}
+
+// shownDir is what dir, which the side bar shows open, holds. While it
+// shows, dir is followed on disk and read again as what it holds changes.
+func (a *app) shownDir(dir string) []os.DirEntry {
+	if a.proj.shown == nil {
+		a.proj.shown = make(map[string]bool)
+	}
+	a.proj.shown[dir] = true
+	if a.win != nil && a.proj.watches[dir] == nil {
+		a.watchDir(dir)
+	}
+	return a.proj.list(dir)
+}
+
+// watchDir follows dir, dropping what was read of it as entries appear,
+// go away or are renamed. A watch that can't start stays, so that dir
+// isn't tried again while it shows. One that ends, as when dir goes away,
+// is dropped with what was read, for dir to be read and followed anew.
+func (a *app) watchDir(dir string) {
+	if a.proj.watches == nil {
+		a.proj.watches = make(map[string]context.CancelFunc)
+	}
+	ctx, stop := context.WithCancel(context.Background())
+	a.proj.watches[dir] = stop
+	changed := func(ended bool) {
+		a.win.Update(func() {
+			// Stopped: another watch, or none, follows dir now.
+			if ctx.Err() != nil {
+				return
+			}
+			delete(a.proj.dirs, dir)
+			if ended {
+				stop()
+				delete(a.proj.watches, dir)
+			}
+		})
+	}
+	go func() {
+		w, err := mygo.WatchFiles(ctx, dir, mygo.FileWatchOptions{Ignore: leftOut})
+		if err != nil {
+			return
+		}
+		defer w.Close()
+		for {
+			events, err := w.Next(ctx)
+			if err != nil {
+				changed(true)
+				return
+			}
+			if slices.ContainsFunc(events, func(e mygo.FileEvent) bool { return e.Op != mygo.FileWrite }) {
+				changed(false)
+			}
+		}
+	}()
+}
+
+// forgetHidden stops following the folders the side bar no longer shows
+// open, and drops what was read of them, which would go stale.
+func (p *project) forgetHidden() {
+	for dir, stop := range p.watches {
+		if !p.shown[dir] {
+			stop()
+			delete(p.watches, dir)
+		}
+	}
+	for dir := range p.dirs {
+		if !p.shown[dir] {
+			delete(p.dirs, dir)
+		}
+	}
+	clear(p.shown)
+}
+
+// unwatch stops following the folders on disk.
+func (p *project) unwatch() {
+	for _, stop := range p.watches {
+		stop()
+	}
 }
 
 func walkFolders(folders []string) []string {
@@ -195,6 +281,7 @@ func (a *app) refreshFolders() {
 }
 
 func (a *app) closeProject() {
+	a.proj.unwatch()
 	a.proj = project{gen: a.proj.gen + 1}
 }
 
