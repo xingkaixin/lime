@@ -3068,36 +3068,6 @@ func (msgs Messages) SettingsLineNumbers() string {
 	return Catalog.Format(msgs.locale, "settingsLineNumbers", nil)
 }
 
-// SettingsLineNumbersOn says "Absolute"
-// in the language the app shows.
-func SettingsLineNumbersOn() string { return In(i18n.Locale()).SettingsLineNumbersOn() }
-
-// SettingsLineNumbersOn says "Absolute"
-// in the language of msgs.
-func (msgs Messages) SettingsLineNumbersOn() string {
-	return Catalog.Format(msgs.locale, "settingsLineNumbersOn", nil)
-}
-
-// SettingsLineNumbersRelative says "Relative"
-// in the language the app shows.
-func SettingsLineNumbersRelative() string { return In(i18n.Locale()).SettingsLineNumbersRelative() }
-
-// SettingsLineNumbersRelative says "Relative"
-// in the language of msgs.
-func (msgs Messages) SettingsLineNumbersRelative() string {
-	return Catalog.Format(msgs.locale, "settingsLineNumbersRelative", nil)
-}
-
-// SettingsLineNumbersOff says "Off"
-// in the language the app shows.
-func SettingsLineNumbersOff() string { return In(i18n.Locale()).SettingsLineNumbersOff() }
-
-// SettingsLineNumbersOff says "Off"
-// in the language of msgs.
-func (msgs Messages) SettingsLineNumbersOff() string {
-	return Catalog.Format(msgs.locale, "settingsLineNumbersOff", nil)
-}
-
 // SettingsHighlightLine says "Highlight Current Line"
 // in the language the app shows.
 func SettingsHighlightLine() string { return In(i18n.Locale()).SettingsHighlightLine() }

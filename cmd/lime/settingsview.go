@@ -481,17 +481,7 @@ func (a *app) editorPage(c *ui.Context) {
 				}
 			})
 			a.settingsRow(c, locales.SettingsLineNumbers(), "", func() {
-				options := []string{locales.SettingsLineNumbersOn(), locales.SettingsLineNumbersRelative(), locales.SettingsLineNumbersOff()}
-				choice := options[0]
-				switch {
-				case !a.set.LineNumbers:
-					choice = options[2]
-				case a.set.RelativeLineNumbers:
-					choice = options[1]
-				}
-				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsLineNumbers()).Changed() {
-					i := slices.Index(options, choice)
-					a.set.LineNumbers, a.set.RelativeLineNumbers = i != 2, i == 1
+				if ui.Switch(c, &a.set.LineNumbers).Label(locales.SettingsLineNumbers()).Changed() {
 					a.l.saveSettings()
 				}
 			})

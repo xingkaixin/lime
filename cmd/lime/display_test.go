@@ -52,10 +52,10 @@ func TestDisplaySettings(t *testing.T) {
 	a.setLayout(layouts[1])
 	tt := ui.NewTester(a.view, 900, 500)
 
-	a.set.Rulers, a.set.RelativeLineNumbers = []int{80}, true
+	a.set.Rulers, a.set.HighlightLine = []int{80}, true
 	tt.Frame()
-	if !slices.Equal(d.st.WrapGuides, []int{80}) || d.st.LineNumbers != editor.LineNumbersRelative {
-		t.Fatalf("rulers %v, line numbers %v", d.st.WrapGuides, d.st.LineNumbers)
+	if !slices.Equal(d.st.WrapGuides, []int{80}) || d.st.NoActiveLine {
+		t.Fatalf("rulers %v, no line highlight %v", d.st.WrapGuides, d.st.NoActiveLine)
 	}
 	if b := a.groups[1].blank; b == nil || b.st.LineNumbers != editor.LineNumbersOff {
 		t.Fatal("the empty group's editor numbers its lines")

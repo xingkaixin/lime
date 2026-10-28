@@ -32,14 +32,12 @@ type settings struct {
 	SideBarWidth float32 `json:"side_bar_width"`
 	TabSize      int     `json:"tab_size"`
 	// Rulers are the columns guides are drawn at.
-	Rulers         rulers     `json:"rulers"`
-	DrawWhiteSpace whiteSpace `json:"draw_white_space"`
-	LineNumbers    bool       `json:"line_numbers"`
-	// RelativeLineNumbers numbers lines from the caret's, as Zed's.
-	RelativeLineNumbers bool    `json:"relative_line_numbers"`
-	HighlightLine       bool    `json:"highlight_line"`
-	DrawIndentGuides    bool    `json:"draw_indent_guides"`
-	ScrollPastEnd       pastEnd `json:"scroll_past_end"`
+	Rulers           rulers     `json:"rulers"`
+	DrawWhiteSpace   whiteSpace `json:"draw_white_space"`
+	LineNumbers      bool       `json:"line_numbers"`
+	HighlightLine    bool       `json:"highlight_line"`
+	DrawIndentGuides bool       `json:"draw_indent_guides"`
+	ScrollPastEnd    pastEnd    `json:"scroll_past_end"`
 	// LinePaddingTop and LinePaddingBottom add DIPs above and below each
 	// line.
 	LinePaddingTop    float32 `json:"line_padding_top"`
@@ -155,13 +153,9 @@ func (s *settings) setIndent(style editor.IndentStyle) {
 // display shows the text of st as the settings say.
 func (s *settings) display(st *editor.State) {
 	st.WrapGuides, st.Whitespace = s.Rulers, s.DrawWhiteSpace.mode()
-	switch {
-	case !s.LineNumbers:
+	st.LineNumbers = editor.LineNumbersOn
+	if !s.LineNumbers {
 		st.LineNumbers = editor.LineNumbersOff
-	case s.RelativeLineNumbers:
-		st.LineNumbers = editor.LineNumbersRelative
-	default:
-		st.LineNumbers = editor.LineNumbersOn
 	}
 	st.NoActiveLine, st.NoIndentGuides, st.NoScrollPastEnd = !s.HighlightLine, !s.DrawIndentGuides, !bool(s.ScrollPastEnd)
 }
