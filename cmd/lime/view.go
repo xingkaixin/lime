@@ -186,6 +186,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 			a.resultsView(c, g, d)
 			return
 		}
+		if d.md != nil {
+			a.previewTab(c, d)
+			return
+		}
 		if d.kind != textDoc {
 			a.preview(c, gi, d)
 			return
