@@ -29,6 +29,9 @@ All code is `package main` in `cmd/lime`. Keep it one package.
 - `session.go`: hot exit (session.json)
 - `theme.go`: color schemes and the chrome colors derived from them
 - `locales/`: `en.json` (source), `zh-Hans.json`; `catalog_gen.go` is generated
+- `website/`: the landing page, which runs Lime compiled to WebAssembly on a
+  few of this repository's files and their last commits, in memory; `git.js`
+  stands in for git (`git_js.go`). `mise run site:dev` builds and serves it
 
 ## Terms
 

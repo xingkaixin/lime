@@ -28,3 +28,11 @@ run = "go tool mygo build -platform linux/amd64"
 # files mygo writes into cmd/lime.
 [tasks."build:all"]
 run = "go tool mygo build -platform darwin/arm64,darwin/amd64,windows/arm64,windows/amd64,linux/arm64,linux/amd64"
+
+# The website, with Lime running in it as WebAssembly, into build/site.
+[tasks."site:build"]
+run = "go run website/build.go"
+
+[tasks."site:dev"]
+depends = ["site:build"]
+run = "python3 -m http.server 5180 -d build/site"

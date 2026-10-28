@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"slices"
 
 	"github.com/egoist/mygo"
@@ -127,26 +128,27 @@ func (a *app) dropTab(t *tabDrag) {
 	if a.win == nil || !t.out && !alone {
 		return
 	}
+	if !alone {
+		if gi, i, ok := a.barAt(t.at.X, t.at.Y); ok {
+			a.moveTab(t.d, gi, i)
+			return
+		}
+	}
 	p := mygo.Screen.CursorScreenPoint()
 	for _, w := range a.l.wins {
-		if w.win == nil || alone && w == a {
+		if w.win == nil || w == a {
 			continue
 		}
 		cb := w.win.ContentBounds()
-		x, y := float32(p.X-cb.X), float32(p.Y-cb.Y)
-		for gi, g := range w.groups {
-			if b := g.bar; x >= b.X && x < b.X+b.W && y >= b.Y && y < b.Y+b.H {
-				i := len(g.docs)
-				if g.tabW > 0 {
-					i = int((x - b.X) / g.tabW)
-				}
-				w.moveTab(t.d, gi, i)
-				w.win.Focus()
-				return
-			}
+		if gi, i, ok := w.barAt(float32(p.X-cb.X), float32(p.Y-cb.Y)); ok {
+			w.moveTab(t.d, gi, i)
+			w.win.Focus()
+			return
 		}
 	}
-	if alone {
+	// Browsers know no cursor on the screen, and show one window: a tab
+	// let go there off the tab bars stays.
+	if alone || runtime.GOOS == "js" {
 		return
 	}
 	a.take(t.d)
@@ -155,4 +157,19 @@ func (a *app) dropTab(t *tabDrag) {
 	b.show(t.d)
 	r, cb := a.win.Bounds(), a.win.ContentBounds()
 	b.makeWindow(mygo.Rectangle{X: p.X - int(t.grab.X), Y: p.Y - int(t.grab.Y) - (cb.Y - r.Y), Width: r.Width, Height: r.Height})
+}
+
+// barAt finds the tab bar at x, y in the window, and where in it a tab
+// let go there goes.
+func (a *app) barAt(x, y float32) (gi, i int, ok bool) {
+	for gi, g := range a.groups {
+		if b := g.bar; x >= b.X && x < b.X+b.W && y >= b.Y && y < b.Y+b.H {
+			i := len(g.docs)
+			if g.tabW > 0 {
+				i = int((x - b.X) / g.tabW)
+			}
+			return gi, i, true
+		}
+	}
+	return 0, 0, false
 }
