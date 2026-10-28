@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -349,10 +350,11 @@ func (a *app) restBlame(c *ui.Context, d *doc, inline bool) {
 	if bl == nil {
 		return
 	}
-	room := -1
+	room := math.MaxInt
 	if cols := a.rowColumns(c, d); cols > 0 {
-		room = cols - columns(t.Slice(t.LineStart(line), t.LineEnd(line)), st.TabSize)
+		room = max(cols-columns(t.Slice(t.LineStart(line), t.LineEnd(line)), st.TabSize), 0)
 	}
+
 	if text := inlineBlame(bl, time.Now(), room); text != "" {
 		st.SetSuggestion(t.LineEnd(line), text)
 	}
@@ -405,16 +407,13 @@ func blameKey(d *doc, ev ui.InputEvent) {
 }
 
 // inlineBlame is what shows at the end of a line: who changed it, when and
-// why, as Zed shows it, in room columns, or 60 of the subject for room -1;
-// "" when who and when don't fit.
+// why, as Zed shows it, in room columns and 60 of the subject at most; ""
+// when who and when don't fit.
 func inlineBlame(bl *blamed, now time.Time, room int) string {
 	const gap, sep = "      ", " • "
 	who := gap + locales.BlameNotCommitted()
 	if bl.hash != uncommitted {
 		who = gap + bl.author + ", " + ago(bl.when, now)
-	}
-	if room < 0 {
-		room = columns(who, 1) + columns(sep, 1) + 60
 	}
 	if columns(who, 1) > room {
 		return ""
@@ -423,7 +422,7 @@ func inlineBlame(bl *blamed, now time.Time, room int) string {
 		return who
 	}
 	subject := []rune(bl.subject)
-	n := room - columns(who, 1) - columns(sep, 1)
+	n := min(room-columns(who, 1)-columns(sep, 1), 60)
 	if columns(bl.subject, 1) > n {
 		// Too few columns for a word or two of it.
 		if n < 10 {
