@@ -107,15 +107,22 @@ func (a *app) compareClipboard(src *doc) {
 // makes the same. Only reverting acts on a change: keeping one would make
 // it the text on disk's, which only saving does.
 func (a *app) showUnsavedChanges(src *doc) {
-	old := src.st.DiffBase
-	if old == nil {
-		old = editor.NewBuffer(src.saved.String())
-	}
-	if l := src.st.Buffer.Language(); old.Language() != l {
-		old.SetLanguage(l)
-	}
+	old := editor.NewBuffer(src.saved.String())
+	old.SetLanguage(src.st.Buffer.Language())
 	a.compare(&comparison{src: src, unsaved: true, oldName: src.name(), oldPath: src.path,
 		diff: editor.DiffState{Old: old, Layout: editor.DiffUnified, HunkActions: true}})
+}
+
+// diskChanged has the tabs of d's unsaved changes compare it with its
+// text on disk as saving or reloading left it.
+func (l *lime) diskChanged(d *doc) {
+	for _, a := range l.wins {
+		for _, x := range a.allDocs() {
+			if x.cmp != nil && x.cmp.unsaved && x.cmp.src == d {
+				x.cmp.diff.Old.Reset(d.saved.String())
+			}
+		}
+	}
 }
 
 // compare opens a diff tab of cmp, or tells that its texts are the same.

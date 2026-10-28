@@ -368,14 +368,27 @@ func (f *commitFile) appendRows(rows []diffRow, fi int, unified, heads bool) []d
 // that is missing, as a file a commit adds has no text before it.
 func catFiles(root string, specs []string) []string {
 	texts := make([]string, len(specs))
+	for i, o := range catObjects(root, specs) {
+		texts[i] = o.text
+	}
+	return texts
+}
+
+// object is a file's text in git, by its id: "" for one missing.
+type object struct{ id, text string }
+
+// catObjects reads the objects named rev:path with one git run in dir,
+// all missing when it fails, as outside a repository.
+func catObjects(dir string, specs []string) []object {
+	objs := make([]object, len(specs))
 	var in strings.Builder
 	for _, s := range specs {
 		in.WriteString(s)
 		in.WriteByte('\n')
 	}
-	out, err := gitWith(root, in.String(), "cat-file", "--batch")
+	out, err := gitWith(dir, in.String(), "cat-file", "--batch")
 	if err != nil {
-		return texts
+		return objs
 	}
 	b := []byte(out)
 	for i := range specs {
@@ -383,19 +396,21 @@ func catFiles(root string, specs []string) []string {
 		if nl < 0 {
 			break
 		}
-		head := strings.Fields(string(b[:nl]))
+		line := string(b[:nl])
 		b = b[nl+1:]
-		if len(head) != 3 {
-			continue // missing
+		// The name of a missing object may hold spaces, as a path does.
+		head := strings.Fields(line)
+		if strings.HasSuffix(line, " missing") || len(head) != 3 {
+			continue
 		}
 		size, err := strconv.Atoi(head[2])
 		if err != nil || size > len(b) {
 			break
 		}
-		texts[i] = string(b[:size])
+		objs[i] = object{head[0], string(b[:size])}
 		b = b[min(size+1, len(b)):]
 	}
-	return texts
+	return objs
 }
 
 // commitTab shows the commit's tab d in place of the editor of the group

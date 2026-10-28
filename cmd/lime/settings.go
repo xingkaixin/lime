@@ -42,6 +42,9 @@ type settings struct {
 	// GitTreeView shows the git panel's changes in the tree of their
 	// folders rather than as a list.
 	GitTreeView bool `json:"git_tree_view"`
+	// GitDiffTarget is the text in git that the gutter marks a file's
+	// changes against: "index", or "head" for the last commit's.
+	GitDiffTarget string `json:"git_diff_target"`
 	// Keys are the commands' keys the user changed, the one changed last
 	// last.
 	Keys []keyChange `json:"keys,omitempty"`
@@ -76,6 +79,7 @@ func loadSettings(dir string) (settings, error) {
 	s := settings{
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4, AutoComplete: true,
+		GitDiffTarget: "index",
 	}
 	var err error
 	if dir != "" {
@@ -182,11 +186,17 @@ func (l *lime) reloadSettings() {
 		go mygo.Dialog.Error(locales.DialogUnableToReadSettings(), err.Error())
 		return
 	}
+	rev := l.set.diffRev()
 	l.set = s
 	l.keys = newKeymap(l.set.Keys)
 	mygo.App.SetLocale(l.set.locale())
 	l.redraw()
 	l.refreshMenu()
+	if l.set.diffRev() != rev {
+		for _, a := range l.wins {
+			a.reloadChanged()
+		}
+	}
 }
 
 // redraw builds the windows anew, for a change they share.

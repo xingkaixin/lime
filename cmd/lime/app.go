@@ -28,6 +28,9 @@ type doc struct {
 	sliding bool            // a drag past the text's side is scrolling it (slide)
 	saved   editor.Snapshot // the text on disk
 	disk    stamp           // the file as saved was found on disk
+	// base is the id of the file's text in git that the gutter marks the
+	// changes against; "" while it marks them against the text on disk.
+	base string
 	// checked is the version modified was found for: dirty compares the
 	// text with saved once a version.
 	checked  uint64
@@ -381,7 +384,7 @@ func newDoc(path, text string) *doc {
 	d := &doc{path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, saved: buf.Snapshot()}
 	if path != "" {
 		buf.SetLanguage(editor.LanguageFor(path))
-		d.setDiffBase(d.saved)
+		d.diffDisk()
 		d.disk = stampOf(path)
 	}
 	return d
@@ -439,6 +442,7 @@ func (a *app) reloadChanged() {
 	if len(docs) == 0 {
 		return
 	}
+	a.readBases(docs...)
 	a.background(func() func() {
 		rs := changedOnDisk(docs, stamps)
 		return func() { a.applyReloads(rs) }
@@ -459,7 +463,10 @@ func (a *app) applyReloads(rs []reload) {
 		d.st.Buffer.Set(r.text)
 		d.st.Buffer.MarkSaved()
 		d.saved = d.st.Buffer.Snapshot()
-		d.setDiffBase(d.saved)
+		if d.base == "" || d.saved.Len() > largeFile {
+			d.diffDisk()
+		}
+		a.l.diskChanged(d)
 	}
 }
 
@@ -468,19 +475,6 @@ func (a *app) applyReloads(rs []reload) {
 // text, which the editor compares line by line with the first as the
 // file opens and is saved.
 const largeFile = 16 << 20
-
-// setDiffBase has the gutter mark the changes against disk, the text on
-// disk.
-func (d *doc) setDiffBase(disk editor.Snapshot) {
-	switch {
-	case disk.Len() > largeFile:
-		d.st.DiffBase = nil
-	case d.st.DiffBase == nil:
-		d.st.DiffBase = editor.NewBuffer(disk.String())
-	default:
-		d.st.DiffBase.Reset(disk.String())
-	}
-}
 
 func (a *app) add(path, text string) *doc {
 	d := newDoc(path, text)
@@ -502,6 +496,7 @@ func (a *app) newFile() { a.add("", "") }
 // folders to the project.
 func (a *app) open(paths []string) {
 	var files, folders []string
+	var added []*doc
 	for _, p := range paths {
 		p, _ = filepath.Abs(p)
 		fi, err := os.Stat(p)
@@ -525,8 +520,13 @@ func (a *app) open(paths []string) {
 			go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(p)), err.Error())
 			continue
 		}
-		a.add(p, text)
+		added = append(added, a.add(p, text))
 		files = append(files, p)
+	}
+	// A window not made yet reads them as it comes to the front, rather
+	// than hold up the launch.
+	if a.win != nil {
+		a.readBases(added...)
 	}
 	a.l.addRecent(files, folders)
 }
@@ -596,13 +596,17 @@ func (a *app) write(d *doc, path string) error {
 		a.l.reloadSettings()
 	}
 	if path != d.path {
-		d.path = path
+		d.path, d.base = path, ""
 		d.st.Buffer.SetLanguage(editor.LanguageFor(path))
 	}
 	d.st.Buffer.MarkSaved()
 	d.saved = snap
-	d.setDiffBase(snap)
+	if d.base == "" || d.saved.Len() > largeFile {
+		d.diffDisk()
+	}
+	a.l.diskChanged(d)
 	d.disk = stampOf(path)
+	a.readBases(d)
 	if created && a.proj.holds(path) {
 		a.refreshFolders()
 	}

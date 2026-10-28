@@ -191,13 +191,17 @@
     return t
   }
 
-  const catFile = (input) => {
+  // catFile reads rev:path, where a path of ./ is dir's, as git -C dir
+  // reads it.
+  const catFile = (dir, input) => {
+    const here = dir === repo.root ? "" : dir.slice(repo.root.length + 1) + "/"
     let out = ""
     for (const spec of input.split("\n").filter(Boolean)) {
       const at = spec.indexOf(":")
-      let text
+      let path = spec.slice(at + 1), text
+      if (path.startsWith("./")) path = here + path.slice(2)
       try {
-        text = treeOf(spec.slice(0, at)).get(spec.slice(at + 1))
+        text = treeOf(spec.slice(0, at)).get(path)
       } catch {}
       out += text === undefined ? `${spec} missing\n` : `${oid(text)} blob ${bytes(text)}\n${text}\n`
     }
@@ -277,7 +281,7 @@
       case "diff":
         return has(rest, "--cached") ? patch(head().tree, repo.index) : patch(repo.index, tracked())
       case "cat-file":
-        return catFile(input)
+        return catFile(dir, input)
       case "apply":
         apply(input, has(rest, "--reverse"))
         return ""
