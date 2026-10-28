@@ -1138,6 +1138,66 @@ func TestCommit(t *testing.T) {
 	}
 }
 
+// A hunk of the unstaged changes stages alone, and unstages again from
+// the staged changes.
+func TestStageHunk(t *testing.T) {
+	dir, git := newRepo(t)
+	var lines []string
+	for i := 1; i <= 20; i++ {
+		lines = append(lines, strconv.Itoa(i))
+	}
+	file := filepath.Join(dir, "a.txt")
+	os.WriteFile(file, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	lines[1], lines[17] = "two", "eighteen"
+	lines = slices.Insert(lines, 2, "added")
+	os.WriteFile(file, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+	cached := func() string {
+		t.Helper()
+		out, _ := runGit(dir, "diff", "--cached", "-U0")
+		var changed []string
+		for l := range strings.Lines(out) {
+			if (l[0] == '+' || l[0] == '-') && !strings.HasPrefix(l, "+++") && !strings.HasPrefix(l, "---") {
+				changed = append(changed, strings.TrimSpace(l))
+			}
+		}
+		return strings.Join(changed, " ")
+	}
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	cv := a.showCommit(commit{hash: unstagedChanges})
+	tt.Frame()
+	if f := cv.files; len(f) != 1 || len(f[0].hunks) != 2 {
+		t.Fatalf("unstaged: %+v", f)
+	}
+	a.stageHunk("a.txt", cv.files[0].hunks[1], false)
+	tt.Frame()
+	if got := cached(); got != "-18 +eighteen" {
+		t.Fatalf("staged the second hunk: %q", got)
+	}
+	if f := cv.files; len(f) != 1 || len(f[0].hunks) != 1 {
+		t.Fatalf("unstaged after: %+v", f)
+	}
+	a.stageHunk("a.txt", cv.files[0].hunks[0], false)
+	tt.Frame()
+	if got := cached(); got != "-2 +two +added -18 +eighteen" {
+		t.Fatalf("staged both hunks: %q", got)
+	}
+
+	staged := a.showCommit(commit{hash: stagedChanges})
+	tt.Frame()
+	if err := tt.Click(locales.ChangesUnstage()); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if got := cached(); got != "-18 +eighteen" || len(staged.files[0].hunks) != 1 {
+		t.Fatalf("unstaged the first hunk: %q", got)
+	}
+}
+
 func TestCommitRows(t *testing.T) {
 	var old, cur []string
 	for i := 1; i <= 10; i++ {
@@ -1151,7 +1211,7 @@ func TestCommitRows(t *testing.T) {
 	f := &commitFile{hunks: ps[0].Hunks, old: fileText{lines: old}, new: fileText{lines: cur}}
 	rows := func(unified bool) string {
 		var b strings.Builder
-		for _, r := range f.appendRows(nil, 0, unified) {
+		for _, r := range f.appendRows(nil, 0, unified, false) {
 			fmt.Fprintf(&b, "%d:%d/%d ", r.kind, r.old, r.new)
 			if r.kind == rowGap {
 				fmt.Fprintf(&b, "(%d) ", r.count)

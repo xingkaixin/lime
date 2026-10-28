@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"path/filepath"
 	"strconv"
@@ -74,6 +75,7 @@ const (
 	rowGap    // unchanged lines, folded
 	rowSame   // an unchanged line
 	rowChange // a line deleted or added, or side by side, one of each
+	rowHunk   // the head of the hunk gap of the work tree's, to stage or unstage it
 )
 
 // diffRow is a row of a commit's tab. old and new number its lines before
@@ -288,16 +290,17 @@ func (cv *commitView) buildRows() {
 		case f.binary:
 			rows = append(rows, diffRow{kind: rowNote, file: fi})
 		default:
-			rows = f.appendRows(rows, fi, cv.unified)
+			rows = f.appendRows(rows, fi, cv.unified, cv.worktree() && f.status == 'M')
 		}
 	}
 	cv.rows, cv.dirty = rows, false
 }
 
-// appendRows appends the rows of f's hunks, and of the unchanged lines
-// around them, folded unless shown. Side by side, a run of lines deleted
-// pairs with the run added after it, line by line.
-func (f *commitFile) appendRows(rows []diffRow, fi int, unified bool) []diffRow {
+// appendRows appends the rows of f's hunks, each under its head when
+// heads, and of the unchanged lines around them, folded unless shown.
+// Side by side, a run of lines deleted pairs with the run added after it,
+// line by line.
+func (f *commitFile) appendRows(rows []diffRow, fi int, unified, heads bool) []diffRow {
 	old, new := 1, 1
 	gap := func(i, count int) {
 		if count <= 0 {
@@ -336,6 +339,9 @@ func (f *commitFile) appendRows(rows []diffRow, fi int, unified bool) []diffRow 
 	}
 	for i, h := range f.hunks {
 		gap(i, hunkStart(h.OldStart, h.OldLines)-old)
+		if heads {
+			rows = append(rows, diffRow{kind: rowHunk, file: fi, gap: i})
+		}
 		old, new = hunkStart(h.OldStart, h.OldLines), hunkStart(h.NewStart, h.NewLines)
 		for _, l := range h.Lines {
 			switch {
@@ -512,6 +518,8 @@ func (a *app) diffRow(c *ui.Context, cv *commitView, r diffRow, st *codeStyle) {
 		ui.Text(c, locales.PreviewBinary()).FontSize(12).TextColor(a.scheme.chrome().muted).Padding(10, 16).Unselectable()
 	case rowGap:
 		a.gapRow(c, cv, f, r)
+	case rowHunk:
+		a.hunkRow(c, cv, f, r.gap)
 	case rowSame, rowChange:
 		a.lineRow(c, cv, f, r, st)
 	}
@@ -600,6 +608,43 @@ func (a *app) gapRow(c *ui.Context, cv *commitView, f *commitFile, r diffRow) {
 				SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 		}
 	})
+}
+
+// hunkRow stages hunk i of f, or unstages it in the tab of the changes
+// staged.
+func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
+	ch := a.scheme.chrome()
+	unstage := cv.hash == stagedChanges
+	label := locales.ChangesStage()
+	if unstage {
+		label = locales.ChangesUnstage()
+	}
+	ui.Row(c).FillWidth().Height(28).Padding(0, 12).AlignItems(ui.Center).Background(a.scheme.bg).Unselectable().Children(func() {
+		ui.Box(c).Grow(1)
+		btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Shrink(0).Border(1, ch.line).Transition(colorFade).
+			Label(label).OnClick(func() { a.stageHunk(f.path, f.hunks[i], unstage) })
+		if btn.Hovered() {
+			btn.Background(ch.hover)
+		}
+		btn.Children(func() { ui.Text(c, label).FontSize(12).TextColor(ch.muted) })
+	})
+}
+
+// stageHunk applies h, of the file at p, to the index, or takes it out.
+// Its start on the index's side is where it is there, as its tab diffs
+// the index with HEAD or with the work tree, so it applies alone.
+func (a *app) stageHunk(p string, h editor.PatchHunk, unstage bool) {
+	var patch strings.Builder
+	fmt.Fprintf(&patch, "diff --git a/%s b/%s\n--- a/%s\n+++ b/%s\n", p, p, p, p)
+	fmt.Fprintf(&patch, "@@ -%d,%d +%d,%d @@\n", h.OldStart, h.OldLines, h.NewStart, h.NewLines)
+	for _, l := range h.Lines {
+		patch.WriteString(l + "\n")
+	}
+	args := []string{"apply", "--cached", "--recount"}
+	if unstage {
+		args = append(args, "--reverse")
+	}
+	a.gitRunWith(patch.String(), nil, append(args, "-")...)
 }
 
 var (
