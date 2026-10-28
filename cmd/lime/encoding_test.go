@@ -8,19 +8,22 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
-// A file that isn't UTF-8 opens in the fallback encoding and saves in it,
-// after hot exit too. Text the encoding has no characters for saves as
-// UTF-8.
+// A file that isn't UTF-8 opens in the fallback encoding, reopens in
+// another and saves in it, after hot exit too. Text the encoding has no
+// characters for saves as UTF-8.
 func TestEncoding(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "a.txt")
 	os.WriteFile(p, []byte("\xc4\xe3\xba\xc3\n"), 0o644)
 	a := newApp(dir)
-	a.set.FallbackEncoding = "GBK"
 	a.open([]string{p})
 	d := a.current()
-	if got := d.st.Buffer.String(); got != "你好\n" || d.encoding().name != "GBK" {
-		t.Fatalf("opened %q in %s", got, d.encoding().name)
+	if d.encoding().name != defaultFallback {
+		t.Fatalf("opened in %s", d.encoding().name)
+	}
+	a.run(encodingNamed("GBK").reopenID())
+	if got := d.st.Buffer.String(); got != "你好\n" || d.dirty() {
+		t.Fatalf("reopened as %q, dirty %v", got, d.dirty())
 	}
 	d.st.Buffer.Set("你好吗\n")
 	if err := a.l.saveSession(); err != nil {

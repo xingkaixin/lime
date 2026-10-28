@@ -214,6 +214,26 @@ func (msgs Messages) MenuClearItems() string {
 	return Catalog.Format(msgs.locale, "menuClearItems", nil)
 }
 
+// MenuReopenWithEncoding says "Reopen with Encoding"
+// in the language the app shows.
+func MenuReopenWithEncoding() string { return In(i18n.Locale()).MenuReopenWithEncoding() }
+
+// MenuReopenWithEncoding says "Reopen with Encoding"
+// in the language of msgs.
+func (msgs Messages) MenuReopenWithEncoding() string {
+	return Catalog.Format(msgs.locale, "menuReopenWithEncoding", nil)
+}
+
+// MenuSaveWithEncoding says "Save with Encoding"
+// in the language the app shows.
+func MenuSaveWithEncoding() string { return In(i18n.Locale()).MenuSaveWithEncoding() }
+
+// MenuSaveWithEncoding says "Save with Encoding"
+// in the language of msgs.
+func (msgs Messages) MenuSaveWithEncoding() string {
+	return Catalog.Format(msgs.locale, "menuSaveWithEncoding", nil)
+}
+
 // MenuSave says "Save"
 // in the language the app shows.
 func MenuSave() string { return In(i18n.Locale()).MenuSave() }
@@ -1648,6 +1668,26 @@ func (msgs Messages) CmdLineEndings(name string) string {
 	return Catalog.Format(msgs.locale, "cmdLineEndings", map[string]any{"name": name})
 }
 
+// CmdReopenWithEncoding says "Reopen with Encoding: {name}"
+// in the language the app shows.
+func CmdReopenWithEncoding(name string) string { return In(i18n.Locale()).CmdReopenWithEncoding(name) }
+
+// CmdReopenWithEncoding says "Reopen with Encoding: {name}"
+// in the language of msgs.
+func (msgs Messages) CmdReopenWithEncoding(name string) string {
+	return Catalog.Format(msgs.locale, "cmdReopenWithEncoding", map[string]any{"name": name})
+}
+
+// CmdSaveWithEncoding says "Save with Encoding: {name}"
+// in the language the app shows.
+func CmdSaveWithEncoding(name string) string { return In(i18n.Locale()).CmdSaveWithEncoding(name) }
+
+// CmdSaveWithEncoding says "Save with Encoding: {name}"
+// in the language of msgs.
+func (msgs Messages) CmdSaveWithEncoding(name string) string {
+	return Catalog.Format(msgs.locale, "cmdSaveWithEncoding", map[string]any{"name": name})
+}
+
 // PanelLabel says "Quick panel"
 // in the language the app shows.
 func PanelLabel() string { return In(i18n.Locale()).PanelLabel() }
@@ -2566,6 +2606,30 @@ func StatusTabSize(size int) string { return In(i18n.Locale()).StatusTabSize(siz
 // in the language of msgs.
 func (msgs Messages) StatusTabSize(size int) string {
 	return Catalog.Format(msgs.locale, "statusTabSize", map[string]any{"size": size})
+}
+
+// StatusEncoding says "Encoding: {name}"
+// in the language the app shows.
+//
+// The status bar's encoding button, to assistive technology.
+func StatusEncoding(name string) string { return In(i18n.Locale()).StatusEncoding(name) }
+
+// StatusEncoding says "Encoding: {name}"
+// in the language of msgs.
+//
+// The status bar's encoding button, to assistive technology.
+func (msgs Messages) StatusEncoding(name string) string {
+	return Catalog.Format(msgs.locale, "statusEncoding", map[string]any{"name": name})
+}
+
+// StatusReopenUnsaved says "Save the changes before reopening the file"
+// in the language the app shows.
+func StatusReopenUnsaved() string { return In(i18n.Locale()).StatusReopenUnsaved() }
+
+// StatusReopenUnsaved says "Save the changes before reopening the file"
+// in the language of msgs.
+func (msgs Messages) StatusReopenUnsaved() string {
+	return Catalog.Format(msgs.locale, "statusReopenUnsaved", nil)
 }
 
 // StatusInvalidJSON says "Invalid JSON: unexpected character “{char}”"

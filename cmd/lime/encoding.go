@@ -2,9 +2,13 @@ package main
 
 import (
 	"cmp"
+	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/i18n"
+	"github.com/egoist/mygo/ui"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/japanese"
@@ -53,6 +57,9 @@ func (e *fileEncoding) title(m locales.Messages) string {
 	}
 	return e.name
 }
+
+func (e *fileEncoding) reopenID() string { return "reopen " + e.name }
+func (e *fileEncoding) saveID() string   { return "save " + e.name }
 
 // encodingNamed is the encoding of name, nil for none.
 func encodingNamed(name string) *fileEncoding {
@@ -109,3 +116,70 @@ func (e *fileEncoding) encode(text []byte) ([]byte, error) {
 
 // encoding is the encoding of d's file, UTF-8 for a new one.
 func (d *doc) encoding() *fileEncoding { return cmp.Or(d.enc, utf8Encoding) }
+
+func encodingCommands() []command {
+	var c []command
+	for _, e := range encodings {
+		c = append(c,
+			command{id: e.reopenID(), caption: func(m locales.Messages) string { return m.CmdReopenWithEncoding(e.title(m)) },
+				run: withDoc(func(a *app, d *doc) { a.reopen(d, e) })},
+			command{id: e.saveID(), caption: func(m locales.Messages) string { return m.CmdSaveWithEncoding(e.title(m)) },
+				run: withSource(func(a *app, d *doc) {
+					d.enc = e
+					a.save(d)
+				})})
+	}
+	return c
+}
+
+// reopenable reports whether d's file can be read again in another
+// encoding: not over changes not saved, as in Sublime Text, which would
+// lose them.
+func reopenable(d *doc) bool { return d.kind == textDoc && d.path != "" && !d.dirty() }
+
+// reopen reads d's file again in e.
+func (a *app) reopen(d *doc, e *fileEncoding) {
+	if !reopenable(d) {
+		if d.path != "" {
+			a.notifyError(locales.StatusReopenUnsaved())
+		}
+		return
+	}
+	raw, err := readText(d.path)
+	if err != nil {
+		go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(d.path)), err.Error())
+		return
+	}
+	text, ending := splitLines(e.decode(raw))
+	d.enc = e
+	d.st.Buffer.Reset(text)
+	d.st.Select(0, 0)
+	d.setLineEnding(ending)
+	d.saved, d.savedEnding = d.st.Buffer.Snapshot(), ending
+	d.diffDisk()
+	a.l.diskChanged(d)
+	d.disk = stampOf(d.path)
+}
+
+// encodingButton shows d's encoding, and reopens or saves d in another
+// from a menu, as Sublime Text's status bar does.
+func (a *app) encodingButton(c *ui.Context, d *doc) {
+	tx := locales.In(i18n.Locale())
+	name := d.encoding().title(tx)
+	a.statusMenu(c, name, locales.StatusEncoding(name), func(m *ui.Menu) {
+		m.Submenu(locales.MenuReopenWithEncoding(), func(m *ui.Menu) {
+			for _, e := range encodings {
+				if m.Item(e.title(tx)).Chosen() {
+					a.run(e.reopenID())
+				}
+			}
+		}).Disabled(!reopenable(d))
+		m.Submenu(locales.MenuSaveWithEncoding(), func(m *ui.Menu) {
+			for _, e := range encodings {
+				if m.Item(e.title(tx)).Chosen() {
+					a.run(e.saveID())
+				}
+			}
+		})
+	})
+}

@@ -20,6 +20,8 @@
   "menuOpenRecent": "Open Recent",
   "menuReopenClosedFile": "Reopen Closed File",
   "menuClearItems": "Clear Items",
+  "menuReopenWithEncoding": "Reopen with Encoding",
+  "menuSaveWithEncoding": "Save with Encoding",
   "menuSave": "Save",
   "menuSaveAs": "Save As…",
   "menuSaveAll": "Save All",
@@ -181,6 +183,14 @@
   "@cmdLineEndings": {
     "description": "A line ending in the command palette, and the status bar's line ending button to assistive technology.",
     "placeholders": { "name": { "type": "String", "example": "Unix" } }
+  },
+  "cmdReopenWithEncoding": "Reopen with Encoding: {name}",
+  "@cmdReopenWithEncoding": {
+    "placeholders": { "name": { "type": "String", "example": "GBK" } }
+  },
+  "cmdSaveWithEncoding": "Save with Encoding: {name}",
+  "@cmdSaveWithEncoding": {
+    "placeholders": { "name": { "type": "String", "example": "GBK" } }
   },
 
   "panelLabel": "Quick panel",
@@ -382,6 +392,12 @@
   "@statusTabSize": {
     "placeholders": { "size": { "type": "int", "example": "4" } }
   },
+  "statusEncoding": "Encoding: {name}",
+  "@statusEncoding": {
+    "description": "The status bar's encoding button, to assistive technology.",
+    "placeholders": { "name": { "type": "String", "example": "UTF-8" } }
+  },
+  "statusReopenUnsaved": "Save the changes before reopening the file",
   "statusInvalidJSON": "Invalid JSON: unexpected character “{char}”",
   "@statusInvalidJSON": {
     "placeholders": { "char": { "type": "String", "example": "}" } }

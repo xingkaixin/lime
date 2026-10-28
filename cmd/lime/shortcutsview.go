@@ -36,7 +36,12 @@ var shortcutGroups = func() []shortcutGroup {
 		}
 		return items
 	}
-	var layoutItems, endingItems []shortcut
+	var layoutItems, endingItems, encodingItems []shortcut
+	for _, e := range encodings {
+		encodingItems = append(encodingItems,
+			shortcut{e.reopenID(), func(msgs m) string { return msgs.CmdReopenWithEncoding(e.title(msgs)) }},
+			shortcut{e.saveID(), func(msgs m) string { return msgs.CmdSaveWithEncoding(e.title(msgs)) }})
+	}
 	for _, e := range lineEndings {
 		endingItems = append(endingItems, shortcut{e.id(), e.label})
 	}
@@ -44,14 +49,14 @@ var shortcutGroups = func() []shortcutGroup {
 		layoutItems = append(layoutItems, shortcut{l.id(), func(msgs m) string { return msgs.CmdLayout(l.label(msgs)) }})
 	}
 	return []shortcutGroup{
-		{m.MenuFile, []shortcut{
+		{m.MenuFile, append([]shortcut{
 			s("new_file", m.MenuNewFile), s("new_window", m.MenuNewWindow), s("prompt_open", m.MenuOpen),
 			s("prompt_open_folder", m.MenuOpenFolder), s("reopen_last_file", m.MenuReopenClosedFile),
 			s("save", m.MenuSave), s("prompt_save_as", m.MenuSaveAs), s("save_all", m.MenuSaveAll),
 			s("close", m.MenuCloseFile), s("close_window", m.MenuCloseWindow), s("show_settings", m.MenuSettings),
 			s("compare_with", m.CmdCompareWith), s("compare_with_clipboard", m.CmdCompareWithClipboard),
 			s("diff_changes", m.CmdShowUnsavedChanges),
-		}},
+		}, encodingItems...)},
 		{m.ShortcutGroupEdit, []shortcut{
 			s("soft_undo", m.ShortcutSoftUndo), s("soft_redo", m.ShortcutSoftRedo),
 			s("toggle_comment", m.CmdToggleComment), s("toggle_block_comment", m.CmdToggleBlockComment),

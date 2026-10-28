@@ -37,7 +37,7 @@ func (l *lime) check(label, id string, typ mygo.MenuItemType) *mygo.MenuItem {
 }
 
 func (l *lime) newMenu() *mygo.Menu {
-	var layoutItems, schemeItems, tabWidths, endingItems []*mygo.MenuItem
+	var layoutItems, schemeItems, tabWidths, endingItems, reopenItems, saveItems []*mygo.MenuItem
 	for _, lo := range layouts {
 		layoutItems = append(layoutItems, l.check(lo.label(locales.In(i18n.Locale())), lo.id(), mygo.MenuItemRadio))
 	}
@@ -55,6 +55,12 @@ func (l *lime) newMenu() *mygo.Menu {
 	}
 	for _, e := range lineEndings {
 		endingItems = append(endingItems, l.check(e.label(locales.In(i18n.Locale())), e.id(), mygo.MenuItemRadio))
+	}
+	for _, e := range encodings {
+		name := e.title(locales.In(i18n.Locale()))
+		reopen := l.menuItem(name, e.reopenID())
+		reopen.ID = e.reopenID()
+		reopenItems, saveItems = append(reopenItems, reopen), append(saveItems, l.menuItem(name, e.saveID()))
 	}
 	// Settings go in the app's menu on macOS, and in File elsewhere.
 	settingsItem := l.menuItem(locales.MenuSettings(), "show_settings")
@@ -78,8 +84,10 @@ func (l *lime) newMenu() *mygo.Menu {
 			l.menuItem(locales.MenuOpen(), "prompt_open"),
 			l.menuItem(locales.MenuOpenFolder(), "prompt_open_folder"),
 			l.recentMenu(),
+			{Label: locales.MenuReopenWithEncoding(), Submenu: reopenItems},
 			mygo.Separator(),
 			l.menuItem(locales.MenuSave(), "save"),
+			{Label: locales.MenuSaveWithEncoding(), Submenu: saveItems},
 			l.menuItem(locales.MenuSaveAs(), "prompt_save_as"),
 			l.menuItem(locales.MenuSaveAll(), "save_all"),
 			mygo.Separator(),
@@ -164,12 +172,12 @@ func (a *app) syncMenu() {
 	if l.menu == nil || l.last != a {
 		return
 	}
-	tabSize, spaces, ending := a.set.TabSize, a.set.indent() != editor.IndentTabs, "\n"
+	tabSize, spaces, ending, reopen := a.set.TabSize, a.set.indent() != editor.IndentTabs, "\n", false
 	if d := a.current(); d != nil && d.kind == textDoc {
 		tabSize, spaces = a.indentOf(d)
-		ending = d.lineEnding()
+		ending, reopen = d.lineEnding(), reopenable(d)
 	}
-	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.scheme.name, tabSize, spaces, ending)
+	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.scheme.name, tabSize, spaces, ending, reopen)
 	if state == l.menuState {
 		return
 	}
@@ -186,6 +194,11 @@ func (a *app) syncMenu() {
 	check("toggle_setting translate_tabs_to_spaces", spaces)
 	check(tabWidth(tabSize), true)
 	check(lineEndings[slices.IndexFunc(lineEndings, func(e lineEnding) bool { return e.text == ending })].id(), true)
+	for _, e := range encodings {
+		if it := l.menu.ItemByID(e.reopenID()); it != nil {
+			it.SetEnabled(reopen)
+		}
+	}
 }
 
 // pauseMenu takes the keys away from the menu while a key is recorded,
