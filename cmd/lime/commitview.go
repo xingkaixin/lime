@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"path/filepath"
 	"strconv"
@@ -15,7 +16,8 @@ import (
 
 // commitView is what a commit's tab shows, as Zed's commit view: who made
 // it, when and its message over the diffs of all the files it changes,
-// one under another; or the work tree's changes, without the commit. Each
+// one under another; or the changes staged in the index, or those not,
+// without the commit. Each
 // line of the diffs is a row of one list, as godiff's are, so that only
 // the lines in view are laid out, however long the diffs.
 type commitView struct {
@@ -29,6 +31,21 @@ type commitView struct {
 	rows    []diffRow
 	dirty   bool // the rows are to be built again
 	list    ui.ListState
+	gen     int    // counts the readings, for the last to win
+	at      string // the file to scroll to, once its rows are built
+}
+
+// The tabs of the work tree's changes stand for commits of these hashes,
+// which no commit has.
+const (
+	stagedChanges   = "staged"
+	unstagedChanges = "unstaged"
+)
+
+// worktree reports whether cv shows the work tree's changes, not a
+// commit's.
+func (cv *commitView) worktree() bool {
+	return cv.hash == stagedChanges || cv.hash == unstagedChanges
 }
 
 // commitFile is a file of a commit's tab: its hunks, as git prints them,
@@ -58,6 +75,7 @@ const (
 	rowGap    // unchanged lines, folded
 	rowSame   // an unchanged line
 	rowChange // a line deleted or added, or side by side, one of each
+	rowHunk   // the head of the hunk gap of the work tree's, to stage or unstage it
 )
 
 // diffRow is a row of a commit's tab. old and new number its lines before
@@ -71,19 +89,22 @@ type diffRow struct {
 }
 
 func (cv *commitView) title() string {
-	if cv.hash == uncommitted {
-		return locales.HistoryUncommitted()
+	switch cv.hash {
+	case stagedChanges:
+		return locales.ChangesStagedTitle()
+	case unstagedChanges:
+		return locales.ChangesUnstagedTitle()
 	}
 	return cv.short + " — " + cv.subject
 }
 
 // showCommit opens a tab of cm's changes, or shows the one open.
-func (a *app) showCommit(cm commit) {
-	root := a.hist.root
+func (a *app) showCommit(cm commit) *commitView {
+	root := a.git.root
 	for _, d := range a.allDocs() {
 		if cv := d.commit; cv != nil && cv.hash == cm.hash && cv.root == root {
 			a.show(d)
-			return
+			return cv
 		}
 	}
 	cv := &commitView{commit: cm, root: root, unified: a.set.DiffUnified}
@@ -92,9 +113,33 @@ func (a *app) showCommit(cm commit) {
 	g := a.group()
 	g.docs = append(g.docs, d)
 	a.show(d)
+	a.loadCommit(cv)
+	return cv
+}
+
+// loadCommit reads cv's message and files, again for the work tree's,
+// whose files stay folded as they were.
+func (a *app) loadCommit(cv *commitView) {
+	root, hash := cv.root, cv.hash
+	cv.gen++
+	gen := cv.gen
 	a.background(func() func() {
-		body, files := readCommit(root, cm.hash)
-		return func() { cv.body, cv.files, cv.loaded, cv.dirty = body, files, true, true }
+		body, files := readCommit(root, hash)
+		return func() {
+			if cv.gen != gen {
+				return
+			}
+			folded := map[string]bool{}
+			for _, f := range cv.files {
+				folded[f.path] = f.folded
+			}
+			for _, f := range files {
+				if v, ok := folded[f.path]; ok {
+					f.folded = v
+				}
+			}
+			cv.body, cv.files, cv.loaded, cv.dirty = body, files, true, true
+		}
 	})
 }
 
@@ -102,14 +147,24 @@ func (a *app) showCommit(cm commit) {
 // their hunks and texts. It blocks, so call it off the main thread.
 func readCommit(root, hash string) (string, []*commitFile) {
 	var body string
-	args := []string{"diff-tree", "-r", "-p", "-M", "--root", "--no-commit-id", "--diff-merges=first-parent", hash}
-	oldRev, newRev := hash+"^", hash
-	if hash == uncommitted {
-		// Porcelain, unlike diff-tree, reads the user's diff settings.
-		args = []string{"diff", "-M", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", "HEAD"}
-		oldRev, newRev = "HEAD", ""
-	} else {
+	var changes []change
+	// Porcelain, unlike diff-tree, reads the user's diff settings.
+	diff := []string{"diff", "-M", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"}
+	// An empty rev names the index.
+	var args []string
+	var oldRev, newRev string
+	switch hash {
+	case stagedChanges:
+		args, oldRev, newRev = append(diff, "--cached"), "HEAD", ""
+		changes = readStatus(root)[staged]
+	case unstagedChanges:
+		args, oldRev, newRev = diff, "", ""
+		changes = readStatus(root)[unstaged]
+	default:
+		args = []string{"diff-tree", "-r", "-p", "-M", "--root", "--no-commit-id", "--diff-merges=first-parent", hash}
+		oldRev, newRev = hash+"^", hash
 		body, _ = runGit(root, "show", "-s", "--format=%B", hash)
+		changes = commitChanges(root, hash)
 	}
 	out, _ := runGit(root, args...)
 	patches, _ := editor.ParsePatch(out)
@@ -123,12 +178,12 @@ func readCommit(root, hash string) (string, []*commitFile) {
 	}
 	var files []*commitFile
 	var specs []string
-	for _, ch := range readChanges(root, hash) {
+	for _, ch := range changes {
 		p, ok := byPath[ch.path]
 		f := &commitFile{change: ch, hunks: p.Hunks, binary: p.Binary, folded: p.Binary}
 		files = append(files, f)
 		// The work tree's untracked files are in no diff.
-		if !ok && hash == uncommitted && ch.status == 'A' {
+		if !ok && ch.status == '?' {
 			text, _ := readText(filepath.Join(root, filepath.FromSlash(ch.path)))
 			f.binary, f.folded = binary(text), binary(text)
 			if !f.binary {
@@ -153,7 +208,7 @@ func readCommit(root, hash string) (string, []*commitFile) {
 		oldText, newText := texts[0], texts[1]
 		texts = texts[2:]
 		// The work tree's text is on disk, not in git.
-		if hash == uncommitted {
+		if hash == unstagedChanges {
 			newText = ""
 			if f.status != 'D' {
 				newText, _ = readText(filepath.Join(root, filepath.FromSlash(f.path)))
@@ -235,16 +290,17 @@ func (cv *commitView) buildRows() {
 		case f.binary:
 			rows = append(rows, diffRow{kind: rowNote, file: fi})
 		default:
-			rows = f.appendRows(rows, fi, cv.unified)
+			rows = f.appendRows(rows, fi, cv.unified, cv.worktree() && f.status == 'M')
 		}
 	}
 	cv.rows, cv.dirty = rows, false
 }
 
-// appendRows appends the rows of f's hunks, and of the unchanged lines
-// around them, folded unless shown. Side by side, a run of lines deleted
-// pairs with the run added after it, line by line.
-func (f *commitFile) appendRows(rows []diffRow, fi int, unified bool) []diffRow {
+// appendRows appends the rows of f's hunks, each under its head when
+// heads, and of the unchanged lines around them, folded unless shown.
+// Side by side, a run of lines deleted pairs with the run added after it,
+// line by line.
+func (f *commitFile) appendRows(rows []diffRow, fi int, unified, heads bool) []diffRow {
 	old, new := 1, 1
 	gap := func(i, count int) {
 		if count <= 0 {
@@ -283,6 +339,9 @@ func (f *commitFile) appendRows(rows []diffRow, fi int, unified bool) []diffRow 
 	}
 	for i, h := range f.hunks {
 		gap(i, hunkStart(h.OldStart, h.OldLines)-old)
+		if heads {
+			rows = append(rows, diffRow{kind: rowHunk, file: fi, gap: i})
+		}
 		old, new = hunkStart(h.OldStart, h.OldLines), hunkStart(h.NewStart, h.NewLines)
 		for _, l := range h.Lines {
 			switch {
@@ -355,6 +414,14 @@ func (a *app) commitTab(c *ui.Context, gi int, d *doc) {
 		}
 		if cv.dirty {
 			cv.buildRows()
+		}
+		if cv.at != "" {
+			for i, r := range cv.rows {
+				if r.kind == rowHeader && cv.files[r.file].path == cv.at {
+					cv.list.ScrollTo(i, ui.Start)
+				}
+			}
+			cv.at = ""
 		}
 		cv.list.Header = func(i int) bool { return cv.rows[i].kind == rowHeader }
 		cv.list.Key = func(i int) any { return cv.rows[i] }
@@ -451,6 +518,8 @@ func (a *app) diffRow(c *ui.Context, cv *commitView, r diffRow, st *codeStyle) {
 		ui.Text(c, locales.PreviewBinary()).FontSize(12).TextColor(a.scheme.chrome().muted).Padding(10, 16).Unselectable()
 	case rowGap:
 		a.gapRow(c, cv, f, r)
+	case rowHunk:
+		a.hunkRow(c, cv, f, r.gap)
 	case rowSame, rowChange:
 		a.lineRow(c, cv, f, r, st)
 	}
@@ -539,6 +608,43 @@ func (a *app) gapRow(c *ui.Context, cv *commitView, f *commitFile, r diffRow) {
 				SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 		}
 	})
+}
+
+// hunkRow stages hunk i of f, or unstages it in the tab of the changes
+// staged.
+func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
+	ch := a.scheme.chrome()
+	unstage := cv.hash == stagedChanges
+	label := locales.ChangesStage()
+	if unstage {
+		label = locales.ChangesUnstage()
+	}
+	ui.Row(c).FillWidth().Height(28).Padding(0, 12).AlignItems(ui.Center).Background(a.scheme.bg).Unselectable().Children(func() {
+		ui.Box(c).Grow(1)
+		btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Shrink(0).Border(1, ch.line).Transition(colorFade).
+			Label(label).OnClick(func() { a.stageHunk(f.path, f.hunks[i], unstage) })
+		if btn.Hovered() {
+			btn.Background(ch.hover)
+		}
+		btn.Children(func() { ui.Text(c, label).FontSize(12).TextColor(ch.muted) })
+	})
+}
+
+// stageHunk applies h, of the file at p, to the index, or takes it out.
+// Its start on the index's side is where it is there, as its tab diffs
+// the index with HEAD or with the work tree, so it applies alone.
+func (a *app) stageHunk(p string, h editor.PatchHunk, unstage bool) {
+	var patch strings.Builder
+	fmt.Fprintf(&patch, "diff --git a/%s b/%s\n--- a/%s\n+++ b/%s\n", p, p, p, p)
+	fmt.Fprintf(&patch, "@@ -%d,%d +%d,%d @@\n", h.OldStart, h.OldLines, h.NewStart, h.NewLines)
+	for _, l := range h.Lines {
+		patch.WriteString(l + "\n")
+	}
+	args := []string{"apply", "--cached", "--recount"}
+	if unstage {
+		args = append(args, "--reverse")
+	}
+	a.gitRunWith(patch.String(), nil, append(args, "-")...)
 }
 
 var (
@@ -650,7 +756,7 @@ func (a *app) moreButton(c *ui.Context, cv *commitView) {
 // when, the message's subject, or the whole message while more, and the
 // hash to copy. The work tree's has none.
 func (a *app) commitMessage(c *ui.Context, cv *commitView) {
-	if cv.hash == uncommitted {
+	if cv.worktree() {
 		ui.Box(c).FillWidth().Height(0)
 		return
 	}

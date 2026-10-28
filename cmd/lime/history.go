@@ -13,29 +13,26 @@ import (
 // maxCommits is how many commits the history lists.
 const maxCommits = 300
 
-// uncommitted stands in the history for the work tree's changes.
-const uncommitted = ""
-
 type commit struct {
 	hash, short, subject, author, email string
 	when                                time.Time
 }
 
-// change is a file a commit changes: added, modified, deleted or renamed
-// (A, M, D, R), with its path before a rename.
+// change is a file a commit or the work tree changes: added, modified,
+// deleted or renamed (A, M, D, R), with its path before a rename; or in
+// the work tree, untracked (?) or in conflict (U).
 type change struct {
 	status        byte
 	path, oldPath string // relative to the work tree's top, with slashes
 }
 
-// history is the side bar's list of the repository's commits, the work
-// tree's changes first, read for root.
+// history is the side bar's list of the repository's commits, read for
+// root.
 type history struct {
 	root    string
 	github  bool // a remote is on GitHub, which has its authors' avatars
 	commits []commit
-	changes []change // the work tree's
-	gen     int      // counts the readings, for the last to win
+	gen     int // counts the readings, for the last to win
 }
 
 func readCommits(root string) []commit {
@@ -58,33 +55,8 @@ func onGitHub(root string) bool {
 	return strings.Contains(out, "github.com")
 }
 
-// readChanges reads the files hash changes against its first parent, or
-// the work tree's changes against HEAD, staged or not, and the untracked
-// files.
-func readChanges(root, hash string) []change {
-	if hash == uncommitted {
-		out, _ := runGit(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
-		var cs []change
-		f := strings.Split(out, "\x00")
-		for i := 0; i < len(f); i++ {
-			if len(f[i]) < 4 {
-				continue
-			}
-			x, y, path := f[i][0], f[i][1], f[i][3:]
-			ch := change{status: y, path: path}
-			switch {
-			case x == '?':
-				ch.status = 'A'
-			case x == 'R' || x == 'C':
-				i++
-				ch.status, ch.oldPath = 'R', f[i]
-			case y == ' ':
-				ch.status = x
-			}
-			cs = append(cs, ch)
-		}
-		return cs
-	}
+// commitChanges reads the files hash changes against its first parent.
+func commitChanges(root, hash string) []change {
 	out, _ := runGit(root, "diff-tree", "-r", "-z", "-M", "--name-status", "--root", "--no-commit-id", "--diff-merges=first-parent", hash)
 	var cs []change
 	f := strings.Split(out, "\x00")
@@ -115,10 +87,10 @@ func (a *app) readHistory() {
 	a.hist.gen++
 	gen := a.hist.gen
 	a.background(func() func() {
-		cs, ch, gh := readCommits(root), readChanges(root, uncommitted), onGitHub(root)
+		cs, gh := readCommits(root), onGitHub(root)
 		return func() {
 			if a.hist.gen == gen {
-				a.hist.commits, a.hist.changes, a.hist.github = cs, ch, gh
+				a.hist.commits, a.hist.github = cs, gh
 			}
 		}
 	})
@@ -145,20 +117,16 @@ func ago(t, now time.Time) string {
 	}
 }
 
-// historyView lists the work tree's changes and the commits, each of
-// which opens in a tab of its own.
+// historyView lists the commits, each of which opens in a tab of its own.
 func (a *app) historyView(c *ui.Context) {
 	h := &a.hist
-	shown := "-"
+	shown := ""
 	if d := a.current(); d != nil && d.commit != nil {
 		shown = d.commit.hash
 	}
 	now := time.Now()
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 		ui.Column(c).FillWidth().Padding(0, c.Theme().Space(1)).Role(ui.RoleList).Children(func() {
-			if len(h.changes) > 0 {
-				a.historyRow(c, commit{subject: locales.HistoryUncommitted()}, locales.HistoryFiles(len(h.changes)), shown == uncommitted)
-			}
 			for _, cm := range h.commits {
 				a.historyRow(c, cm, cm.author+" · "+ago(cm.when, now)+" · "+cm.short, shown == cm.hash)
 			}
@@ -182,9 +150,7 @@ func (a *app) historyRow(c *ui.Context, cm commit, detail string, selected bool)
 	row.Children(func() {
 		ui.Text(c, cm.subject).TextColor(text).SingleLine().Ellipsis("…").MinWidth(0)
 		ui.Row(c).FillWidth().Gap(th.Space(1.5)).AlignItems(ui.Center).Children(func() {
-			if cm.hash != uncommitted {
-				a.avatar(c, cm.email, 16)
-			}
+			a.avatar(c, cm.email, 16)
 			ui.Text(c, detail).FontSize(11).TextColor(muted).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 		})
 	})

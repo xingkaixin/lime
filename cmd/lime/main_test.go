@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -815,8 +816,8 @@ func TestGitBar(t *testing.T) {
 	}
 }
 
-// The history lists the work tree's changes and the commits, each of
-// which opens a tab of the diffs of its files, which neither side edits.
+// The history lists the commits, each of which opens a tab of the diffs
+// of its files, which neither side edits.
 func TestHistory(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("no git")
@@ -843,8 +844,9 @@ func TestHistory(t *testing.T) {
 	a.open([]string{dir})
 	tt := ui.NewTester(a.view, 900, 600)
 	tt.Click(locales.SideBarGitPanel())
+	tt.Click(locales.GitHistory())
 	tt.Frame()
-	if !tt.HasText(locales.HistoryUncommitted()) || !tt.HasText("second") || !tt.HasText("first") {
+	if !tt.HasText("second") || !tt.HasText("first") {
 		t.Fatalf("history: %q", tt.Texts())
 	}
 
@@ -880,11 +882,319 @@ func TestHistory(t *testing.T) {
 	if a.docCount() != n {
 		t.Fatal("the commit opened a second tab")
 	}
+}
 
-	a.showCommit(commit{})
-	d = a.current()
-	if f := d.commit.files; len(f) != 1 || f[0].path != "new.txt" || f[0].added != 1 {
-		t.Fatalf("uncommitted: %+v", f)
+// newRepo makes a repository in a new folder, and a git to run in it.
+func newRepo(t *testing.T) (string, func(...string)) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	dir := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		if _, err := runGit(dir, append([]string{"-c", "user.name=t", "-c", "user.email=t@t"}, args...)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	return dir, git
+}
+
+// The Changes tab groups the work tree's changes as git status tells
+// them, each of which shows the diffs of its section.
+func TestChanges(t *testing.T) {
+	dir, git := newRepo(t)
+	write := func(name, text string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"a", "b", "c", "d", "e", "old", "both"} {
+		write(name+".txt", name+"\n")
+	}
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	git("switch", "-q", "-c", "other")
+	write("both.txt", "other\n")
+	git("commit", "-q", "-am", "other")
+	git("switch", "-q", "main")
+	write("both.txt", "main\n")
+	git("commit", "-q", "-am", "main")
+	runGit(dir, "merge", "-q", "other")
+	write("a.txt", "a2\n")
+	write("b.txt", "b2\n")
+	git("add", "b.txt")
+	write("c.txt", "c2\n")
+	git("add", "c.txt")
+	write("c.txt", "c3\n")
+	write("new.txt", "new\n")
+	git("add", "new.txt")
+	os.Remove(filepath.Join(dir, "d.txt"))
+	git("rm", "-q", "e.txt")
+	git("mv", "old.txt", "renamed.txt")
+	write("untracked.txt", "u\n")
+
+	got := readStatus(dir)
+	want := [3]string{
+		"U both.txt ",
+		"M b.txt M c.txt D e.txt A new.txt R old.txt>renamed.txt ",
+		"M a.txt M c.txt D d.txt ? untracked.txt ",
+	}
+	for sec, files := range got {
+		var b strings.Builder
+		for _, f := range files {
+			if f.oldPath != "" {
+				fmt.Fprintf(&b, "%c %s>%s ", f.status, f.oldPath, f.path)
+				continue
+			}
+			fmt.Fprintf(&b, "%c %s ", f.status, f.path)
+		}
+		if b.String() != want[sec] {
+			t.Errorf("section %d:\n got %s\nwant %s", sec, b.String(), want[sec])
+		}
+	}
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarGitPanel())
+	tt.Frame()
+	for _, s := range []string{locales.ChangesConflicts(), locales.ChangesStaged(), locales.ChangesUnstaged(), "untracked.txt"} {
+		if !tt.HasText(s) {
+			t.Fatalf("no %q in %q", s, tt.Texts())
+		}
+	}
+	tt.Click("new.txt")
+	tt.Frame()
+	if d := a.current(); d == nil || d.commit == nil || d.commit.hash != stagedChanges || len(d.commit.files) != 5 {
+		t.Fatalf("staged tab: %+v", d)
+	}
+	tt.Click("untracked.txt")
+	tt.Frame()
+	d := a.current()
+	if d == nil || d.commit == nil || d.commit.hash != unstagedChanges {
+		t.Fatalf("unstaged tab: %+v", d)
+	}
+	if f := d.commit.files[3]; f.path != "untracked.txt" || f.added != 1 {
+		t.Fatalf("untracked.txt: %+v", f)
+	}
+}
+
+// The check boxes, Space and the menu of the rows chosen stage and
+// unstage files.
+func TestStage(t *testing.T) {
+	dir, git := newRepo(t)
+	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+		os.WriteFile(filepath.Join(dir, name), []byte("1\n"), 0o644)
+	}
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+		os.WriteFile(filepath.Join(dir, name), []byte("2\n"), 0o644)
+	}
+	staged := func() string {
+		t.Helper()
+		out, _ := runGit(dir, "diff", "--cached", "--name-only")
+		return strings.Join(strings.Fields(out), " ")
+	}
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarGitPanel())
+	tt.Frame()
+	box, _ := tt.Find(locales.ChangesStageAll())
+	row, _ := tt.Find("a.txt")
+	tt.ClickAt(box.X+box.W/2, row.Y+row.H/2)
+	tt.Frame()
+	if got := staged(); got != "a.txt" {
+		t.Fatalf("the check box staged %q", got)
+	}
+
+	tt.Click("b.txt")
+	tt.ClickWith(ui.Cmd, "c.txt")
+	tt.RightClick("c.txt")
+	if err := tt.ChooseMenuItem(locales.ChangesStage()); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if got := staged(); got != "a.txt b.txt c.txt" {
+		t.Fatalf("the menu staged %q", got)
+	}
+
+	tt.Click(locales.ChangesUnstageAll())
+	tt.Frame()
+	if got := staged(); got != "" {
+		t.Fatalf("Unstage All left %q", got)
+	}
+
+	tt.Click("b.txt")
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if got := staged(); got != "b.txt" {
+		t.Fatalf("Space staged %q", got)
+	}
+}
+
+// The tree shows the changes in their folders, folders first, which open
+// and close, and whose check boxes stage what they hold.
+func TestChangesTree(t *testing.T) {
+	dir, git := newRepo(t)
+	names := []string{"top.txt", "src/b.txt", "src/a/x.txt", "src/a/y.txt"}
+	for _, text := range []string{"1\n", "2\n"} {
+		for _, name := range names {
+			os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755)
+			os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644)
+		}
+		if text == "1\n" {
+			git("add", ".")
+			git("commit", "-q", "-m", "base")
+		}
+	}
+	a := newApp("")
+	a.set.GitTreeView = true
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarGitPanel())
+	tt.Frame()
+	rows := func() string {
+		var b strings.Builder
+		for _, r := range a.changes.rows {
+			switch {
+			case r.dir != "":
+				fmt.Fprintf(&b, "%d:%s/ ", r.depth, path.Base(r.dir))
+			case r.file != nil:
+				fmt.Fprintf(&b, "%d:%s ", r.depth, path.Base(r.file.path))
+			}
+		}
+		return b.String()
+	}
+	if got, want := rows(), "0:src/ 1:a/ 2:x.txt 2:y.txt 1:b.txt 0:top.txt "; got != want {
+		t.Fatalf("tree:\n got %s\nwant %s", got, want)
+	}
+	tt.Click("a")
+	tt.Frame()
+	if got, want := rows(), "0:src/ 1:a/ 1:b.txt 0:top.txt "; got != want {
+		t.Fatalf("a closed:\n got %s\nwant %s", got, want)
+	}
+	box, _ := tt.Find(locales.ChangesStageAll())
+	row, _ := tt.Find("src")
+	tt.ClickAt(box.X+box.W/2, row.Y+row.H/2)
+	tt.Frame()
+	if out, _ := runGit(dir, "diff", "--cached", "--name-only"); strings.Join(strings.Fields(out), " ") != "src/a/x.txt src/a/y.txt src/b.txt" {
+		t.Fatalf("the folder's check box staged %q", out)
+	}
+}
+
+// The Changes tab commits the changes staged, or with none, the tracked
+// files' changes; a failing commit keeps its message.
+func TestCommit(t *testing.T) {
+	dir, git := newRepo(t)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("1\n"), 0o644)
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("2\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "u.txt"), []byte("u\n"), 0o644)
+	last := func() string {
+		t.Helper()
+		out, _ := runGit(dir, "log", "-1", "--format=%B")
+		return strings.TrimSpace(out)
+	}
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarGitPanel())
+	tt.Frame()
+	tt.Click(locales.ChangesMessage())
+	tt.Type("Track a\n\nThe body.")
+	tt.Click(locales.ChangesCommitTracked())
+	tt.Frame()
+	if got := last(); got != "Track a\n\nThe body." {
+		t.Fatalf("message: %q", got)
+	}
+	if out, _ := runGit(dir, "status", "--porcelain"); out != "?? u.txt\n" || a.changes.message != "" {
+		t.Fatalf("after Commit Tracked: status %q, message %q", out, a.changes.message)
+	}
+
+	git("add", "u.txt")
+	os.WriteFile(filepath.Join(dir, ".git", "hooks", "pre-commit"), []byte("#!/bin/sh\necho no >&2\nexit 1\n"), 0o755)
+	a.readChanges()
+	tt.Frame()
+	tt.Click(locales.ChangesMessage())
+	tt.Type("Add u")
+	tt.Key(ui.Cmd, ui.KeyEnter)
+	tt.Frame()
+	if last() != "Track a\n\nThe body." || a.changes.message != "Add u" || !a.notice.err {
+		t.Fatalf("a failing commit: last %q, message %q, error %v", last(), a.changes.message, a.notice.err)
+	}
+	os.Remove(filepath.Join(dir, ".git", "hooks", "pre-commit"))
+	tt.Click(locales.ChangesCommit())
+	tt.Frame()
+	if last() != "Add u" {
+		t.Fatalf("Commit: %q", last())
+	}
+}
+
+// A hunk of the unstaged changes stages alone, and unstages again from
+// the staged changes.
+func TestStageHunk(t *testing.T) {
+	dir, git := newRepo(t)
+	var lines []string
+	for i := 1; i <= 20; i++ {
+		lines = append(lines, strconv.Itoa(i))
+	}
+	file := filepath.Join(dir, "a.txt")
+	os.WriteFile(file, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	lines[1], lines[17] = "two", "eighteen"
+	lines = slices.Insert(lines, 2, "added")
+	os.WriteFile(file, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+	cached := func() string {
+		t.Helper()
+		out, _ := runGit(dir, "diff", "--cached", "-U0")
+		var changed []string
+		for l := range strings.Lines(out) {
+			if (l[0] == '+' || l[0] == '-') && !strings.HasPrefix(l, "+++") && !strings.HasPrefix(l, "---") {
+				changed = append(changed, strings.TrimSpace(l))
+			}
+		}
+		return strings.Join(changed, " ")
+	}
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	cv := a.showCommit(commit{hash: unstagedChanges})
+	tt.Frame()
+	if f := cv.files; len(f) != 1 || len(f[0].hunks) != 2 {
+		t.Fatalf("unstaged: %+v", f)
+	}
+	a.stageHunk("a.txt", cv.files[0].hunks[1], false)
+	tt.Frame()
+	if got := cached(); got != "-18 +eighteen" {
+		t.Fatalf("staged the second hunk: %q", got)
+	}
+	if f := cv.files; len(f) != 1 || len(f[0].hunks) != 1 {
+		t.Fatalf("unstaged after: %+v", f)
+	}
+	a.stageHunk("a.txt", cv.files[0].hunks[0], false)
+	tt.Frame()
+	if got := cached(); got != "-2 +two +added -18 +eighteen" {
+		t.Fatalf("staged both hunks: %q", got)
+	}
+
+	staged := a.showCommit(commit{hash: stagedChanges})
+	tt.Frame()
+	if err := tt.Click(locales.ChangesUnstage()); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if got := cached(); got != "-18 +eighteen" || len(staged.files[0].hunks) != 1 {
+		t.Fatalf("unstaged the first hunk: %q", got)
 	}
 }
 
@@ -901,7 +1211,7 @@ func TestCommitRows(t *testing.T) {
 	f := &commitFile{hunks: ps[0].Hunks, old: fileText{lines: old}, new: fileText{lines: cur}}
 	rows := func(unified bool) string {
 		var b strings.Builder
-		for _, r := range f.appendRows(nil, 0, unified) {
+		for _, r := range f.appendRows(nil, 0, unified, false) {
 			fmt.Fprintf(&b, "%d:%d/%d ", r.kind, r.old, r.new)
 			if r.kind == rowGap {
 				fmt.Fprintf(&b, "(%d) ", r.count)

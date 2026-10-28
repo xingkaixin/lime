@@ -1720,24 +1720,164 @@ func (msgs Messages) SideBarNoRepository() string {
 	return Catalog.Format(msgs.locale, "sideBarNoRepository", nil)
 }
 
-// HistoryUncommitted says "Uncommitted Changes"
+// GitChanges says "Changes"
 // in the language the app shows.
-func HistoryUncommitted() string { return In(i18n.Locale()).HistoryUncommitted() }
+func GitChanges() string { return In(i18n.Locale()).GitChanges() }
 
-// HistoryUncommitted says "Uncommitted Changes"
+// GitChanges says "Changes"
 // in the language of msgs.
-func (msgs Messages) HistoryUncommitted() string {
-	return Catalog.Format(msgs.locale, "historyUncommitted", nil)
+func (msgs Messages) GitChanges() string {
+	return Catalog.Format(msgs.locale, "gitChanges", nil)
 }
 
-// HistoryFiles says "{count, plural, one {# file} other {# files}}"
+// GitHistory says "History"
 // in the language the app shows.
-func HistoryFiles(count int) string { return In(i18n.Locale()).HistoryFiles(count) }
+func GitHistory() string { return In(i18n.Locale()).GitHistory() }
 
-// HistoryFiles says "{count, plural, one {# file} other {# files}}"
+// GitHistory says "History"
 // in the language of msgs.
-func (msgs Messages) HistoryFiles(count int) string {
-	return Catalog.Format(msgs.locale, "historyFiles", map[string]any{"count": count})
+func (msgs Messages) GitHistory() string {
+	return Catalog.Format(msgs.locale, "gitHistory", nil)
+}
+
+// ChangesConflicts says "Conflicts"
+// in the language the app shows.
+func ChangesConflicts() string { return In(i18n.Locale()).ChangesConflicts() }
+
+// ChangesConflicts says "Conflicts"
+// in the language of msgs.
+func (msgs Messages) ChangesConflicts() string {
+	return Catalog.Format(msgs.locale, "changesConflicts", nil)
+}
+
+// ChangesStaged says "Staged"
+// in the language the app shows.
+func ChangesStaged() string { return In(i18n.Locale()).ChangesStaged() }
+
+// ChangesStaged says "Staged"
+// in the language of msgs.
+func (msgs Messages) ChangesStaged() string {
+	return Catalog.Format(msgs.locale, "changesStaged", nil)
+}
+
+// ChangesUnstaged says "Unstaged"
+// in the language the app shows.
+func ChangesUnstaged() string { return In(i18n.Locale()).ChangesUnstaged() }
+
+// ChangesUnstaged says "Unstaged"
+// in the language of msgs.
+func (msgs Messages) ChangesUnstaged() string {
+	return Catalog.Format(msgs.locale, "changesUnstaged", nil)
+}
+
+// ChangesNone says "No Changes"
+// in the language the app shows.
+func ChangesNone() string { return In(i18n.Locale()).ChangesNone() }
+
+// ChangesNone says "No Changes"
+// in the language of msgs.
+func (msgs Messages) ChangesNone() string {
+	return Catalog.Format(msgs.locale, "changesNone", nil)
+}
+
+// ChangesStage says "Stage"
+// in the language the app shows.
+func ChangesStage() string { return In(i18n.Locale()).ChangesStage() }
+
+// ChangesStage says "Stage"
+// in the language of msgs.
+func (msgs Messages) ChangesStage() string {
+	return Catalog.Format(msgs.locale, "changesStage", nil)
+}
+
+// ChangesUnstage says "Unstage"
+// in the language the app shows.
+func ChangesUnstage() string { return In(i18n.Locale()).ChangesUnstage() }
+
+// ChangesUnstage says "Unstage"
+// in the language of msgs.
+func (msgs Messages) ChangesUnstage() string {
+	return Catalog.Format(msgs.locale, "changesUnstage", nil)
+}
+
+// ChangesStageAll says "Stage All"
+// in the language the app shows.
+func ChangesStageAll() string { return In(i18n.Locale()).ChangesStageAll() }
+
+// ChangesStageAll says "Stage All"
+// in the language of msgs.
+func (msgs Messages) ChangesStageAll() string {
+	return Catalog.Format(msgs.locale, "changesStageAll", nil)
+}
+
+// ChangesUnstageAll says "Unstage All"
+// in the language the app shows.
+func ChangesUnstageAll() string { return In(i18n.Locale()).ChangesUnstageAll() }
+
+// ChangesUnstageAll says "Unstage All"
+// in the language of msgs.
+func (msgs Messages) ChangesUnstageAll() string {
+	return Catalog.Format(msgs.locale, "changesUnstageAll", nil)
+}
+
+// ChangesViewAsTree says "View as Tree"
+// in the language the app shows.
+func ChangesViewAsTree() string { return In(i18n.Locale()).ChangesViewAsTree() }
+
+// ChangesViewAsTree says "View as Tree"
+// in the language of msgs.
+func (msgs Messages) ChangesViewAsTree() string {
+	return Catalog.Format(msgs.locale, "changesViewAsTree", nil)
+}
+
+// ChangesMessage says "Commit Message"
+// in the language the app shows.
+func ChangesMessage() string { return In(i18n.Locale()).ChangesMessage() }
+
+// ChangesMessage says "Commit Message"
+// in the language of msgs.
+func (msgs Messages) ChangesMessage() string {
+	return Catalog.Format(msgs.locale, "changesMessage", nil)
+}
+
+// ChangesCommit says "Commit"
+// in the language the app shows.
+func ChangesCommit() string { return In(i18n.Locale()).ChangesCommit() }
+
+// ChangesCommit says "Commit"
+// in the language of msgs.
+func (msgs Messages) ChangesCommit() string {
+	return Catalog.Format(msgs.locale, "changesCommit", nil)
+}
+
+// ChangesCommitTracked says "Commit Tracked"
+// in the language the app shows.
+func ChangesCommitTracked() string { return In(i18n.Locale()).ChangesCommitTracked() }
+
+// ChangesCommitTracked says "Commit Tracked"
+// in the language of msgs.
+func (msgs Messages) ChangesCommitTracked() string {
+	return Catalog.Format(msgs.locale, "changesCommitTracked", nil)
+}
+
+// ChangesStagedTitle says "Staged Changes"
+// in the language the app shows.
+func ChangesStagedTitle() string { return In(i18n.Locale()).ChangesStagedTitle() }
+
+// ChangesStagedTitle says "Staged Changes"
+// in the language of msgs.
+func (msgs Messages) ChangesStagedTitle() string {
+	return Catalog.Format(msgs.locale, "changesStagedTitle", nil)
+}
+
+// ChangesUnstagedTitle says "Unstaged Changes"
+// in the language the app shows.
+func ChangesUnstagedTitle() string { return In(i18n.Locale()).ChangesUnstagedTitle() }
+
+// ChangesUnstagedTitle says "Unstaged Changes"
+// in the language of msgs.
+func (msgs Messages) ChangesUnstagedTitle() string {
+	return Catalog.Format(msgs.locale, "changesUnstagedTitle", nil)
 }
 
 // TimeJustNow says "Just now"

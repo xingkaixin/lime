@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"lime/locales"
 )
@@ -94,6 +95,7 @@ func (a *app) readGit() {
 				if a.side == gitPanel {
 					a.readHistory()
 				}
+				a.readWorktree()
 			}
 		}
 	})
@@ -114,14 +116,26 @@ func (a *app) background(work func() func()) {
 
 // gitRun runs git in the repository, then shows the folders, the tabs
 // and the branch as it left them, or what it said of a failure.
-func (a *app) gitRun(args ...string) {
+func (a *app) gitRun(args ...string) { a.gitRunWith("", nil, args...) }
+
+// gitWrites lets one git that gitRun runs write at a time: two at once,
+// as check boxes clicked quickly start, would meet on index.lock.
+var gitWrites sync.Mutex
+
+// gitRunWith runs git as gitRun does, with input on its standard input,
+// and done after it succeeds.
+func (a *app) gitRunWith(input string, done func(), args ...string) {
 	dir := a.git.root
 	a.background(func() func() {
-		_, err := runGit(dir, args...)
+		gitWrites.Lock()
+		_, err := gitWith(dir, input, args...)
+		gitWrites.Unlock()
 		return func() {
 			if err != nil {
 				msg, _, _ := strings.Cut(err.Error(), "\n")
 				a.notifyError(msg)
+			} else if done != nil {
+				done()
 			}
 			a.refreshFolders()
 			for _, w := range a.l.wins {
