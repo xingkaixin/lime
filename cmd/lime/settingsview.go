@@ -398,7 +398,7 @@ func (a *app) fontsPage(c *ui.Context) {
 		p.preview = &editor.State{Buffer: buf, ReadOnly: true, NoActiveLine: true, NoFolding: true}
 	}
 	st := p.preview
-	st.Theme, st.Font.Family, st.Font.Size = a.scheme.editorTheme(), a.set.ContentFont, a.set.FontSize
+	st.Theme, st.Font, st.LineHeight = a.scheme.editorTheme(), a.set.font(), a.set.lineHeight()
 	ui.Column(c).FillWidth().Gap(10).Children(func() {
 		a.heading(c, locales.SettingsPreview(), false)
 		ui.Column(c).FillWidth().Height(150).PaddingY(8).Radius(8).Border(1, ch.line).Background(a.scheme.bg).Clip().Children(func() {

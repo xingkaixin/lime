@@ -149,7 +149,7 @@ func (a *app) diffView(c *ui.Context, gi int, d *doc) {
 	df := &cmp.diff
 	df.Theme, df.Bindings = a.scheme.editorTheme(), a.l.keys.editor
 	df.Wrap, df.TabSize = a.set.WordWrap, a.set.TabSize
-	df.Font.Family, df.Font.Size = a.set.ContentFont, a.set.FontSize
+	df.Font, df.LineHeight = a.set.font(), a.set.lineHeight()
 	df.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
 	if cmp.unsaved {
 		df.RenderHunkActions = a.revertAction

@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/i18n"
+	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
@@ -39,6 +40,13 @@ type settings struct {
 	HighlightLine       bool `json:"highlight_line"`
 	DrawIndentGuides    bool `json:"draw_indent_guides"`
 	ScrollPastEnd       bool `json:"scroll_past_end"`
+	// LinePaddingTop and LinePaddingBottom add DIPs above and below each
+	// line.
+	LinePaddingTop    float32 `json:"line_padding_top"`
+	LinePaddingBottom float32 `json:"line_padding_bottom"`
+	// FontOptions are Sublime Text's, of which the ligature ones count:
+	// "no_liga", "no_clig" and "no_calt".
+	FontOptions []string `json:"font_options"`
 	// TranslateTabsToSpaces indents with spaces when true and tabs when
 	// false; unset, as the language's files usually do.
 	TranslateTabsToSpaces        *bool `json:"translate_tabs_to_spaces,omitempty"`
@@ -97,7 +105,7 @@ func loadSettings(dir string) (settings, error) {
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4, AutoComplete: true,
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
 		Rulers: []int{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
-		ScrollPastEnd: true,
+		ScrollPastEnd: true, FontOptions: []string{},
 	}
 	var err error
 	if dir != "" {
@@ -156,6 +164,27 @@ func (s *settings) display(st *editor.State) {
 		st.LineNumbers = editor.LineNumbersOn
 	}
 	st.NoActiveLine, st.NoIndentGuides, st.NoScrollPastEnd = !s.HighlightLine, !s.DrawIndentGuides, !s.ScrollPastEnd
+}
+
+// font is the content font, as editors take it.
+func (s *settings) font() ui.Font {
+	var off []string
+	for _, o := range s.FontOptions {
+		switch o {
+		case "no_liga", "no_clig", "no_calt":
+			off = append(off, strings.TrimPrefix(o, "no_")+"=0")
+		}
+	}
+	return ui.Font{Family: s.ContentFont, Size: s.FontSize, Features: strings.Join(off, ",")}
+}
+
+// lineHeight is the height of lines as a multiple of the font's size.
+func (s *settings) lineHeight() float32 {
+	if s.FontSize <= 0 {
+		return 0
+	}
+	// 1.5 is the editor's own line height.
+	return 1.5 + (s.LinePaddingTop+s.LinePaddingBottom)/s.FontSize
 }
 
 // whiteSpace is draw_white_space: Sublime Text's options of where white
