@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
+	"unicode"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/i18n"
@@ -20,6 +22,8 @@ type prefs struct {
 	page    string
 	offset  ui.Point // where its title band dragged it, from the window's center
 	preview *editor.State
+	rulers  string // the rulers' columns as typed
+	ruler   ui.Handle
 
 	query     string // searches the commands of the shortcuts
 	conflicts bool   // lists the keys of two commands or more alone
@@ -201,7 +205,9 @@ func (a *app) settingsRow(c *ui.Context, label, detail string, control func()) {
 	ui.Row(c).FillWidth().MinHeight(52).Padding(10, 14).Gap(16).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Text(c, label).FontSize(13)
-			ui.Text(c, detail).FontSize(12).TextColor(ch.muted)
+			if detail != "" {
+				ui.Text(c, detail).FontSize(12).TextColor(ch.muted)
+			}
 		})
 		control()
 	})
@@ -448,7 +454,54 @@ func (a *app) stepper(c *ui.Context, value, less, more string, step func(by int)
 
 var indentStyles = []editor.IndentStyle{editor.IndentAuto, editor.IndentTabs, editor.IndentSpaces}
 
+// whiteSpaces are the choices of draw_white_space the dialog offers.
+var whiteSpaces = []whiteSpace{{}, {"selection"}, {"trailing", "isolated"}, {"all"}}
+
 func (a *app) editorPage(c *ui.Context) {
+	ui.Column(c).FillWidth().Gap(10).Children(func() {
+		a.heading(c, locales.SettingsDisplay(), false)
+		a.settingsGroup(c, func() {
+			a.settingsRow(c, locales.SettingsRulers(), "", func() {
+				p := &a.prefs
+				if !p.ruler.Focused(c) {
+					p.rulers = formatRulers(a.set.Rulers)
+				}
+				ui.TextInput(c, &p.rulers).Width(prefsControlW).Label(locales.SettingsRulers()).Bind(&p.ruler).OnChange(func() {
+					a.set.Rulers = parseRulers(p.rulers)
+					a.l.saveSettings()
+				})
+			})
+			a.settingsRow(c, locales.SettingsWhiteSpace(), "", func() {
+				options := []string{locales.SettingsWhiteSpaceNone(), locales.SettingsWhiteSpaceSelection(), locales.SettingsWhiteSpaceTrailing(), locales.SettingsWhiteSpaceAll()}
+				i := slices.IndexFunc(whiteSpaces, func(w whiteSpace) bool { return w.mode() == a.set.DrawWhiteSpace.mode() })
+				choice := options[i]
+				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsWhiteSpace()).Changed() {
+					a.set.DrawWhiteSpace = whiteSpaces[slices.Index(options, choice)]
+					a.l.saveSettings()
+				}
+			})
+			a.settingsRow(c, locales.SettingsLineNumbers(), "", func() {
+				options := []string{locales.SettingsLineNumbersOn(), locales.SettingsLineNumbersRelative(), locales.SettingsLineNumbersOff()}
+				choice := options[0]
+				switch {
+				case !a.set.LineNumbers:
+					choice = options[2]
+				case a.set.RelativeLineNumbers:
+					choice = options[1]
+				}
+				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsLineNumbers()).Changed() {
+					i := slices.Index(options, choice)
+					a.set.LineNumbers, a.set.RelativeLineNumbers = i != 2, i == 1
+					a.l.saveSettings()
+				}
+			})
+			a.settingsRow(c, locales.SettingsHighlightLine(), "", func() {
+				if ui.Switch(c, &a.set.HighlightLine).Label(locales.SettingsHighlightLine()).Changed() {
+					a.l.saveSettings()
+				}
+			})
+		})
+	})
 	ui.Column(c).FillWidth().Gap(10).Children(func() {
 		a.heading(c, locales.SettingsIndentation(), false)
 		a.settingsGroup(c, func() {
@@ -507,6 +560,25 @@ func (a *app) editorPage(c *ui.Context) {
 			}
 		})
 	})
+}
+
+func formatRulers(cols []int) string {
+	s := make([]string, len(cols))
+	for i, n := range cols {
+		s[i] = strconv.Itoa(n)
+	}
+	return strings.Join(s, ", ")
+}
+
+// parseRulers reads the columns of rulers typed apart by commas or spaces.
+func parseRulers(s string) []int {
+	cols := []int{}
+	for _, f := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || unicode.IsSpace(r) }) {
+		if n, err := strconv.Atoi(f); err == nil && n > 0 {
+			cols = append(cols, n)
+		}
+	}
+	return cols
 }
 
 // splitPicture and unifiedPicture are a diff laid out side by side and
