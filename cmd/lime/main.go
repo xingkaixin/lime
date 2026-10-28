@@ -61,6 +61,19 @@ func main() {
 			a.newFile()
 		}
 	}
+	// Finder, the Dock and open(1) pass files here, not in os.Args.
+	mygo.App.OnOpenFile(func(path string) {
+		if len(l.wins) == 0 {
+			l.reopen()
+		}
+		a := l.last
+		if a.win == nil {
+			// The files the app is launched with come before its windows.
+			a.open([]string{path})
+			return
+		}
+		a.win.Update(func() { a.open([]string{path}) })
+	})
 	mygo.App.WhenReady(func() {
 		l.menu = l.newMenu()
 		mygo.App.SetMenu(l.menu)
