@@ -2260,6 +2260,16 @@ func (msgs Messages) StatusIncompleteJSON() string {
 	return Catalog.Format(msgs.locale, "statusIncompleteJSON", nil)
 }
 
+// StatusNoDefinition says "No definition of “{name}”"
+// in the language the app shows.
+func StatusNoDefinition(name string) string { return In(i18n.Locale()).StatusNoDefinition(name) }
+
+// StatusNoDefinition says "No definition of “{name}”"
+// in the language of msgs.
+func (msgs Messages) StatusNoDefinition(name string) string {
+	return Catalog.Format(msgs.locale, "statusNoDefinition", map[string]any{"name": name})
+}
+
 // StatusNoDifferences says "No differences"
 // in the language the app shows.
 func StatusNoDifferences() string { return In(i18n.Locale()).StatusNoDifferences() }
