@@ -16,8 +16,9 @@ func tabWidth(n int) string { return "set_setting tab_size " + strconv.Itoa(n) }
 func indentCommands() []command {
 	c := []command{
 		{id: "toggle_setting translate_tabs_to_spaces", caption: locales.Messages.CmdIndentUsingSpaces, run: withDoc(func(a *app, d *doc) {
+			_, spaces := a.indentOf(d)
 			d.indent = editor.IndentSpaces
-			if _, spaces := a.indentOf(d); spaces {
+			if spaces {
 				d.indent = editor.IndentTabs
 			}
 		})},
@@ -35,7 +36,8 @@ func indentCommands() []command {
 // applyIndent has d's editor indent as the file does, or as the settings
 // say where the file has no indentation of its own.
 func (a *app) applyIndent(d *doc) {
-	d.st.TabSize, d.st.Indent = cmp.Or(d.tabSize, a.set.TabSize), cmp.Or(d.indent, a.set.indent())
+	// A tab_size of 0 in settings.json is the editor's default.
+	d.st.TabSize, d.st.Indent = cmp.Or(d.tabSize, a.set.TabSize, 4), cmp.Or(d.indent, a.set.indent())
 }
 
 // indentOf is the width of a tab in d, and whether indenting inserts

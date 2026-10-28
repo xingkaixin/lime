@@ -48,7 +48,12 @@ func TestIndentation(t *testing.T) {
 	if got := d.st.Buffer.String(); got != "a:\n        b:\n                c: 1\n" {
 		t.Fatalf("to spaces: %q", got)
 	}
-	a.run("toggle_setting translate_tabs_to_spaces")
+	for _, want := range []bool{false, true, false} {
+		a.run("toggle_setting translate_tabs_to_spaces")
+		if _, spaces := a.indentOf(d); spaces != want {
+			t.Fatalf("toggled to spaces %v, want %v", spaces, want)
+		}
+	}
 	if err := a.l.saveSession(); err != nil {
 		t.Fatal(err)
 	}
