@@ -355,6 +355,14 @@
     "description": "The status bar's syntax button, to assistive technology.",
     "placeholders": { "name": { "type": "String", "example": "Go" } }
   },
+  "statusSpaces": "Spaces: {size}",
+  "@statusSpaces": {
+    "placeholders": { "size": { "type": "int", "example": "4" } }
+  },
+  "statusTabSize": "Tab Size: {size}",
+  "@statusTabSize": {
+    "placeholders": { "size": { "type": "int", "example": "4" } }
+  },
   "statusInvalidJSON": "Invalid JSON: unexpected character “{char}”",
   "@statusInvalidJSON": {
     "placeholders": { "char": { "type": "String", "example": "}" } }

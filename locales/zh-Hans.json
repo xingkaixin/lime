@@ -246,6 +246,8 @@
   "statusSelections": "{count, plural, other {# 个选区}}",
   "statusPosition": "第 {line, number, ::group-off} 行，第 {column, number, ::group-off} 列",
   "statusSyntax": "语法：{name}",
+  "statusSpaces": "空格：{size}",
+  "statusTabSize": "Tab 宽度：{size}",
   "statusInvalidJSON": "JSON 无效：意外的字符“{char}”",
   "statusIncompleteJSON": "JSON 无效：内容不完整",
   "statusNoDefinition": "找不到“{name}”的定义",

@@ -2450,6 +2450,26 @@ func (msgs Messages) StatusSyntax(name string) string {
 	return Catalog.Format(msgs.locale, "statusSyntax", map[string]any{"name": name})
 }
 
+// StatusSpaces says "Spaces: {size}"
+// in the language the app shows.
+func StatusSpaces(size int) string { return In(i18n.Locale()).StatusSpaces(size) }
+
+// StatusSpaces says "Spaces: {size}"
+// in the language of msgs.
+func (msgs Messages) StatusSpaces(size int) string {
+	return Catalog.Format(msgs.locale, "statusSpaces", map[string]any{"size": size})
+}
+
+// StatusTabSize says "Tab Size: {size}"
+// in the language the app shows.
+func StatusTabSize(size int) string { return In(i18n.Locale()).StatusTabSize(size) }
+
+// StatusTabSize says "Tab Size: {size}"
+// in the language of msgs.
+func (msgs Messages) StatusTabSize(size int) string {
+	return Catalog.Format(msgs.locale, "statusTabSize", map[string]any{"size": size})
+}
+
 // StatusInvalidJSON says "Invalid JSON: unexpected character “{char}”"
 // in the language the app shows.
 func StatusInvalidJSON(char string) string { return In(i18n.Locale()).StatusInvalidJSON(char) }

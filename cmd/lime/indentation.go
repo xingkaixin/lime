@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
@@ -45,6 +46,38 @@ func (a *app) applyIndent(d *doc) {
 func (a *app) indentOf(d *doc) (size int, spaces bool) {
 	a.applyIndent(d)
 	return d.st.TabSize, indentUnit(d.st) != "\t"
+}
+
+// indentButton shows how d indents, and changes it from the menu of
+// View > Indentation, as Sublime Text's status bar does.
+func (a *app) indentButton(c *ui.Context, d *doc) {
+	size, spaces := a.indentOf(d)
+	text := locales.StatusTabSize(size)
+	if spaces {
+		text = locales.StatusSpaces(size)
+	}
+	a.statusMenu(c, text, text, func(m *ui.Menu) {
+		if m.Item(locales.MenuIndentUsingSpaces()).Checked(spaces).Chosen() {
+			a.run("toggle_setting translate_tabs_to_spaces")
+		}
+		m.Separator()
+		for n := 1; n <= 8; n++ {
+			if m.Item(locales.MenuTabWidth(n)).Checked(n == size).Chosen() {
+				a.run(tabWidth(n))
+			}
+		}
+		m.Separator()
+		if m.Item(locales.MenuGuessIndentation()).Chosen() {
+			a.run("detect_indentation")
+		}
+		m.Separator()
+		if m.Item(locales.MenuConvertToSpaces()).Chosen() {
+			a.run("expand_tabs")
+		}
+		if m.Item(locales.MenuConvertToTabs()).Chosen() {
+			a.run("unexpand_tabs")
+		}
+	})
 }
 
 // guessLines is how many lines guessIndent reads, which a large file
