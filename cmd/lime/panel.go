@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -19,6 +20,9 @@ type item struct {
 	label, alias, detail, hint string
 	pick                       func()
 	preview                    func() // as the row is selected, a color scheme's
+	// The file of a Goto Anything row: its tab, or else its path.
+	tab  *doc
+	path string
 }
 
 // panel is Sublime Text's quick panel: Goto Anything, the command
@@ -38,6 +42,16 @@ type panel struct {
 	// Enter gives it the query, which prompt captions.
 	submit func(query string)
 	prompt string
+	// peek is the current tab's caret from before the rows that show as
+	// they are selected moved it: it goes back as the panel closes.
+	peek *peek
+}
+
+// peek is a tab's selections and scroll.
+type peek struct {
+	d    *doc
+	sels []editor.Selection
+	y    float64
 }
 
 const maxShown = 100
@@ -47,17 +61,34 @@ func (a *app) openPanel(p *panel) {
 	a.panel = p
 }
 
+// refresh lists the items for the query. A query typed selects the first
+// and shows it; items changed for the same query, as the project's files
+// listed, keep the row selected.
 func (p *panel) refresh() {
 	if !p.stale && p.listed == p.query {
 		return
 	}
-	first := p.shown == nil
+	old, typed := p.shown, p.listed != p.query
 	p.shown, p.listed, p.stale = p.list(p.query), p.query, false
-	p.sel = 0
-	if first {
+	switch {
+	case old == nil:
 		p.sel = min(p.start, max(len(p.shown)-1, 0))
+	case typed:
+		p.sel = 0
+		if p.query != "" {
+			p.preview()
+		}
+	case p.sel < len(old):
+		was := old[p.sel]
+		p.sel = max(slices.IndexFunc(p.shown, func(it item) bool { return it.label == was.label && it.detail == was.detail }), 0)
 	}
 	p.reveal = true
+}
+
+func (p *panel) preview() {
+	if p.sel < len(p.shown) && p.shown[p.sel].preview != nil {
+		p.shown[p.sel].preview()
+	}
 }
 
 func (a *app) movePanel(step int) {
@@ -65,8 +96,27 @@ func (a *app) movePanel(step int) {
 	if n := len(p.shown); n > 0 {
 		p.sel = ((p.sel+step)%n + n) % n
 		p.reveal = true
-		if fn := p.shown[p.sel].preview; fn != nil {
-			fn()
+		p.preview()
+	}
+}
+
+// unpeek puts back the selections the rows of p moved, and their scroll
+// once the editor has scrolled to them (scrollBack).
+func (a *app) unpeek(p *panel) {
+	if k := p.peek; k != nil {
+		k.d.st.SetSelections(k.sels...)
+		a.scroll = k
+	}
+}
+
+// scrollBack scrolls the editor unpeek put the selections back in to
+// where it was, after the editor built has revealed them, as it does
+// selections set: unless they moved again.
+func (a *app) scrollBack() {
+	if k := a.scroll; k != nil {
+		a.scroll = nil
+		if slices.Equal(k.d.st.Selections(), k.sels) {
+			k.d.st.SetScrollY(k.y)
 		}
 	}
 }
@@ -74,6 +124,7 @@ func (a *app) movePanel(step int) {
 func (a *app) pickPanel() {
 	p := a.panel
 	a.panel = nil
+	a.unpeek(p)
 	switch {
 	case p.submit != nil:
 		p.submit(p.query)
@@ -87,6 +138,7 @@ func (a *app) pickPanel() {
 func (a *app) cancelPanel() {
 	p := a.panel
 	a.panel = nil
+	a.unpeek(p)
 	if p.cancel != nil {
 		p.cancel()
 	}
@@ -161,14 +213,19 @@ func byLabel(q string) func(it *item) (int, bool) {
 	}
 }
 
-// showGoto opens Goto Anything with query, as ":" for Goto Line: the
-// open files and the project's, with ":line" after a name or alone.
+// showGoto opens Goto Anything with query, as ":" for Goto Line or "@"
+// for Goto Symbol: the open files and the project's, with ":line" or
+// "@symbol" after a name or alone.
 func (a *app) showGoto(query string) {
 	a.indexFolders()
-	a.openPanel(&panel{query: query, list: a.gotoList})
+	var syms symbolFile
+	a.openPanel(&panel{query: query, list: func(q string) []item { return a.gotoList(q, &syms) }})
 }
 
-func (a *app) gotoList(query string) []item {
+func (a *app) gotoList(query string, syms *symbolFile) []item {
+	if at := strings.LastIndexByte(query, '@'); at >= 0 {
+		return a.symbolList(query[:at], query[at+1:], syms)
+	}
 	name, line := query, 0
 	colon := strings.LastIndexByte(query, ':')
 	if colon >= 0 {
@@ -189,6 +246,12 @@ func (a *app) gotoList(query string) []item {
 		}
 		return []item{it}
 	}
+	return ranked(a.fileItems(line), byName(name))
+}
+
+// fileItems lists the open files, by when they were last used, then the
+// project's, which go to line when it is set.
+func (a *app) fileItems(line int) []item {
 	var items []item
 	seen := make(map[string]bool)
 	for _, d := range a.mru {
@@ -197,7 +260,7 @@ func (a *app) gotoList(query string) []item {
 			seen[d.path] = true
 			detail = a.proj.rel(d.path)
 		}
-		items = append(items, item{label: d.name(), detail: detail, pick: func() {
+		items = append(items, item{label: d.name(), detail: detail, tab: d, pick: func() {
 			a.show(d)
 			goToLine(d, line)
 		}})
@@ -206,14 +269,102 @@ func (a *app) gotoList(query string) []item {
 		if seen[p] {
 			continue
 		}
-		items = append(items, item{label: filepath.Base(p), detail: a.proj.rel(p), pick: func() {
+		items = append(items, item{label: filepath.Base(p), detail: a.proj.rel(p), path: p, pick: func() {
 			a.open([]string{p})
 			if d := a.docAt(p); d != nil {
 				goToLine(d, line)
 			}
 		}})
 	}
-	return ranked(items, byName(name))
+	return items
+}
+
+// symbolFile is the file Goto Symbol last listed the symbols of, kept
+// while the panel is open: a tab's, or a project file's read from disk.
+type symbolFile struct {
+	d       *doc
+	path    string
+	version uint64
+	buf     *editor.Buffer
+	syms    []symbol
+}
+
+// symbolList lists for Goto Symbol the symbols of the current tab, or of
+// the file Goto Anything lists first for name. The current tab's show as
+// they are selected.
+func (a *app) symbolList(name, query string, f *symbolFile) []item {
+	cur := a.current()
+	d, path := cur, ""
+	if name != "" {
+		files := ranked(a.fileItems(0), byName(name))
+		if len(files) == 0 {
+			return nil
+		}
+		d, path = files[0].tab, files[0].path
+	}
+	if d != nil && !d.plain() {
+		return nil
+	}
+	if f.d != d || f.path != path || d != nil && f.version != d.st.Buffer.Version() {
+		*f = symbolFile{d: d, path: path}
+		if d != nil {
+			f.version, f.buf = d.st.Buffer.Version(), d.st.Buffer
+		} else if path != "" {
+			f.buf = readSymbols(path)
+		}
+		if f.buf != nil {
+			f.syms = symbols(f.buf.Language(), f.buf.String())
+		}
+	}
+	items := make([]item, 0, len(f.syms))
+	for _, s := range f.syms {
+		pos, n := f.buf.Pos(s.at), len(s.name)
+		it := item{label: strings.Repeat("  ", max(s.level-1, 0)) + s.name, pick: func() {
+			o := d
+			if o == nil {
+				a.open([]string{path})
+				o = a.docAt(path)
+			}
+			if o != nil {
+				a.show(o)
+				selectSymbol(o, pos, n)
+			}
+		}}
+		if d != nil && d == cur {
+			it.preview = func() {
+				if p := a.panel; p.peek == nil {
+					p.peek = &peek{d, d.st.Selections(), d.st.ScrollY()}
+				}
+				selectSymbol(d, pos, n)
+			}
+		}
+		items = append(items, it)
+	}
+	return ranked(items, byLabel(query))
+}
+
+// readSymbols reads the file at path for its symbols, when it has a
+// language and is not large.
+func readSymbols(path string) *editor.Buffer {
+	l := editor.LanguageFor(path)
+	if fi, err := os.Stat(path); err != nil || fi.Size() > largeFile || l == nil || fileKind(path) != textDoc {
+		return nil
+	}
+	text, err := readText(path)
+	if err != nil {
+		return nil
+	}
+	buf := editor.NewBuffer(text)
+	buf.SetLanguage(l)
+	return buf
+}
+
+// selectSymbol selects the n bytes of a symbol's name at p in d, in the
+// middle of the editor.
+func selectSymbol(d *doc, p editor.Pos, n int) {
+	d.st.GoTo(p)
+	at := d.st.Cursor()
+	d.st.Select(at, at+n)
 }
 
 // byName scores files for name, matched in their names, or else across
@@ -275,13 +426,7 @@ func (a *app) showSchemes() {
 	}
 	a.openPanel(&panel{
 		placeholder: locales.PanelSelectColorScheme(), start: start,
-		list: func(q string) []item {
-			shown := ranked(items, byLabel(q))
-			if len(shown) > 0 && q != "" {
-				shown[0].preview()
-			}
-			return shown
-		},
+		list:   func(q string) []item { return ranked(items, byLabel(q)) },
 		cancel: func() { *a.set = before },
 	})
 }

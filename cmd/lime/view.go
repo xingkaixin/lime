@@ -59,6 +59,7 @@ func (a *app) view(c *ui.Context) {
 		a.statusBar(c)
 		a.draggedTab(c)
 	})
+	a.scrollBack()
 	a.panelView(c)
 	a.settingsView(c)
 }

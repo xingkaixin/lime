@@ -68,6 +68,10 @@ func (d *doc) source() *doc {
 	return d
 }
 
+// plain reports whether d's tab shows its text in an editor: not a diff,
+// a commit or an image.
+func (d *doc) plain() bool { return d.kind == textDoc && d.cmp == nil && d.commit == nil }
+
 // dirty reports whether the text differs from the saved one, as
 // Buffer.Modified does, which copies both texts out at every call.
 func (d *doc) dirty() bool {
@@ -232,6 +236,7 @@ type app struct {
 	title   string
 	scheme  *scheme
 	panel   *panel
+	scroll  *peek // what a closed panel scrolls back to (scrollBack)
 	find    finding
 	proj    project
 	git     gitRepo

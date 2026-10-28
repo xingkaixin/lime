@@ -494,6 +494,16 @@ func (msgs Messages) MenuGotoAnything() string {
 	return Catalog.Format(msgs.locale, "menuGotoAnything", nil)
 }
 
+// MenuGotoSymbol says "Goto Symbol…"
+// in the language the app shows.
+func MenuGotoSymbol() string { return In(i18n.Locale()).MenuGotoSymbol() }
+
+// MenuGotoSymbol says "Goto Symbol…"
+// in the language of msgs.
+func (msgs Messages) MenuGotoSymbol() string {
+	return Catalog.Format(msgs.locale, "menuGotoSymbol", nil)
+}
+
 // MenuGotoLine says "Goto Line…"
 // in the language the app shows.
 func MenuGotoLine() string { return In(i18n.Locale()).MenuGotoLine() }
@@ -922,6 +932,16 @@ func CmdGotoLine() string { return In(i18n.Locale()).CmdGotoLine() }
 // in the language of msgs.
 func (msgs Messages) CmdGotoLine() string {
 	return Catalog.Format(msgs.locale, "cmdGotoLine", nil)
+}
+
+// CmdGotoSymbol says "Goto Symbol"
+// in the language the app shows.
+func CmdGotoSymbol() string { return In(i18n.Locale()).CmdGotoSymbol() }
+
+// CmdGotoSymbol says "Goto Symbol"
+// in the language of msgs.
+func (msgs Messages) CmdGotoSymbol() string {
+	return Catalog.Format(msgs.locale, "cmdGotoSymbol", nil)
 }
 
 // CmdToggleSideBar says "View: Toggle Side Bar"

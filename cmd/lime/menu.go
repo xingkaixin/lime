@@ -113,6 +113,7 @@ func (l *lime) newMenu() *mygo.Menu {
 		}},
 		{Label: locales.MenuGoto(), Submenu: []*mygo.MenuItem{
 			l.menuItem(locales.MenuGotoAnything(), "show_goto"),
+			l.menuItem(locales.MenuGotoSymbol(), "goto_symbol"),
 			l.menuItem(locales.MenuGotoLine(), "goto_line"),
 			l.menuItem(locales.MenuCommandPalette(), "show_command_palette"),
 			mygo.Separator(),

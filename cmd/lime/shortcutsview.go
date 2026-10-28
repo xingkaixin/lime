@@ -90,7 +90,7 @@ var shortcutGroups = func() []shortcutGroup {
 			s("fold", m.ShortcutFold), s("unfold", m.ShortcutUnfold), s("fold_all", m.ShortcutFoldAll), s("unfold_all", m.ShortcutUnfoldAll),
 		}, numbered(9, func(i int) string { return foldLevel(i + 1) }, m.ShortcutFoldLevel)...)},
 		{m.MenuGoto, []shortcut{
-			s("show_goto", m.MenuGotoAnything), s("goto_line", m.MenuGotoLine), s("show_command_palette", m.MenuCommandPalette),
+			s("show_goto", m.MenuGotoAnything), s("goto_symbol", m.MenuGotoSymbol), s("goto_line", m.MenuGotoLine), s("show_command_palette", m.MenuCommandPalette),
 			s("goto_definition", m.ShortcutGotoDefinition), s("next_modification", m.MenuNextModification),
 			s("prev_modification", m.MenuPreviousModification), s("revert_hunk", m.CmdRevertHunk),
 		}},
