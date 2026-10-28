@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"cmp"
 	"math"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -124,9 +124,9 @@ func (a *app) readBlame(d *doc) {
 		return
 	}
 	b.reading, b.stale = true, false
-	path, enc, n := d.path, d.encoding(), gitLineCount(d.saved)
+	path, saved, enc := d.path, d.saved, d.encoding()
 	a.background(func() func() {
-		root, lines := blameFile(path, enc, n)
+		root, lines := blameFile(path, saved, enc)
 		return func() {
 			b.reading = false
 			// Saved again since: the next frame reads it again.
@@ -148,11 +148,20 @@ func gitLineCount(s editor.Snapshot) int {
 	return n
 }
 
-// blameFile reads the commit of each of the n lines of the file at path,
-// saved in enc, and the top of its repository. It reads none where git
-// splits the file into other lines. It blocks, so call it off the main
-// thread.
-func blameFile(path string, enc *fileEncoding, n int) (string, []*blamed) {
+// blameFile reads the commit of each line of saved, the text of the file at
+// path as saved in enc, and the top of its repository. git blames the
+// text given, not the file, which git may have changed on disk since. It
+// reads none where git splits the text into other lines than the tab's,
+// as it does UTF-16's. It blocks, so call it off the main thread.
+func blameFile(path string, saved editor.Snapshot, enc *fileEncoding) (string, []*blamed) {
+	var text bytes.Buffer
+	if _, err := saved.WriteTo(&text); err != nil {
+		return "", nil
+	}
+	raw, err := enc.encode(text.Bytes())
+	if err != nil {
+		return "", nil
+	}
 	real := path
 	if r, err := filepath.EvalSymlinks(path); err == nil {
 		real = r
@@ -162,33 +171,13 @@ func blameFile(path string, enc *fileEncoding, n int) (string, []*blamed) {
 	if err != nil {
 		return "", nil
 	}
-	out, err := runGit(dir, "-c", "core.quotePath=false", "blame", "--porcelain", "--", name)
+	out, err := gitWith(dir, string(raw), "-c", "core.quotePath=false", "blame", "--porcelain", "--contents", "-", "--", name)
 	if err != nil {
 		return "", nil
 	}
 	lines := parseBlame(out)
-	if len(lines) != n {
-		// UTF-16's code units hold the byte of a newline, where git splits
-		// a line, in other characters too.
-		be := enc.name == "UTF-16 BE with BOM"
-		if !be && enc.name != "UTF-16 LE with BOM" {
-			return "", nil
-		}
-		raw, err := os.ReadFile(real)
-		if err != nil {
-			return "", nil
-		}
-		starts := utf16Lines(raw, be)
-		if len(starts) < n {
-			return "", nil
-		}
-		text := make([]*blamed, n)
-		for i, at := range starts[:n] {
-			if at < len(lines) {
-				text[i] = lines[at]
-			}
-		}
-		lines = text
+	if len(lines) != gitLineCount(saved) {
+		return "", nil
 	}
 	return filepath.Clean(strings.TrimSpace(top)), lines
 }
@@ -258,29 +247,6 @@ func isHash(s string) bool {
 		}
 	}
 	return true
-}
-
-// utf16Lines is the line git splits raw, UTF-16 text, into at the start
-// of each of its lines: git splits after every byte 0x0A.
-func utf16Lines(raw []byte, bigEndian bool) []int {
-	starts := []int{0}
-	n := 0
-	for i := 0; i+1 < len(raw); i += 2 {
-		lo, hi := raw[i], raw[i+1]
-		if bigEndian {
-			lo, hi = hi, lo
-		}
-		if raw[i] == '\n' {
-			n++
-		}
-		if raw[i+1] == '\n' {
-			n++
-		}
-		if lo == '\n' && hi == 0 {
-			starts = append(starts, n)
-		}
-	}
-	return starts
 }
 
 // mapLines finds the lines edited since the text was saved, as it is
@@ -354,7 +320,6 @@ func (a *app) restBlame(c *ui.Context, d *doc, inline bool) {
 	if cols := a.rowColumns(c, d); cols > 0 {
 		room = max(cols-columns(t.Slice(t.LineStart(line), t.LineEnd(line)), st.TabSize), 0)
 	}
-
 	if text := inlineBlame(bl, time.Now(), room); text != "" {
 		st.SetSuggestion(t.LineEnd(line), text)
 	}

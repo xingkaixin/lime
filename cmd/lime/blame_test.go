@@ -90,39 +90,6 @@ func TestBlame(t *testing.T) {
 	}
 }
 
-// git splits UTF-16 text into lines at the bytes of other characters than
-// newlines too, which the tab's lines don't follow.
-func TestBlameUTF16(t *testing.T) {
-	dir, git := newRepo(t)
-	file := filepath.Join(dir, "a.txt")
-	enc := encodingNamed("UTF-16 LE with BOM")
-	write := func(text string) {
-		t.Helper()
-		raw, err := enc.encode([]byte(text))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(file, raw, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// 上 is U+4E0A, the bytes 0A 4E.
-	write("上\nb\n")
-	git("add", ".")
-	git("commit", "-q", "-m", "first")
-	write("上\nb\nc\n")
-	git("commit", "-q", "-am", "second")
-
-	_, lines := blameFile(file, enc, 3)
-	var got []string
-	for _, bl := range lines {
-		got = append(got, bl.subject)
-	}
-	if strings.Join(got, ",") != "first,first,second" {
-		t.Fatalf("blame: %q", got)
-	}
-}
-
 // The column labels a fold's lines by the line after them, which a click
 // there opens, not by the first line the fold hides.
 func TestBlameFolds(t *testing.T) {
