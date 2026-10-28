@@ -79,7 +79,7 @@ func (d *doc) name() string {
 func tabDirs(docs []*doc) map[*doc]string {
 	byName := make(map[string][]*doc)
 	for _, d := range docs {
-		if d.path != "" && d.cmp == nil && d.commit == nil && d.results == nil {
+		if d.path != "" {
 			byName[d.name()] = append(byName[d.name()], d)
 		}
 	}
