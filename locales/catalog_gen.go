@@ -1858,6 +1858,16 @@ func (msgs Messages) CmdCreateBranch() string {
 	return Catalog.Format(msgs.locale, "cmdCreateBranch", nil)
 }
 
+// CmdDeleteBranch says "Git: Delete Branch…"
+// in the language the app shows.
+func CmdDeleteBranch() string { return In(i18n.Locale()).CmdDeleteBranch() }
+
+// CmdDeleteBranch says "Git: Delete Branch…"
+// in the language of msgs.
+func (msgs Messages) CmdDeleteBranch() string {
+	return Catalog.Format(msgs.locale, "cmdDeleteBranch", nil)
+}
+
 // CmdRenameBranch says "Git: Rename Branch…"
 // in the language the app shows.
 func CmdRenameBranch() string { return In(i18n.Locale()).CmdRenameBranch() }
@@ -2246,6 +2256,26 @@ func DialogDiscardUntracked() string { return In(i18n.Locale()).DialogDiscardUnt
 // in the language of msgs.
 func (msgs Messages) DialogDiscardUntracked() string {
 	return Catalog.Format(msgs.locale, "dialogDiscardUntracked", nil)
+}
+
+// DialogBranchNotMerged says "{name} is not fully merged. Delete it anyway?"
+// in the language the app shows.
+func DialogBranchNotMerged(name string) string { return In(i18n.Locale()).DialogBranchNotMerged(name) }
+
+// DialogBranchNotMerged says "{name} is not fully merged. Delete it anyway?"
+// in the language of msgs.
+func (msgs Messages) DialogBranchNotMerged(name string) string {
+	return Catalog.Format(msgs.locale, "dialogBranchNotMerged", map[string]any{"name": name})
+}
+
+// DialogBranchCommitsLost says "The commits only it has are lost."
+// in the language the app shows.
+func DialogBranchCommitsLost() string { return In(i18n.Locale()).DialogBranchCommitsLost() }
+
+// DialogBranchCommitsLost says "The commits only it has are lost."
+// in the language of msgs.
+func (msgs Messages) DialogBranchCommitsLost() string {
+	return Catalog.Format(msgs.locale, "dialogBranchCommitsLost", nil)
 }
 
 // FilterProject says "Sublime Project"
@@ -2666,6 +2696,16 @@ func GitStash() string { return In(i18n.Locale()).GitStash() }
 // in the language of msgs.
 func (msgs Messages) GitStash() string {
 	return Catalog.Format(msgs.locale, "gitStash", nil)
+}
+
+// GitDeleteBranch says "Delete Branch"
+// in the language the app shows.
+func GitDeleteBranch() string { return In(i18n.Locale()).GitDeleteBranch() }
+
+// GitDeleteBranch says "Delete Branch"
+// in the language of msgs.
+func (msgs Messages) GitDeleteBranch() string {
+	return Catalog.Format(msgs.locale, "gitDeleteBranch", nil)
 }
 
 // PreviewBinary says "This file is binary and can't be shown."

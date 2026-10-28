@@ -185,6 +185,7 @@
   "cmdReopenWithEncoding": "以其他编码重新打开：{name}",
   "cmdSaveWithEncoding": "以其他编码保存：{name}",
   "cmdCreateBranch": "Git：新建分支…",
+  "cmdDeleteBranch": "Git：删除分支…",
   "cmdRenameBranch": "Git：重命名分支…",
 
   "panelLabel": "快速面板",
@@ -225,6 +226,8 @@
   "dialogDiscardHunk": "要丢弃 {name} 中的这处改动吗？",
   "dialogDiscardLost": "未暂存的改动丢弃后无法恢复。",
   "dialogDiscardUntracked": "新文件会移到废纸篓。",
+  "dialogBranchNotMerged": "{name} 尚未完全合并。仍要删除吗？",
+  "dialogBranchCommitsLost": "只在这个分支上的提交会丢失。",
   "filterProject": "Sublime 项目",
 
   "sideBarDropFolder": "将文件夹拖到这里打开",
@@ -268,6 +271,7 @@
   "gitCurrent": "当前",
   "gitRemoteBranch": "远程分支",
   "gitStash": "Stash",
+  "gitDeleteBranch": "删除分支",
   "previewBinary": "此文件是二进制文件，无法显示。",
   "tabBar": "标签栏",
   "tabClose": "关闭 {name}",

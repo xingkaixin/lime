@@ -162,6 +162,7 @@ func makeCommands() []command {
 		{id: "refresh_folders", caption: locales.Messages.CmdRefreshFolders, run: (*app).refreshFolders},
 
 		{id: "git_create_branch", caption: realGit(locales.Messages.CmdCreateBranch), run: inRepo((*app).promptCreateBranch)},
+		{id: "git_delete_branch", caption: realGit(locales.Messages.CmdDeleteBranch), run: inRepo((*app).showDeleteBranch)},
 		{id: "git_rename_branch", caption: realGit(locales.Messages.CmdRenameBranch), run: inRepo((*app).promptRenameBranch)},
 
 		convertCase("upper_case", locales.Messages.CmdUpperCase, editor.Uppercase, false),
