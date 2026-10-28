@@ -547,6 +547,24 @@ func TestHotExit(t *testing.T) {
 	}
 }
 
+// Hot exit keeps the bytes of unsaved text that isn't UTF-8, as of a GBK
+// file.
+func TestHotExitKeepsBytes(t *testing.T) {
+	dir := t.TempDir()
+	a := newApp(dir)
+	a.newFile()
+	text := "\xc4\xe3\xba\xc3\n"
+	a.current().st.Buffer.Set(text)
+	if err := a.l.saveSession(); err != nil {
+		t.Fatal(err)
+	}
+	l := newLime(dir)
+	l.restoreSession()
+	if got := l.wins[0].current().st.Buffer.String(); got != text {
+		t.Fatalf("restored %q, want %q", got, text)
+	}
+}
+
 // The color scheme of older settings becomes the appearance and the theme
 // that show it.
 func TestMigrateColorScheme(t *testing.T) {
