@@ -199,6 +199,34 @@ func TestTabDrag(t *testing.T) {
 	}
 }
 
+// Tabs that do not fit scroll: to show the current one, and by a touchpad
+// or wheel either way.
+func TestTabOverflow(t *testing.T) {
+	a := newApp("")
+	for i := range 30 {
+		a.add(fmt.Sprintf("/tmp/%02d", i), "")
+	}
+	tt := ui.NewTester(a.view, 900, 300)
+	tt.Frame()
+	g := a.groups[0]
+	whole := func(name string) bool {
+		r, _ := tt.Find(name)
+		return r.W == tabMinW
+	}
+	if !whole("29") {
+		t.Fatalf("the tab opened last is out of sight: scrolled %v", g.scroll)
+	}
+	tt.Key(ui.Cmd, ui.Key1)
+	tt.Frame()
+	if !whole("00") {
+		t.Fatalf("Cmd+1: the first tab is out of sight: scrolled %v", g.scroll)
+	}
+	tt.Scroll(g.bar.X+100, g.bar.Y+10, 0, 150)
+	if g.scroll != 150 {
+		t.Fatalf("scrolling down over the tabs: scrolled %v, want 150", g.scroll)
+	}
+}
+
 func TestGroups(t *testing.T) {
 	if !mac {
 		t.Skip("the test presses macOS keys")

@@ -86,7 +86,7 @@ func (a *app) makeWay(g *group) {
 	if i < 0 {
 		return
 	}
-	to := int((t.at.X - t.grab.X + g.tabW/2 - g.bar.X) / g.tabW)
+	to := int((t.at.X - t.grab.X + g.tabW/2 - g.bar.X + g.scroll) / g.tabW)
 	to = min(max(to, 0), len(g.docs)-1)
 	if to == i {
 		return
@@ -166,7 +166,7 @@ func (a *app) barAt(x, y float32) (gi, i int, ok bool) {
 		if b := g.bar; x >= b.X && x < b.X+b.W && y >= b.Y && y < b.Y+b.H {
 			i := len(g.docs)
 			if g.tabW > 0 {
-				i = int((x - b.X) / g.tabW)
+				i = int((x - b.X + g.scroll) / g.tabW)
 			}
 			return gi, i, true
 		}
