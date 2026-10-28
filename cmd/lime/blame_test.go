@@ -122,3 +122,41 @@ func TestBlameUTF16(t *testing.T) {
 		t.Fatalf("blame: %q", got)
 	}
 }
+
+// The column labels a fold's lines by the line after them, which a click
+// there opens, not by the first line the fold hides.
+func TestBlameFolds(t *testing.T) {
+	dir, git := newRepo(t)
+	file := filepath.Join(dir, "a.txt")
+	commit := func(text, subject string) {
+		t.Helper()
+		if err := os.WriteFile(file, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		git("add", ".")
+		git("commit", "-q", "-m", subject)
+	}
+	commit("a\n\tb\n\tc\nd\n", "one")
+	commit("a\n\tB\n\tC\nd\n", "two")
+	commit("a\n\tB\n\tC\nD\n", "three")
+
+	a := newApp("")
+	a.open([]string{file})
+	a.reloadChanged()
+	tt := ui.NewTester(a.view, 900, 600)
+	d := a.current()
+	d.st.Fold(0)
+	tt.Frame()
+	tt.Frame()
+	st := d.st
+	var got []string
+	d.blame.eachBlock(d, func(top float64, bl *blamed) {
+		got = append(got, bl.subject)
+		if at := d.blame.lineOf(d, lineAt(st, top-st.ScrollY()+1)); at != bl {
+			t.Errorf("%q shows where a click opens %v", bl.subject, at)
+		}
+	})
+	if strings.Join(got, ",") != "one,three" {
+		t.Fatalf("blocks: %q, folded %v", got, st.Folded())
+	}
+}

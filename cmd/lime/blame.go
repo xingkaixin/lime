@@ -500,23 +500,30 @@ func (a *app) withBlame(c *ui.Context, d *doc, view func() ui.Element) {
 // paint labels the first line in view of each block of lines of a
 // commit, in the column r.
 func (b *blaming) paint(p *ui.Painter, r ui.Rect, d *doc, style ui.Span, pad float32) {
+	scroll := d.st.ScrollY()
+	b.eachBlock(d, func(top float64, bl *blamed) {
+		label := style
+		label.Text = blameLabel(bl)
+		p.RichText(r.X+8, r.Y+float32(top-scroll)+pad, 0, label)
+	})
+}
+
+// eachBlock calls fn with the commit of each block of lines in view and
+// the top of its first line.
+func (b *blaming) eachBlock(d *doc, fn func(top float64, bl *blamed)) {
 	st := d.st
 	first, last := st.VisibleLines()
-	scroll := st.ScrollY()
+	n := st.Buffer.LineCount()
 	var prev *blamed
-	prevTop := -1.0
 	for line := first; line <= last; line++ {
 		top := st.LineTop(line)
-		// A line a fold hides takes no room.
-		if top == prevTop {
+		// A line a fold hides takes no room, at the top of the line after it.
+		if line+1 < n && st.LineTop(line+1) == top {
 			continue
 		}
-		prevTop = top
 		bl := b.lineOf(d, line)
 		if bl != nil && bl != prev {
-			label := style
-			label.Text = blameLabel(bl)
-			p.RichText(r.X+8, r.Y+float32(top-scroll)+pad, 0, label)
+			fn(top, bl)
 		}
 		prev = bl
 	}
