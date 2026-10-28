@@ -61,6 +61,22 @@ func edit(id string, caption func(locales.Messages) string, cmd editor.Command) 
 	}, cmd}
 }
 
+// convertCase runs cmd, which converts the case of the selections, on
+// them as caseSpans readies them, or as edit does in a diff tab, whose
+// selections MyGo keeps to itself. It gives the editor no key, which would
+// run cmd on the selections as they are.
+func convertCase(id string, caption func(locales.Messages) string, cmd editor.Command, trim bool) command {
+	return command{id: id, caption: caption, run: func(a *app) {
+		switch d := a.current(); {
+		case d == nil:
+		case d.cmp != nil:
+			d.cmp.diff.Run(cmd)
+		case d.kind == textDoc:
+			caseSpans(d.st, trim, func() { d.st.Run(cmd) })
+		}
+	}}
+}
+
 func (a *app) setFontSize(size float32) {
 	a.set.FontSize = max(8, min(size, 48))
 	a.l.saveSettings()
@@ -145,14 +161,16 @@ func makeCommands() []command {
 		{id: "close_project", caption: locales.Messages.CmdCloseProject, run: (*app).closeProject},
 		{id: "refresh_folders", caption: locales.Messages.CmdRefreshFolders, run: (*app).refreshFolders},
 
-		edit("upper_case", locales.Messages.CmdUpperCase, editor.Uppercase),
-		edit("lower_case", locales.Messages.CmdLowerCase, editor.Lowercase),
-		edit("title_case", locales.Messages.CmdTitleCase, editor.TitleCase),
-		{id: "swap_case", caption: locales.Messages.CmdSwapCase, run: withDoc(func(_ *app, d *doc) { swapCase(d.st) })},
-		edit("convert_to_snake", locales.Messages.CmdSnakeCase, editor.SnakeCase),
-		edit("convert_to_dash", locales.Messages.CmdKebabCase, editor.KebabCase),
-		edit("convert_to_camel", locales.Messages.CmdCamelCase, editor.CamelCase),
-		edit("convert_to_pascal", locales.Messages.CmdPascalCase, editor.PascalCase),
+		convertCase("upper_case", locales.Messages.CmdUpperCase, editor.Uppercase, false),
+		convertCase("lower_case", locales.Messages.CmdLowerCase, editor.Lowercase, false),
+		convertCase("title_case", locales.Messages.CmdTitleCase, editor.TitleCase, false),
+		{id: "swap_case", caption: locales.Messages.CmdSwapCase, run: withDoc(func(_ *app, d *doc) {
+			caseSpans(d.st, false, func() { swapCase(d.st) })
+		})},
+		convertCase("convert_to_snake", locales.Messages.CmdSnakeCase, editor.SnakeCase, true),
+		convertCase("convert_to_dash", locales.Messages.CmdKebabCase, editor.KebabCase, true),
+		convertCase("convert_to_camel", locales.Messages.CmdCamelCase, editor.CamelCase, true),
+		convertCase("convert_to_pascal", locales.Messages.CmdPascalCase, editor.PascalCase, true),
 		edit("sort_lines", locales.Messages.CmdSortLines, editor.SortLinesCaseInsensitive),
 		edit("sort_lines_case_sensitive", locales.Messages.CmdSortLinesCaseSensitive, editor.SortLines),
 		edit("reverse_lines", locales.Messages.CmdReverseLines, editor.ReverseLines),
@@ -273,45 +291,75 @@ func deleteBlankLines(st *editor.State, surplus bool) {
 	st.Buffer.Edit(edits...)
 }
 
-// swapCase swaps the case of each selection, or of the word at a caret,
-// as Sublime Text's swap_case does, and selects what it swapped, as the
-// editor's upper_case does.
-func swapCase(st *editor.State) {
+// caseSpans readies the selections for convert, which converts the case
+// of each, as Sublime Text's CaseConversion package does: a caret takes
+// its word, trim leaves out the white space around a selection, and those
+// that overlap merge, so that MyGo converts a word once. A caret in no
+// word, or a selection of white space alone, stays out of convert's
+// reach, as MyGo would take the white space or punctuation around it, and
+// drop it from a name.
+func caseSpans(st *editor.State, trim bool, convert func()) {
 	t := st.Buffer.Snapshot()
 	chars := wordChars(st.Buffer)
-	var spans [][2]int
+	var spans, rest []editor.Selection
 	for _, s := range st.Selections() {
 		a, z := min(s.Anchor, s.Head), max(s.Anchor, s.Head)
-		if a == z {
+		switch {
+		case a == z:
 			line := t.LineOf(a)
 			start, text := t.LineStart(line), t.Line(line)
 			a, z = start+wordStart(text, a-start, chars), start+wordEnd(text, a-start, chars)
+		case trim:
+			text := t.Slice(a, z)
+			z = a + len(strings.TrimRightFunc(text, unicode.IsSpace))
+			a += len(text) - len(strings.TrimLeftFunc(text, unicode.IsSpace))
 		}
-		spans = append(spans, [2]int{a, z})
-	}
-	// Carets in one word, or by a selection, take its word once.
-	slices.SortFunc(spans, func(x, y [2]int) int { return x[0] - y[0] })
-	merged := spans[:1]
-	for _, sp := range spans[1:] {
-		if last := &merged[len(merged)-1]; sp[0] < last[1] {
-			last[1] = max(last[1], sp[1])
+		if a >= z {
+			rest = append(rest, s)
 		} else {
-			merged = append(merged, sp)
+			spans = append(spans, editor.Selection{Anchor: a, Head: z})
 		}
 	}
+	if len(spans) == 0 {
+		return
+	}
+	st.SetSelections(spans...)
+	before := st.Selections()
+	convert()
+	after := st.Selections()
+	// A name converted to nothing merges with the selection it touches.
+	if len(rest) == 0 || len(after) != len(before) {
+		return
+	}
+	size := func(s editor.Selection) int { return max(s.Anchor, s.Head) - min(s.Anchor, s.Head) }
+	shift, i := 0, 0
+	for k, r := range rest {
+		for ; i < len(before) && max(before[i].Anchor, before[i].Head) <= min(r.Anchor, r.Head); i++ {
+			shift += size(after[i]) - size(before[i])
+		}
+		rest[k] = editor.Selection{Anchor: r.Anchor + shift, Head: r.Head + shift}
+	}
+	st.SetSelections(append(rest, after...)...)
+}
+
+// swapCase swaps the case of each selection, as Sublime Text's swap_case
+// does, and selects what it swapped, as the editor's upper_case does.
+func swapCase(st *editor.State) {
+	t := st.Buffer.Snapshot()
 	var edits []editor.Edit
 	var sels []editor.Selection
 	delta := 0
-	for _, sp := range merged {
-		old := t.Slice(sp[0], sp[1])
+	for _, s := range st.Selections() {
+		a, z := min(s.Anchor, s.Head), max(s.Anchor, s.Head)
+		old := t.Slice(a, z)
 		swapped := strings.Map(func(r rune) rune {
 			if unicode.IsUpper(r) {
 				return unicode.ToLower(r)
 			}
 			return unicode.ToUpper(r)
 		}, old)
-		edits = append(edits, editor.Edit{Start: sp[0], End: sp[1], Text: swapped})
-		sels = append(sels, editor.Selection{Anchor: sp[0] + delta, Head: sp[0] + delta + len(swapped)})
+		edits = append(edits, editor.Edit{Start: a, End: z, Text: swapped})
+		sels = append(sels, editor.Selection{Anchor: a + delta, Head: a + delta + len(swapped)})
 		delta += len(swapped) - len(old)
 	}
 	st.Buffer.Edit(edits...)

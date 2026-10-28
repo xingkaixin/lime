@@ -721,27 +721,33 @@ func TestDeleteBlankLines(t *testing.T) {
 	}
 }
 
-// swap_case swaps each selection, or the word at each caret, a word with
-// several carets once, and selects what it swapped.
-func TestSwapCase(t *testing.T) {
+// The case commands convert each selection, or the word at each caret, a
+// word with several carets once, and select what they converted. The
+// naming styles leave out the white space around a selection, and carets
+// in no word stay where they are.
+func TestConvertCase(t *testing.T) {
 	sel := func(a, h int) editor.Selection { return editor.Selection{Anchor: a, Head: h} }
 	for _, c := range []struct {
-		text string
-		sels []editor.Selection
-		want string
-		then []editor.Selection
+		id, text string
+		sels     []editor.Selection
+		want     string
+		then     []editor.Selection
 	}{
-		{"Hello World", []editor.Selection{sel(11, 0)}, "hELLO wORLD", []editor.Selection{sel(0, 11)}},
-		{"fooBar baz", []editor.Selection{sel(1, 1), sel(4, 4), sel(8, 8)}, "FOObAR BAZ", []editor.Selection{sel(0, 6), sel(7, 10)}},
-		{"a  b", []editor.Selection{sel(2, 2)}, "a  b", []editor.Selection{sel(2, 2)}},
-		{"ı x", []editor.Selection{sel(0, 0), sel(3, 3)}, "I X", []editor.Selection{sel(0, 1), sel(2, 3)}},
+		{"swap_case", "Hello World", []editor.Selection{sel(11, 0)}, "hELLO wORLD", []editor.Selection{sel(0, 11)}},
+		{"swap_case", "fooBar baz", []editor.Selection{sel(1, 1), sel(4, 4), sel(8, 8)}, "FOObAR BAZ", []editor.Selection{sel(0, 6), sel(7, 10)}},
+		{"swap_case", "a  b", []editor.Selection{sel(2, 2)}, "a  b", []editor.Selection{sel(2, 2)}},
+		{"swap_case", "ı x", []editor.Selection{sel(0, 0), sel(3, 3)}, "I X", []editor.Selection{sel(0, 1), sel(2, 3)}},
+		{"upper_case", "fooBar", []editor.Selection{sel(1, 1), sel(4, 4)}, "FOOBAR", []editor.Selection{sel(0, 6)}},
+		{"convert_to_snake", "  fooBar\nnext", []editor.Selection{sel(0, 9)}, "  foo_bar\nnext", []editor.Selection{sel(2, 9)}},
+		{"convert_to_dash", "a -> b", []editor.Selection{sel(3, 3)}, "a -> b", []editor.Selection{sel(3, 3)}},
+		{"convert_to_snake", "fooBar  a", []editor.Selection{sel(1, 1), sel(7, 7)}, "foo_bar  a", []editor.Selection{sel(0, 7), sel(8, 8)}},
 	} {
 		a := newApp("")
 		st := a.add("", c.text).st
 		st.SetSelections(c.sels...)
-		a.run("swap_case")
+		a.run(c.id)
 		if got := st.Buffer.String(); got != c.want || !slices.Equal(st.Selections(), c.then) {
-			t.Errorf("swap_case %q: %q %v, want %q %v", c.text, got, st.Selections(), c.want, c.then)
+			t.Errorf("%s %q: %q %v, want %q %v", c.id, c.text, got, st.Selections(), c.want, c.then)
 		}
 	}
 }
