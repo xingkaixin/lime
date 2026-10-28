@@ -835,42 +835,58 @@ func TestGotoDefinition(t *testing.T) {
 }
 
 // Goto Symbol lists the tab's definitions and Markdown's headings. One
-// shows as it is selected, and Escape goes back; name@ lists another
-// file's.
+// shows as it is selected; Escape, or another row picked, puts the caret
+// and the scroll back. name@ lists another file's.
 func TestGotoSymbol(t *testing.T) {
 	a := newApp("")
 	md := a.add("/p/README.md", "# Lime\n\nText\n\n## Install ##\n")
-	d := a.add("/p/a.go", "package p\n\nfunc one() {}\n\nfunc two() {}\n")
-	text := d.st.Buffer.String()
+	d := a.add("/p/a.go", "package p\n\nfunc one() {}\n"+strings.Repeat("\n", 200)+"func two() {}\n")
 	tt := ui.NewTester(a.view, 800, 500)
 	selected := func(d *doc, name string) bool {
 		at := strings.Index(d.st.Buffer.String(), name)
 		return d.st.Selection() == editor.Selection{Anchor: at, Head: at + len(name)}
 	}
 
+	tt.Frame()
+	d.st.SetScrollY(300)
+	tt.Frame()
 	a.run("goto_symbol")
 	tt.Frame()
 	tt.Key(0, ui.KeyDown)
 	if !selected(d, "two") {
 		t.Fatalf("Down to two: selection %v", d.st.Selection())
 	}
+	a.panel.stale = true
+	tt.Frame()
+	if a.panel.sel != 1 {
+		t.Fatalf("the items listed again select row %d, want two's", a.panel.sel)
+	}
 	tt.Key(0, ui.KeyEscape)
-	if d.st.Cursor() != 0 || a.panel != nil {
-		t.Fatalf("Escape: caret at %d, want 0", d.st.Cursor())
+	if d.st.Cursor() != 0 || d.st.ScrollY() != 300 {
+		t.Fatalf("Escape: caret at %d, scrolled to %v, want 0 and 300", d.st.Cursor(), d.st.ScrollY())
 	}
 	a.run("goto_symbol")
 	tt.Frame()
 	tt.Type("one")
 	tt.Key(0, ui.KeyEnter)
 	if !selected(d, "one") {
-		t.Fatalf("@one: selection %v in %q", d.st.Selection(), text)
+		t.Fatalf("@one: selection %v", d.st.Selection())
 	}
-	a.run("show_goto")
+	a.run("goto_symbol")
 	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Key(0, ui.KeyBackspace)
 	tt.Type("READ@inst")
 	tt.Key(0, ui.KeyEnter)
-	if a.current() != md || !selected(md, "Install") {
-		t.Fatalf("READ@inst: tab %q, selection %v", a.current().name(), md.st.Selection())
+	if a.current() != md || !selected(md, "Install") || !selected(d, "one") {
+		t.Fatalf("READ@inst: tab %q, selections %v and %v", a.current().name(), md.st.Selection(), d.st.Selection())
+	}
+	// A press outside a panel that showed nothing goes to the editor.
+	a.run("show_goto")
+	tt.Frame()
+	tt.ClickAt(400, 450)
+	if s := md.st.Selection(); a.panel != nil || s.Anchor != s.Head {
+		t.Fatalf("a press outside Goto Anything: selection %v", s)
 	}
 	// A file of the project's, not open, with CRLFs, which its tab has not.
 	dir := t.TempDir()
