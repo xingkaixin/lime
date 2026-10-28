@@ -38,7 +38,11 @@ type doc struct {
 	loading bool        // the image is decoding
 	cmp     *comparison // a diffDoc's
 	commit  *commitView // a commitDoc's
-	words   *wordList   // the text's words, as wordList last found them
+	// words are the text's words as wordList last found them, while
+	// scanning finds them again; asked is the completions last asked for.
+	words    *wordList
+	scanning bool
+	asked    editor.CompletionRequest
 }
 
 func (d *doc) name() string {

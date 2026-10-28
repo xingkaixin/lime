@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -13,6 +14,11 @@ import (
 // text has no words to complete, nor completes as it is typed.
 const completeSizeLimit = 4 << 20
 
+// syncScanLimit is the largest text scanned for words while completions
+// wait, in about a millisecond. A larger one is scanned in the
+// background, and its words as last found serve meanwhile.
+const syncScanLimit = 128 << 10
+
 // wordList is the words of a doc's text at a version, each once, in the
 // order they first come, but for the word at caret, which is being typed
 // (-1 for none).
@@ -22,6 +28,8 @@ type wordList struct {
 	words   []string
 	has     map[string]bool
 }
+
+var noWords wordList
 
 func scanWords(s editor.Snapshot, chars string, caret int) *wordList {
 	w := &wordList{version: s.Version(), caret: caret, has: make(map[string]bool)}
@@ -52,34 +60,60 @@ func scanWords(s editor.Snapshot, chars string, caret int) *wordList {
 // scanning it again only once it changed.
 func (a *app) wordList(d *doc, caret int) *wordList {
 	s := d.st.Buffer.Snapshot()
-	if w := d.words; w != nil && w.version == s.Version() && w.caret == caret {
-		return w
+	w := d.words
+	switch {
+	case w != nil && w.version == s.Version() && w.caret == caret || d.scanning:
+	case s.Len() <= syncScanLimit || a.win == nil:
+		w = scanWords(s, wordChars(d.st.Buffer), caret)
+		d.words = w
+	default:
+		d.scanning = true
+		chars := wordChars(d.st.Buffer)
+		go func() {
+			found := scanWords(s, chars, caret)
+			a.win.Update(func() {
+				d.words, d.scanning = found, false
+				// The completions asked for meanwhile get the words found.
+				if r := d.asked; r.Version == found.version && r.Offset == caret && d.st.Buffer.Version() == r.Version && d.st.Cursor() == r.Offset {
+					a.complete(d, r)
+				}
+			})
+		}()
 	}
-	d.words = scanWords(s, wordChars(d.st.Buffer), caret)
-	return d.words
+	if w == nil {
+		return &noWords
+	}
+	return w
 }
 
 // tabWords is the words of the window's tabs but the current one, each
-// once.
+// once, from their lists.
 type tabWords struct {
+	lists []*wordList
 	words []string
 	has   map[string]bool
 }
 
 func (a *app) otherWords(d *doc) *tabWords {
-	t := &tabWords{has: make(map[string]bool)}
+	var lists []*wordList
 	for _, o := range a.allDocs() {
 		if o != d && o.kind == textDoc {
-			for _, word := range a.wordList(o, -1).words {
+			lists = append(lists, a.wordList(o, -1))
+		}
+	}
+	if a.others == nil || !slices.Equal(lists, a.others.lists) {
+		t := &tabWords{lists: lists, has: make(map[string]bool)}
+		for _, w := range lists {
+			for _, word := range w.words {
 				if !t.has[word] {
 					t.has[word] = true
 					t.words = append(t.words, word)
 				}
 			}
 		}
+		a.others = t
 	}
-	a.others = t
-	return t
+	return a.others
 }
 
 func wordChars(b *editor.Buffer) string {
@@ -108,6 +142,7 @@ func (a *app) complete(d *doc, r editor.CompletionRequest) {
 	if !r.Explicit && (!a.set.AutoComplete || r.Prefix == "" || !completesTyping(b) || inComment(b, p) || !sameWords(d.st, r.Prefix)) {
 		return
 	}
+	d.asked = r
 	own, others := a.wordList(d, r.Offset), a.otherWords(d)
 	// The word typed, a word itself, would be chosen first, and Enter
 	// would complete it rather than break the line.
