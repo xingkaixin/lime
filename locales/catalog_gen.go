@@ -3308,6 +3308,16 @@ func (msgs Messages) ShortcutDeleteToStart() string {
 	return Catalog.Format(msgs.locale, "shortcutDeleteToStart", nil)
 }
 
+// ShortcutShowCompletions says "Show Completions"
+// in the language the app shows.
+func ShortcutShowCompletions() string { return In(i18n.Locale()).ShortcutShowCompletions() }
+
+// ShortcutShowCompletions says "Show Completions"
+// in the language of msgs.
+func (msgs Messages) ShortcutShowCompletions() string {
+	return Catalog.Format(msgs.locale, "shortcutShowCompletions", nil)
+}
+
 // ShortcutSelectLine says "Select Line"
 // in the language the app shows.
 func ShortcutSelectLine() string { return In(i18n.Locale()).ShortcutSelectLine() }

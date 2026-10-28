@@ -38,6 +38,11 @@ type doc struct {
 	loading bool        // the image is decoding
 	cmp     *comparison // a diffDoc's
 	commit  *commitView // a commitDoc's
+	// words are the text's words as wordList last found them, while
+	// scanning finds them again; asked is the completions last asked for.
+	words    *wordList
+	scanning bool
+	asked    editor.CompletionRequest
 }
 
 func (d *doc) name() string {
@@ -233,6 +238,7 @@ type app struct {
 	drag    *tabDrag
 	prefs   prefs
 	notice  notice
+	others  *tabWords // the other tabs' words, as complete last found them
 }
 
 func newLime(dir string) *lime {

@@ -482,6 +482,7 @@
   "shortcutTranspose": "Transpose",
   "shortcutDeleteToEnd": "Delete to End of Line",
   "shortcutDeleteToStart": "Delete to Start of Line",
+  "shortcutShowCompletions": "Show Completions",
   "shortcutSelectLine": "Select Line",
   "shortcutExpandSelection": "Expand Selection",
   "shortcutAddCursorAbove": "Add Cursor Above",

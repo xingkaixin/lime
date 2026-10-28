@@ -58,6 +58,7 @@ var shortcutGroups = func() []shortcutGroup {
 			s("insert_line_after", m.ShortcutInsertLineAfter), s("insert_line_before", m.ShortcutInsertLineBefore),
 			s("transpose", m.ShortcutTranspose), s("delete_to_eol", m.ShortcutDeleteToEnd),
 			s("delete_to_bol", m.ShortcutDeleteToStart), s("trim_trailing_white_space", m.CmdTrimTrailingWhiteSpace),
+			s("auto_complete", m.ShortcutShowCompletions),
 		}},
 		{m.ShortcutGroupText, []shortcut{
 			s("upper_case", m.CmdUpperCase), s("lower_case", m.CmdLowerCase), s("title_case", m.CmdTitleCase),

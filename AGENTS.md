@@ -19,6 +19,7 @@ All code is `package main` in `cmd/lime`. Keep it one package.
 - `view.go` (window, tab bar, status bar), `sidebar.go`, `panel.go` (Goto
   Anything, command palette), `find.go`, `tabdrag.go`, `preview.go`: window UI
 - `definition.go`: Goto Definition, from the definitions in the open tabs
+- `completion.go`: word completions, from the words of the open tabs
 - `compare.go`: diff tabs, of a tab against a file, a tab, the clipboard or disk
 - `project.go`: folders, `.sublime-project` files, file operations
 - `git.go`: the side bar's work tree and branch, switched from the quick panel
