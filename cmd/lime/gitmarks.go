@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"golang.org/x/text/unicode/norm"
 )
 
 // The side bar tints the names of files and folders as git status has
@@ -98,7 +99,7 @@ func readGitBases(folders []string) map[string]gitBase {
 		out, err := runGit(f, "rev-parse", "--path-format=absolute", "--show-toplevel", "--show-prefix")
 		top, prefix, ok := strings.Cut(strings.TrimSuffix(out, "\n"), "\n")
 		if err == nil && ok {
-			add(f, top, prefix)
+			add(f, top, norm.NFC.String(prefix))
 		}
 	}
 	return bases
@@ -118,7 +119,7 @@ type treeStatus struct {
 func readTreeStatus(top string) treeStatus {
 	out, _ := runGit(top, "status", "--porcelain=v2", "-z", "--untracked-files=all", "--ignored=matching")
 	s := treeStatus{marks: map[string]gitMark{}}
-	f := strings.Split(out, "\x00")
+	f := strings.Split(norm.NFC.String(out), "\x00")
 	for i := 0; i < len(f); i++ {
 		line := f[i]
 		if len(line) < 3 {
@@ -188,7 +189,9 @@ func changeMark(c byte) gitMark {
 
 // mark is what git says of the file or folder at path. The top of a
 // repository in another takes the mark the other gives it, as one
-// entry; what it holds, the marks its own gives them.
+// entry; what it holds, the marks its own gives them. Paths compare in
+// NFC, as git on macOS prints them, where the names read from a folder
+// may be in NFD.
 func (g *gitMarks) mark(path string) gitMark {
 	for p := path; ; {
 		dir := filepath.Dir(p)
@@ -196,7 +199,7 @@ func (g *gitMarks) mark(path string) gitMark {
 			break
 		}
 		if b, ok := g.bases[dir]; ok {
-			return b.mark(b.prefix + filepath.ToSlash(strings.TrimLeft(path[len(dir):], string(filepath.Separator))))
+			return b.mark(norm.NFC.String(b.prefix + filepath.ToSlash(strings.TrimLeft(path[len(dir):], string(filepath.Separator)))))
 		}
 		p = dir
 	}

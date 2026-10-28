@@ -32,6 +32,7 @@ func TestGitMarks(t *testing.T) {
 	write("new/n.txt", "n\n")
 	write("node_modules/x/i.js", "i\n")
 	write("debug.log", "d\n")
+	write("cafe\u0301.txt", "c\n") // in NFD
 	inner := filepath.Join(dir, "inner")
 	write("inner/f", "f\n")
 	for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"commit", "-q", "-m", "inner"}} {
@@ -64,6 +65,7 @@ func TestGitMarks(t *testing.T) {
 		filepath.Join(dir, "node_modules"): gitIgnored,
 		filepath.Join(dir, "node_modules", "x", "i.js"): gitIgnored,
 		filepath.Join(dir, "debug.log"):                 gitIgnored,
+		filepath.Join(dir, "cafe\u0301.txt"):            gitAdded,
 		inner:                                           gitAdded,
 		filepath.Join(inner, "f"):                       gitModified,
 		filepath.Join(wt, "keep.txt"):                   gitModified,
