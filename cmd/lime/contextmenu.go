@@ -57,6 +57,7 @@ func (a *app) tabMenu(m *ui.Menu, g *group, d *doc) {
 	if m.Item(locales.MenuFileHistory()).Disabled(!a.tracked(d.path)).Chosen() {
 		a.fileHistory(d.path)
 	}
+	a.permalinkMenu(m, d)
 }
 
 // closeTabs closes the tabs of docs without changes that match.

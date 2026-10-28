@@ -185,6 +185,8 @@ func makeCommands() []command {
 			a.set.InlineBlame = !a.set.InlineBlame
 			a.l.saveSettings()
 		}},
+		{id: "copy_permalink_to_line", caption: locales.Messages.CmdCopyPermalink, enabled: currentLinkable, run: func(a *app) { a.permalink(a.current(), false) }},
+		{id: "open_permalink_to_line", caption: locales.Messages.CmdOpenOnGitHub, enabled: currentLinkable, run: func(a *app) { a.permalink(a.current(), true) }},
 
 		convertCase("upper_case", locales.Messages.CmdUpperCase, editor.Uppercase, false),
 		convertCase("lower_case", locales.Messages.CmdLowerCase, editor.Lowercase, false),

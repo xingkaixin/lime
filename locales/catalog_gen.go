@@ -934,6 +934,26 @@ func (msgs Messages) MenuFileHistory() string {
 	return Catalog.Format(msgs.locale, "menuFileHistory", nil)
 }
 
+// MenuCopyPermalink says "Copy Permalink"
+// in the language the app shows.
+func MenuCopyPermalink() string { return In(i18n.Locale()).MenuCopyPermalink() }
+
+// MenuCopyPermalink says "Copy Permalink"
+// in the language of msgs.
+func (msgs Messages) MenuCopyPermalink() string {
+	return Catalog.Format(msgs.locale, "menuCopyPermalink", nil)
+}
+
+// MenuOpenOnGitHub says "Open on GitHub"
+// in the language the app shows.
+func MenuOpenOnGitHub() string { return In(i18n.Locale()).MenuOpenOnGitHub() }
+
+// MenuOpenOnGitHub says "Open on GitHub"
+// in the language of msgs.
+func (msgs Messages) MenuOpenOnGitHub() string {
+	return Catalog.Format(msgs.locale, "menuOpenOnGitHub", nil)
+}
+
 // MenuNewFolder says "New Folder…"
 // in the language the app shows.
 func MenuNewFolder() string { return In(i18n.Locale()).MenuNewFolder() }
@@ -1472,6 +1492,26 @@ func CmdToggleInlineBlame() string { return In(i18n.Locale()).CmdToggleInlineBla
 // in the language of msgs.
 func (msgs Messages) CmdToggleInlineBlame() string {
 	return Catalog.Format(msgs.locale, "cmdToggleInlineBlame", nil)
+}
+
+// CmdCopyPermalink says "Git: Copy Permalink"
+// in the language the app shows.
+func CmdCopyPermalink() string { return In(i18n.Locale()).CmdCopyPermalink() }
+
+// CmdCopyPermalink says "Git: Copy Permalink"
+// in the language of msgs.
+func (msgs Messages) CmdCopyPermalink() string {
+	return Catalog.Format(msgs.locale, "cmdCopyPermalink", nil)
+}
+
+// CmdOpenOnGitHub says "Git: Open on GitHub"
+// in the language the app shows.
+func CmdOpenOnGitHub() string { return In(i18n.Locale()).CmdOpenOnGitHub() }
+
+// CmdOpenOnGitHub says "Git: Open on GitHub"
+// in the language of msgs.
+func (msgs Messages) CmdOpenOnGitHub() string {
+	return Catalog.Format(msgs.locale, "cmdOpenOnGitHub", nil)
 }
 
 // CmdUpperCase says "Convert Case: Upper Case"
@@ -2546,6 +2586,36 @@ func BlameNotCommitted() string { return In(i18n.Locale()).BlameNotCommitted() }
 // in the language of msgs.
 func (msgs Messages) BlameNotCommitted() string {
 	return Catalog.Format(msgs.locale, "blameNotCommitted", nil)
+}
+
+// StatusPermalinkCopied says "Copied the permalink"
+// in the language the app shows.
+func StatusPermalinkCopied() string { return In(i18n.Locale()).StatusPermalinkCopied() }
+
+// StatusPermalinkCopied says "Copied the permalink"
+// in the language of msgs.
+func (msgs Messages) StatusPermalinkCopied() string {
+	return Catalog.Format(msgs.locale, "statusPermalinkCopied", nil)
+}
+
+// StatusNoGitHub says "No remote of this repository is on GitHub"
+// in the language the app shows.
+func StatusNoGitHub() string { return In(i18n.Locale()).StatusNoGitHub() }
+
+// StatusNoGitHub says "No remote of this repository is on GitHub"
+// in the language of msgs.
+func (msgs Messages) StatusNoGitHub() string {
+	return Catalog.Format(msgs.locale, "statusNoGitHub", nil)
+}
+
+// StatusNotPushed says "HEAD isn't pushed yet: the permalink opens nothing until it is"
+// in the language the app shows.
+func StatusNotPushed() string { return In(i18n.Locale()).StatusNotPushed() }
+
+// StatusNotPushed says "HEAD isn't pushed yet: the permalink opens nothing until it is"
+// in the language of msgs.
+func (msgs Messages) StatusNotPushed() string {
+	return Catalog.Format(msgs.locale, "statusNotPushed", nil)
 }
 
 // ChangesConflicts says "Conflicts"
