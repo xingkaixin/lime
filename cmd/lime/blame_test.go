@@ -1,0 +1,115 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
+)
+
+// Blame tells the commit of each line of the file as saved: the lines
+// edited since show none, and the others keep theirs where they moved.
+// The caret's line shows its blame once the caret rests there, which Tab
+// does not insert.
+func TestBlame(t *testing.T) {
+	dir, git := newRepo(t)
+	file := filepath.Join(dir, "a.txt")
+	write := func(text string) {
+		t.Helper()
+		if err := os.WriteFile(file, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("one\ntwo\n")
+	git("add", ".")
+	git("commit", "-q", "-m", "first")
+	write("one\ntwo\nthree\n")
+	git("commit", "-q", "-am", "second")
+	write("one\ntwo\nthree\nfour\n")
+
+	a := newApp("")
+	a.open([]string{file})
+	a.reloadChanged()
+	tt := ui.NewTester(a.view, 900, 600)
+	d := a.current()
+	subjects := func() string {
+		t.Helper()
+		tt.Frame()
+		var s []string
+		for i := range d.st.Buffer.LineCount() - 1 {
+			switch bl := d.blame.lineOf(d, i); {
+			case bl == nil:
+				s = append(s, "")
+			case bl.hash == uncommitted:
+				s = append(s, "-")
+			default:
+				s = append(s, bl.subject)
+			}
+		}
+		return strings.Join(s, ",")
+	}
+	if got := subjects(); got != "first,first,second,-" {
+		t.Fatalf("blame: %q", got)
+	}
+
+	end := d.st.Buffer.Snapshot().LineEnd(2)
+	d.st.Select(end, end)
+	tt.Frame()
+	if d.blame.inline {
+		t.Fatal("the blame shows before the caret rests")
+	}
+	tt.Advance(blameDelay)
+	tt.Frame()
+	if !d.blame.inline {
+		t.Fatal("no blame shows where the caret rests")
+	}
+	tt.Key(0, ui.KeyTab)
+	if text := d.st.Buffer.String(); strings.Contains(text, "second") || d.blame.inline {
+		t.Fatalf("Tab: %q", text)
+	}
+
+	d.st.Buffer.Edit(editor.Edit{Start: 0, End: 0, Text: "zero\n"})
+	if got := subjects(); got != ",first,first,,-" {
+		t.Fatalf("blame after edits: %q", got)
+	}
+	a.save(d)
+	if got := subjects(); got != "-,first,first,-,-" {
+		t.Fatalf("blame after saving: %q", got)
+	}
+}
+
+// git splits UTF-16 text into lines at the bytes of other characters than
+// newlines too, which the tab's lines don't follow.
+func TestBlameUTF16(t *testing.T) {
+	dir, git := newRepo(t)
+	file := filepath.Join(dir, "a.txt")
+	enc := encodingNamed("UTF-16 LE with BOM")
+	write := func(text string) {
+		t.Helper()
+		raw, err := enc.encode([]byte(text))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 上 is U+4E0A, the bytes 0A 4E.
+	write("上\nb\n")
+	git("add", ".")
+	git("commit", "-q", "-m", "first")
+	write("上\nb\nc\n")
+	git("commit", "-q", "-am", "second")
+
+	_, lines := blameFile(file, enc, 3)
+	var got []string
+	for _, bl := range lines {
+		got = append(got, bl.subject)
+	}
+	if strings.Join(got, ",") != "first,first,second" {
+		t.Fatalf("blame: %q", got)
+	}
+}

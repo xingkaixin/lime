@@ -27,6 +27,10 @@ func (a *app) readBases(docs ...*doc) {
 	var ds []*doc
 	var paths []string
 	for _, d := range docs {
+		// What changes the texts in git may change the commits of lines.
+		if d.blame != nil {
+			d.blame.stale = true
+		}
 		if d.path != "" && d.saved.Len() <= largeFile {
 			ds, paths = append(ds, d), append(paths, d.path)
 		}
