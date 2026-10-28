@@ -39,6 +39,9 @@ type settings struct {
 	// DetectIndentation has a file indent as its lines do as it opens,
 	// in place of TabSize and TranslateTabsToSpaces.
 	DetectIndentation bool `json:"detect_indentation"`
+	// FallbackEncoding is the name of the encoding a file that isn't
+	// UTF-8 opens in, as Sublime Text's encodings are named.
+	FallbackEncoding string `json:"fallback_encoding"`
 	// DiffUnified lays commits' diffs out one over the other rather than
 	// side by side.
 	DiffUnified bool `json:"diff_unified"`
@@ -82,7 +85,7 @@ func loadSettings(dir string) (settings, error) {
 	s := settings{
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4, AutoComplete: true,
-		GitDiffTarget: "index", DetectIndentation: true,
+		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
 	}
 	var err error
 	if dir != "" {

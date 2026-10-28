@@ -387,7 +387,7 @@ func (a *app) statusBar(c *ui.Context) {
 	}
 	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6).Gap(8).AlignItems(ui.Center).Background(ch.bg).Children(func() {
 		a.panelButtons(c)
-		ui.Text(c, left).FontSize(12).TextColor(ch.muted)
+		ui.Text(c, left).FontSize(12).TextColor(ch.muted).SingleLine().Shrink(0)
 		if d != nil && d.cmp != nil {
 			a.diffCounts(c, d.cmp)
 		}
@@ -409,6 +409,7 @@ func (a *app) statusBar(c *ui.Context) {
 		case d.cmp != nil:
 			a.diffLayoutButton(c, d.cmp)
 		case d.kind == textDoc:
+			a.encodingButton(c, d)
 			a.lineEndingButton(c, d)
 			a.indentButton(c, d)
 			a.syntaxButton(c, d)
@@ -468,8 +469,8 @@ func (a *app) syntaxButton(c *ui.Context, d *doc) {
 }
 
 // statusMenu is a button of the status bar showing text, which opens
-// menu.
-func (a *app) statusMenu(c *ui.Context, text, label string, menu func(m *ui.Menu)) {
+// menu. Its text ends in an ellipsis where it is narrower than the text.
+func (a *app) statusMenu(c *ui.Context, text, label string, menu func(m *ui.Menu)) ui.Element {
 	ch := a.shell(c)
 	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Transition(colorFade).Label(label)
 	if btn.Hovered() {
@@ -477,8 +478,9 @@ func (a *app) statusMenu(c *ui.Context, text, label string, menu func(m *ui.Menu
 	}
 	btn.Menu(menu)
 	btn.Children(func() {
-		ui.Text(c, text).FontSize(12).TextColor(ch.muted)
+		ui.Text(c, text).FontSize(12).TextColor(ch.muted).SingleLine().Ellipsis("…").MinWidth(0)
 	})
+	return btn
 }
 
 // shortcuts binds the window's keys: tabs, groups, panels, and the

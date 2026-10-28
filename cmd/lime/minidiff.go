@@ -45,7 +45,14 @@ func (a *app) readBases(docs ...*doc) {
 				case o.id == "":
 					d.diffDisk()
 				default:
-					text, _ := splitLines(o.text)
+					text, ok := d.encoding().decode(o.text)
+					if !ok {
+						// Text the file's encoding can't read back would mark
+						// lines that may not have changed.
+						d.diffDisk()
+						break
+					}
+					text, _ = splitLines(text)
 					d.setDiffBase(o.id, text)
 				}
 			}

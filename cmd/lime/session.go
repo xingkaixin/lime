@@ -57,6 +57,9 @@ type sessionDoc struct {
 	// LineEnding is the type of the line ending not saved, when there is
 	// one: "windows", "unix" or "cr".
 	LineEnding string `json:"line_ending,omitempty"`
+	// Encoding is the name of the file's encoding, as Sublime Text names
+	// it; sessions before encodings have none.
+	Encoding string `json:"encoding,omitempty"`
 	// unsaved is the text Text or Raw takes as the session is written, off the
 	// main thread.
 	unsaved *editor.Snapshot
@@ -95,6 +98,9 @@ func (a *app) session() sessionWindow {
 				continue
 			}
 			sd := sessionDoc{Path: d.path, Syntax: syntaxName(d.st.Buffer.Language()), TabSize: d.tabSize, TranslateTabsToSpaces: translateTabs(d.indent)}
+			if d.enc != nil {
+				sd.Encoding = d.enc.name
+			}
 			if d.dirty() {
 				snap := d.st.Buffer.Snapshot()
 				sd.unsaved, sd.LineEnding = &snap, endingType(d.lineEnding())
@@ -170,7 +176,7 @@ func (l *lime) sessionChanged() bool {
 		for _, g := range a.groups {
 			fmt.Fprint(&b, "|", g.active)
 			for _, d := range g.docs {
-				fmt.Fprint(&b, ",", d.path, d.st.Buffer.Version(), d.dirty(), syntaxName(d.st.Buffer.Language()), d.tabSize, d.indent, d.lineEnding())
+				fmt.Fprint(&b, ",", d.path, d.st.Buffer.Version(), d.dirty(), syntaxName(d.st.Buffer.Language()), d.tabSize, d.indent, d.lineEnding(), d.encoding().name)
 			}
 		}
 	}
@@ -229,7 +235,7 @@ func (a *app) restore(s sessionWindow) {
 		}
 		g := a.groups[gi]
 		for _, sd := range sg.Docs {
-			if d := restoreDoc(sd); d != nil {
+			if d := restoreDoc(sd, a.set.FallbackEncoding); d != nil {
 				// A file following the settings, as all did in sessions before
 				// files had their own indentation, detects its own.
 				if d.tabSize == 0 && d.indent == editor.IndentAuto && a.set.DetectIndentation {
@@ -249,26 +255,38 @@ func (a *app) restore(s sessionWindow) {
 
 // restoreDoc makes the tab sd kept: the file as it is on disk, with the
 // unsaved text over it as an edit that Undo takes back. A file gone with
-// nothing unsaved is left out.
-func restoreDoc(sd sessionDoc) *doc {
+// nothing unsaved is left out. A file of a session before encodings opens
+// in the one it has, or fallback names.
+func restoreDoc(sd sessionDoc, fallback string) *doc {
 	if sd.Raw != nil {
 		text := string(sd.Raw)
 		sd.Text = &text
 	}
 	var disk string
+	enc := encodingNamed(sd.Encoding)
 	if sd.Path != "" {
 		if k := fileKind(sd.Path); k != textDoc && sd.Text == nil {
 			d := newDoc(sd.Path, "")
 			d.kind = k
 			return d
 		}
-		text, err := readText(sd.Path)
+		raw, err := readText(sd.Path)
 		if err != nil && sd.Text == nil {
 			return nil
 		}
-		disk = text
+		switch {
+		case enc != nil:
+			disk, enc = reopenText(raw, enc, fallback)
+		// The bytes kept of a file that isn't UTF-8 are the file's own,
+		// which the buffer held as they were.
+		case sd.Raw != nil:
+			disk, enc = reopenText(raw, utf8Encoding, fallback)
+		default:
+			disk, enc = openText(raw, fallback)
+		}
 	}
 	d := newDoc(sd.Path, disk)
+	d.enc = enc
 	d.tabSize, d.indent = sd.TabSize, indentStyle(sd.TranslateTabsToSpaces)
 	if sd.Text != nil {
 		d.st.Buffer.Set(*sd.Text)

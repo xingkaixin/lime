@@ -217,7 +217,7 @@ func makeCommands() []command {
 		caption := func(m locales.Messages) string { return m.CmdLayout(l.label(m)) }
 		c = append(c, command{id: l.id(), caption: caption, run: func(a *app) { a.setLayout(l) }})
 	}
-	return slices.Concat(c, indentCommands(), lineEndingCommands())
+	return slices.Concat(c, indentCommands(), lineEndingCommands(), encodingCommands())
 }
 
 // deleteBlankLines deletes the lines of white space alone from the lines

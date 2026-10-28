@@ -214,6 +214,26 @@ func (msgs Messages) MenuClearItems() string {
 	return Catalog.Format(msgs.locale, "menuClearItems", nil)
 }
 
+// MenuReopenWithEncoding says "Reopen with Encoding"
+// in the language the app shows.
+func MenuReopenWithEncoding() string { return In(i18n.Locale()).MenuReopenWithEncoding() }
+
+// MenuReopenWithEncoding says "Reopen with Encoding"
+// in the language of msgs.
+func (msgs Messages) MenuReopenWithEncoding() string {
+	return Catalog.Format(msgs.locale, "menuReopenWithEncoding", nil)
+}
+
+// MenuSaveWithEncoding says "Save with Encoding"
+// in the language the app shows.
+func MenuSaveWithEncoding() string { return In(i18n.Locale()).MenuSaveWithEncoding() }
+
+// MenuSaveWithEncoding says "Save with Encoding"
+// in the language of msgs.
+func (msgs Messages) MenuSaveWithEncoding() string {
+	return Catalog.Format(msgs.locale, "menuSaveWithEncoding", nil)
+}
+
 // MenuSave says "Save"
 // in the language the app shows.
 func MenuSave() string { return In(i18n.Locale()).MenuSave() }
@@ -542,6 +562,26 @@ func MenuMacOS9() string { return In(i18n.Locale()).MenuMacOS9() }
 // in the language of msgs.
 func (msgs Messages) MenuMacOS9() string {
 	return Catalog.Format(msgs.locale, "menuMacOS9", nil)
+}
+
+// EncodingWindows1252 says "Western (Windows 1252)"
+// in the language the app shows.
+func EncodingWindows1252() string { return In(i18n.Locale()).EncodingWindows1252() }
+
+// EncodingWindows1252 says "Western (Windows 1252)"
+// in the language of msgs.
+func (msgs Messages) EncodingWindows1252() string {
+	return Catalog.Format(msgs.locale, "encodingWindows1252", nil)
+}
+
+// EncodingISO88591 says "Western (ISO 8859-1)"
+// in the language the app shows.
+func EncodingISO88591() string { return In(i18n.Locale()).EncodingISO88591() }
+
+// EncodingISO88591 says "Western (ISO 8859-1)"
+// in the language of msgs.
+func (msgs Messages) EncodingISO88591() string {
+	return Catalog.Format(msgs.locale, "encodingISO88591", nil)
 }
 
 // MenuWordWrap says "Word Wrap"
@@ -1628,6 +1668,26 @@ func (msgs Messages) CmdLineEndings(name string) string {
 	return Catalog.Format(msgs.locale, "cmdLineEndings", map[string]any{"name": name})
 }
 
+// CmdReopenWithEncoding says "Reopen with Encoding: {name}"
+// in the language the app shows.
+func CmdReopenWithEncoding(name string) string { return In(i18n.Locale()).CmdReopenWithEncoding(name) }
+
+// CmdReopenWithEncoding says "Reopen with Encoding: {name}"
+// in the language of msgs.
+func (msgs Messages) CmdReopenWithEncoding(name string) string {
+	return Catalog.Format(msgs.locale, "cmdReopenWithEncoding", map[string]any{"name": name})
+}
+
+// CmdSaveWithEncoding says "Save with Encoding: {name}"
+// in the language the app shows.
+func CmdSaveWithEncoding(name string) string { return In(i18n.Locale()).CmdSaveWithEncoding(name) }
+
+// CmdSaveWithEncoding says "Save with Encoding: {name}"
+// in the language of msgs.
+func (msgs Messages) CmdSaveWithEncoding(name string) string {
+	return Catalog.Format(msgs.locale, "cmdSaveWithEncoding", map[string]any{"name": name})
+}
+
 // PanelLabel says "Quick panel"
 // in the language the app shows.
 func PanelLabel() string { return In(i18n.Locale()).PanelLabel() }
@@ -1760,6 +1820,28 @@ func DialogUnableToOpen(name string) string { return In(i18n.Locale()).DialogUna
 // in the language of msgs.
 func (msgs Messages) DialogUnableToOpen(name string) string {
 	return Catalog.Format(msgs.locale, "dialogUnableToOpen", map[string]any{"name": name})
+}
+
+// DialogSavedAsUTF8 says "Saved {name} as UTF-8"
+// in the language the app shows.
+func DialogSavedAsUTF8(name string) string { return In(i18n.Locale()).DialogSavedAsUTF8(name) }
+
+// DialogSavedAsUTF8 says "Saved {name} as UTF-8"
+// in the language of msgs.
+func (msgs Messages) DialogSavedAsUTF8(name string) string {
+	return Catalog.Format(msgs.locale, "dialogSavedAsUTF8", map[string]any{"name": name})
+}
+
+// DialogNotRepresentable says "Not all characters are representable in {encoding}."
+// in the language the app shows.
+func DialogNotRepresentable(encoding string) string {
+	return In(i18n.Locale()).DialogNotRepresentable(encoding)
+}
+
+// DialogNotRepresentable says "Not all characters are representable in {encoding}."
+// in the language of msgs.
+func (msgs Messages) DialogNotRepresentable(encoding string) string {
+	return Catalog.Format(msgs.locale, "dialogNotRepresentable", map[string]any{"encoding": encoding})
 }
 
 // DialogUnableToSave says "Unable to save {name}"
@@ -2524,6 +2606,42 @@ func StatusTabSize(size int) string { return In(i18n.Locale()).StatusTabSize(siz
 // in the language of msgs.
 func (msgs Messages) StatusTabSize(size int) string {
 	return Catalog.Format(msgs.locale, "statusTabSize", map[string]any{"size": size})
+}
+
+// StatusEncoding says "Encoding: {name}"
+// in the language the app shows.
+//
+// The status bar's encoding button, to assistive technology.
+func StatusEncoding(name string) string { return In(i18n.Locale()).StatusEncoding(name) }
+
+// StatusEncoding says "Encoding: {name}"
+// in the language of msgs.
+//
+// The status bar's encoding button, to assistive technology.
+func (msgs Messages) StatusEncoding(name string) string {
+	return Catalog.Format(msgs.locale, "statusEncoding", map[string]any{"name": name})
+}
+
+// StatusReopenUnsaved says "Save the changes before reopening the file"
+// in the language the app shows.
+func StatusReopenUnsaved() string { return In(i18n.Locale()).StatusReopenUnsaved() }
+
+// StatusReopenUnsaved says "Save the changes before reopening the file"
+// in the language of msgs.
+func (msgs Messages) StatusReopenUnsaved() string {
+	return Catalog.Format(msgs.locale, "statusReopenUnsaved", nil)
+}
+
+// StatusNotInEncoding says "Not reopened: the file has bytes that aren't {encoding}"
+// in the language the app shows.
+func StatusNotInEncoding(encoding string) string {
+	return In(i18n.Locale()).StatusNotInEncoding(encoding)
+}
+
+// StatusNotInEncoding says "Not reopened: the file has bytes that aren't {encoding}"
+// in the language of msgs.
+func (msgs Messages) StatusNotInEncoding(encoding string) string {
+	return Catalog.Format(msgs.locale, "statusNotInEncoding", map[string]any{"encoding": encoding})
 }
 
 // StatusInvalidJSON says "Invalid JSON: unexpected character “{char}”"

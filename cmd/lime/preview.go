@@ -42,6 +42,10 @@ func fileKind(path string) docKind {
 	defer f.Close()
 	b := make([]byte, 8000)
 	n, _ := io.ReadFull(f, b)
+	// UTF-16 has NULs in the bytes of most characters.
+	if bytes.HasPrefix(b[:n], []byte("\xff\xfe")) || bytes.HasPrefix(b[:n], []byte("\xfe\xff")) {
+		return textDoc
+	}
 	if bytes.IndexByte(b[:n], 0) >= 0 {
 		return binaryDoc
 	}

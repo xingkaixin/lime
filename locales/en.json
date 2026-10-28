@@ -20,6 +20,8 @@
   "menuOpenRecent": "Open Recent",
   "menuReopenClosedFile": "Reopen Closed File",
   "menuClearItems": "Clear Items",
+  "menuReopenWithEncoding": "Reopen with Encoding",
+  "menuSaveWithEncoding": "Save with Encoding",
   "menuSave": "Save",
   "menuSaveAs": "Save As…",
   "menuSaveAll": "Save All",
@@ -56,6 +58,8 @@
   "menuWindows": "Windows",
   "menuUnix": "Unix",
   "menuMacOS9": "Mac OS 9",
+  "encodingWindows1252": "Western (Windows 1252)",
+  "encodingISO88591": "Western (ISO 8859-1)",
   "menuWordWrap": "Word Wrap",
   "menuLargerFont": "Larger Font",
   "menuSmallerFont": "Smaller Font",
@@ -180,6 +184,14 @@
     "description": "A line ending in the command palette, and the status bar's line ending button to assistive technology.",
     "placeholders": { "name": { "type": "String", "example": "Unix" } }
   },
+  "cmdReopenWithEncoding": "Reopen with Encoding: {name}",
+  "@cmdReopenWithEncoding": {
+    "placeholders": { "name": { "type": "String", "example": "GBK" } }
+  },
+  "cmdSaveWithEncoding": "Save with Encoding: {name}",
+  "@cmdSaveWithEncoding": {
+    "placeholders": { "name": { "type": "String", "example": "GBK" } }
+  },
 
   "panelLabel": "Quick panel",
   "panelCommandPalette": "Command Palette",
@@ -206,6 +218,14 @@
   "dialogUnableToOpen": "Unable to open {name}",
   "@dialogUnableToOpen": {
     "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogSavedAsUTF8": "Saved {name} as UTF-8",
+  "@dialogSavedAsUTF8": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogNotRepresentable": "Not all characters are representable in {encoding}.",
+  "@dialogNotRepresentable": {
+    "placeholders": { "encoding": { "type": "String", "example": "GBK" } }
   },
   "dialogUnableToSave": "Unable to save {name}",
   "@dialogUnableToSave": {
@@ -371,6 +391,16 @@
   "statusTabSize": "Tab Size: {size}",
   "@statusTabSize": {
     "placeholders": { "size": { "type": "int", "example": "4" } }
+  },
+  "statusEncoding": "Encoding: {name}",
+  "@statusEncoding": {
+    "description": "The status bar's encoding button, to assistive technology.",
+    "placeholders": { "name": { "type": "String", "example": "UTF-8" } }
+  },
+  "statusReopenUnsaved": "Save the changes before reopening the file",
+  "statusNotInEncoding": "Not reopened: the file has bytes that aren't {encoding}",
+  "@statusNotInEncoding": {
+    "placeholders": { "encoding": { "type": "String", "example": "GBK" } }
   },
   "statusInvalidJSON": "Invalid JSON: unexpected character “{char}”",
   "@statusInvalidJSON": {
