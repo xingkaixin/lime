@@ -223,6 +223,8 @@ type app struct {
 	proj    project
 	git     gitRepo
 	hist    history
+	changes changes
+	gitTab  int            // the git panel's: changesTab or historyTab
 	side    sidePanel      // what the side bar shows
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
@@ -585,6 +587,9 @@ func (a *app) write(d *doc, path string) error {
 	d.disk = stampOf(path)
 	if created && a.proj.holds(path) {
 		a.refreshFolders()
+	}
+	if a.git.root != "" {
+		a.readWorktree()
 	}
 	return nil
 }

@@ -27,10 +27,18 @@ func (a *app) sideBar(c *ui.Context) {
 				ui.Text(c, locales.SideBarNoRepository()).FontSize(12).TextColor(ch.muted).TextAlign(ui.Center)
 			})
 		case a.side == gitPanel:
-			if a.hist.root != a.git.root {
-				a.readHistory()
+			a.gitTabs(c)
+			if a.gitTab == historyTab {
+				if a.hist.root != a.git.root {
+					a.readHistory()
+				}
+				a.historyView(c)
+				break
 			}
-			a.historyView(c)
+			if a.changes.root != a.git.root {
+				a.readChanges()
+			}
+			a.changesView(c)
 		case len(a.proj.folders) == 0:
 			a.sideBarEmpty(c)
 		default:
@@ -68,6 +76,7 @@ func (a *app) togglePanel(p sidePanel) {
 func (a *app) showPanel(p sidePanel) {
 	if p == gitPanel && a.side != gitPanel {
 		a.readHistory()
+		a.readChanges()
 	}
 	a.side = p
 	a.set.SideBar = p != noPanel

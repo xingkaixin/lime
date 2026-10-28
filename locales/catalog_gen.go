@@ -1720,24 +1720,84 @@ func (msgs Messages) SideBarNoRepository() string {
 	return Catalog.Format(msgs.locale, "sideBarNoRepository", nil)
 }
 
-// HistoryUncommitted says "Uncommitted Changes"
+// GitChanges says "Changes"
 // in the language the app shows.
-func HistoryUncommitted() string { return In(i18n.Locale()).HistoryUncommitted() }
+func GitChanges() string { return In(i18n.Locale()).GitChanges() }
 
-// HistoryUncommitted says "Uncommitted Changes"
+// GitChanges says "Changes"
 // in the language of msgs.
-func (msgs Messages) HistoryUncommitted() string {
-	return Catalog.Format(msgs.locale, "historyUncommitted", nil)
+func (msgs Messages) GitChanges() string {
+	return Catalog.Format(msgs.locale, "gitChanges", nil)
 }
 
-// HistoryFiles says "{count, plural, one {# file} other {# files}}"
+// GitHistory says "History"
 // in the language the app shows.
-func HistoryFiles(count int) string { return In(i18n.Locale()).HistoryFiles(count) }
+func GitHistory() string { return In(i18n.Locale()).GitHistory() }
 
-// HistoryFiles says "{count, plural, one {# file} other {# files}}"
+// GitHistory says "History"
 // in the language of msgs.
-func (msgs Messages) HistoryFiles(count int) string {
-	return Catalog.Format(msgs.locale, "historyFiles", map[string]any{"count": count})
+func (msgs Messages) GitHistory() string {
+	return Catalog.Format(msgs.locale, "gitHistory", nil)
+}
+
+// ChangesConflicts says "Conflicts"
+// in the language the app shows.
+func ChangesConflicts() string { return In(i18n.Locale()).ChangesConflicts() }
+
+// ChangesConflicts says "Conflicts"
+// in the language of msgs.
+func (msgs Messages) ChangesConflicts() string {
+	return Catalog.Format(msgs.locale, "changesConflicts", nil)
+}
+
+// ChangesStaged says "Staged"
+// in the language the app shows.
+func ChangesStaged() string { return In(i18n.Locale()).ChangesStaged() }
+
+// ChangesStaged says "Staged"
+// in the language of msgs.
+func (msgs Messages) ChangesStaged() string {
+	return Catalog.Format(msgs.locale, "changesStaged", nil)
+}
+
+// ChangesUnstaged says "Unstaged"
+// in the language the app shows.
+func ChangesUnstaged() string { return In(i18n.Locale()).ChangesUnstaged() }
+
+// ChangesUnstaged says "Unstaged"
+// in the language of msgs.
+func (msgs Messages) ChangesUnstaged() string {
+	return Catalog.Format(msgs.locale, "changesUnstaged", nil)
+}
+
+// ChangesNone says "No Changes"
+// in the language the app shows.
+func ChangesNone() string { return In(i18n.Locale()).ChangesNone() }
+
+// ChangesNone says "No Changes"
+// in the language of msgs.
+func (msgs Messages) ChangesNone() string {
+	return Catalog.Format(msgs.locale, "changesNone", nil)
+}
+
+// ChangesStagedTitle says "Staged Changes"
+// in the language the app shows.
+func ChangesStagedTitle() string { return In(i18n.Locale()).ChangesStagedTitle() }
+
+// ChangesStagedTitle says "Staged Changes"
+// in the language of msgs.
+func (msgs Messages) ChangesStagedTitle() string {
+	return Catalog.Format(msgs.locale, "changesStagedTitle", nil)
+}
+
+// ChangesUnstagedTitle says "Unstaged Changes"
+// in the language the app shows.
+func ChangesUnstagedTitle() string { return In(i18n.Locale()).ChangesUnstagedTitle() }
+
+// ChangesUnstagedTitle says "Unstaged Changes"
+// in the language of msgs.
+func (msgs Messages) ChangesUnstagedTitle() string {
+	return Catalog.Format(msgs.locale, "changesUnstagedTitle", nil)
 }
 
 // TimeJustNow says "Just now"

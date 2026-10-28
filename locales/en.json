@@ -227,11 +227,14 @@
   "sideBarFilesPanel": "Files Panel",
   "sideBarGitPanel": "Git Panel",
   "sideBarNoRepository": "No Git Repository",
-  "historyUncommitted": "Uncommitted Changes",
-  "historyFiles": "{count, plural, one {# file} other {# files}}",
-  "@historyFiles": {
-    "placeholders": { "count": { "type": "int", "example": "3" } }
-  },
+  "gitChanges": "Changes",
+  "gitHistory": "History",
+  "changesConflicts": "Conflicts",
+  "changesStaged": "Staged",
+  "changesUnstaged": "Unstaged",
+  "changesNone": "No Changes",
+  "changesStagedTitle": "Staged Changes",
+  "changesUnstagedTitle": "Unstaged Changes",
   "timeJustNow": "Just now",
   "timeMinutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
   "@timeMinutesAgo": {

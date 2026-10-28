@@ -815,8 +815,8 @@ func TestGitBar(t *testing.T) {
 	}
 }
 
-// The history lists the work tree's changes and the commits, each of
-// which opens a tab of the diffs of its files, which neither side edits.
+// The history lists the commits, each of which opens a tab of the diffs
+// of its files, which neither side edits.
 func TestHistory(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("no git")
@@ -843,8 +843,9 @@ func TestHistory(t *testing.T) {
 	a.open([]string{dir})
 	tt := ui.NewTester(a.view, 900, 600)
 	tt.Click(locales.SideBarGitPanel())
+	tt.Click(locales.GitHistory())
 	tt.Frame()
-	if !tt.HasText(locales.HistoryUncommitted()) || !tt.HasText("second") || !tt.HasText("first") {
+	if !tt.HasText("second") || !tt.HasText("first") {
 		t.Fatalf("history: %q", tt.Texts())
 	}
 
@@ -880,11 +881,103 @@ func TestHistory(t *testing.T) {
 	if a.docCount() != n {
 		t.Fatal("the commit opened a second tab")
 	}
+}
 
-	a.showCommit(commit{})
-	d = a.current()
-	if f := d.commit.files; len(f) != 1 || f[0].path != "new.txt" || f[0].added != 1 {
-		t.Fatalf("uncommitted: %+v", f)
+// newRepo makes a repository in a new folder, and a git to run in it.
+func newRepo(t *testing.T) (string, func(...string)) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	dir := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		if _, err := runGit(dir, append([]string{"-c", "user.name=t", "-c", "user.email=t@t"}, args...)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	return dir, git
+}
+
+// The Changes tab groups the work tree's changes as git status tells
+// them, each of which shows the diffs of its section.
+func TestChanges(t *testing.T) {
+	dir, git := newRepo(t)
+	write := func(name, text string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"a", "b", "c", "d", "e", "old", "both"} {
+		write(name+".txt", name+"\n")
+	}
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	git("switch", "-q", "-c", "other")
+	write("both.txt", "other\n")
+	git("commit", "-q", "-am", "other")
+	git("switch", "-q", "main")
+	write("both.txt", "main\n")
+	git("commit", "-q", "-am", "main")
+	runGit(dir, "merge", "-q", "other")
+	write("a.txt", "a2\n")
+	write("b.txt", "b2\n")
+	git("add", "b.txt")
+	write("c.txt", "c2\n")
+	git("add", "c.txt")
+	write("c.txt", "c3\n")
+	write("new.txt", "new\n")
+	git("add", "new.txt")
+	os.Remove(filepath.Join(dir, "d.txt"))
+	git("rm", "-q", "e.txt")
+	git("mv", "old.txt", "renamed.txt")
+	write("untracked.txt", "u\n")
+
+	got := readStatus(dir)
+	want := [3]string{
+		"U both.txt ",
+		"M b.txt M c.txt D e.txt A new.txt R old.txt>renamed.txt ",
+		"M a.txt M c.txt D d.txt ? untracked.txt ",
+	}
+	for sec, files := range got {
+		var b strings.Builder
+		for _, f := range files {
+			if f.oldPath != "" {
+				fmt.Fprintf(&b, "%c %s>%s ", f.status, f.oldPath, f.path)
+				continue
+			}
+			fmt.Fprintf(&b, "%c %s ", f.status, f.path)
+		}
+		if b.String() != want[sec] {
+			t.Errorf("section %d:\n got %s\nwant %s", sec, b.String(), want[sec])
+		}
+	}
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarGitPanel())
+	tt.Frame()
+	for _, s := range []string{locales.ChangesConflicts(), locales.ChangesStaged(), locales.ChangesUnstaged(), "untracked.txt"} {
+		if !tt.HasText(s) {
+			t.Fatalf("no %q in %q", s, tt.Texts())
+		}
+	}
+	tt.Click("new.txt")
+	tt.Frame()
+	if d := a.current(); d == nil || d.commit == nil || d.commit.hash != stagedChanges || len(d.commit.files) != 5 {
+		t.Fatalf("staged tab: %+v", d)
+	}
+	tt.Click("untracked.txt")
+	tt.Frame()
+	d := a.current()
+	if d == nil || d.commit == nil || d.commit.hash != unstagedChanges {
+		t.Fatalf("unstaged tab: %+v", d)
+	}
+	if f := d.commit.files[3]; f.path != "untracked.txt" || f.added != 1 {
+		t.Fatalf("untracked.txt: %+v", f)
 	}
 }
 

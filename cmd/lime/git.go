@@ -94,6 +94,7 @@ func (a *app) readGit() {
 				if a.side == gitPanel {
 					a.readHistory()
 				}
+				a.readWorktree()
 			}
 		}
 	})
