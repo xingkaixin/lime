@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui/editor"
@@ -45,7 +46,10 @@ type sessionDoc struct {
 	Text   *string  `json:"text,omitempty"` // the unsaved text, when there is some
 	Syntax string   `json:"syntax"`
 	Sels   [][2]int `json:"sels,omitempty"`
-	// unsaved is the text Text takes as the session is written, off the
+	// Raw is the unsaved text in place of Text when it isn't UTF-8, as of
+	// a GBK file, which a JSON string would turn into U+FFFD.
+	Raw []byte `json:"raw,omitempty"`
+	// unsaved is the text Text or Raw takes as the session is written, off the
 	// main thread.
 	unsaved *editor.Snapshot
 }
@@ -122,7 +126,11 @@ func (l *lime) writeSession(s session, gen uint64) error {
 			for i := range g.Docs {
 				if u := g.Docs[i].unsaved; u != nil {
 					text := u.String()
-					g.Docs[i].Text = &text
+					if utf8.ValidString(text) {
+						g.Docs[i].Text = &text
+					} else {
+						g.Docs[i].Raw = []byte(text)
+					}
 				}
 			}
 		}
@@ -228,6 +236,10 @@ func (a *app) restore(s sessionWindow) {
 // unsaved text over it as an edit that Undo takes back. A file gone with
 // nothing unsaved is left out.
 func restoreDoc(sd sessionDoc) *doc {
+	if sd.Raw != nil {
+		text := string(sd.Raw)
+		sd.Text = &text
+	}
 	var disk string
 	if sd.Path != "" {
 		if k := fileKind(sd.Path); k != textDoc && sd.Text == nil {
