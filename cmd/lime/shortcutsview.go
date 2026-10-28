@@ -103,7 +103,8 @@ var shortcutGroups = func() []shortcutGroup {
 			s("move_to_next_group", m.ShortcutMoveToNextGroup), s("move_to_prev_group", m.ShortcutMoveToPrevGroup),
 		}, numbered(4, focusGroup, m.ShortcutFocusGroup), numbered(4, moveToGroup, m.ShortcutMoveToGroup))},
 		{m.MenuProject, []shortcut{
-			s("prompt_open_project", m.MenuOpenProject), s("save_project_as", m.MenuSaveProjectAs),
+			s("prompt_open_project", m.MenuOpenProject), s("prompt_select_workspace", m.MenuQuickSwitchProject),
+			s("save_project_as", m.MenuSaveProjectAs),
 			s("close_project", m.MenuCloseProject), s("prompt_add_folder", m.MenuAddFolderToProject),
 			s("refresh_folders", m.MenuRefreshFolders),
 		}},

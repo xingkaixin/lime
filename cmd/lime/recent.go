@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/egoist/mygo"
 
@@ -100,6 +101,17 @@ func (l *lime) recentItem(label string, fn func(a *app)) *mygo.MenuItem {
 			a.win.Update(func() { fn(a) })
 		}
 	}}
+}
+
+// showWorkspaces is Sublime Text's Quick Switch Project: the folders and
+// projects opened lately.
+func (a *app) showWorkspaces() {
+	var items []item
+	for _, p := range a.l.recent.Folders {
+		name := strings.TrimSuffix(filepath.Base(p), ".sublime-project")
+		items = append(items, item{label: name, detail: tildePath(p), pick: func() { a.switchProject(p) }})
+	}
+	a.openPanel(&panel{list: func(q string) []item { return ranked(items, byName(q)) }})
 }
 
 // switchProject goes to the folder or .sublime-project file at p: to the

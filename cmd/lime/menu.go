@@ -121,6 +121,7 @@ func (l *lime) newMenu() *mygo.Menu {
 		}},
 		{Label: locales.MenuProject(), Submenu: []*mygo.MenuItem{
 			l.menuItem(locales.MenuOpenProject(), "prompt_open_project"),
+			l.menuItem(locales.MenuQuickSwitchProject(), "prompt_select_workspace"),
 			l.menuItem(locales.MenuSaveProjectAs(), "save_project_as"),
 			l.menuItem(locales.MenuCloseProject(), "close_project"),
 			mygo.Separator(),

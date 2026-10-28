@@ -554,6 +554,16 @@ func (msgs Messages) MenuOpenProject() string {
 	return Catalog.Format(msgs.locale, "menuOpenProject", nil)
 }
 
+// MenuQuickSwitchProject says "Quick Switch Project…"
+// in the language the app shows.
+func MenuQuickSwitchProject() string { return In(i18n.Locale()).MenuQuickSwitchProject() }
+
+// MenuQuickSwitchProject says "Quick Switch Project…"
+// in the language of msgs.
+func (msgs Messages) MenuQuickSwitchProject() string {
+	return Catalog.Format(msgs.locale, "menuQuickSwitchProject", nil)
+}
+
 // MenuSaveProjectAs says "Save Project As…"
 // in the language the app shows.
 func MenuSaveProjectAs() string { return In(i18n.Locale()).MenuSaveProjectAs() }
@@ -1042,6 +1052,16 @@ func CmdOpenProject() string { return In(i18n.Locale()).CmdOpenProject() }
 // in the language of msgs.
 func (msgs Messages) CmdOpenProject() string {
 	return Catalog.Format(msgs.locale, "cmdOpenProject", nil)
+}
+
+// CmdQuickSwitchProject says "Project: Quick Switch Project…"
+// in the language the app shows.
+func CmdQuickSwitchProject() string { return In(i18n.Locale()).CmdQuickSwitchProject() }
+
+// CmdQuickSwitchProject says "Project: Quick Switch Project…"
+// in the language of msgs.
+func (msgs Messages) CmdQuickSwitchProject() string {
+	return Catalog.Format(msgs.locale, "cmdQuickSwitchProject", nil)
 }
 
 // CmdSaveProjectAs says "Project: Save As…"
