@@ -212,8 +212,7 @@ func (a *app) diffHeader(c *ui.Context, cmp *comparison) {
 func (a *app) revertAction(c *ui.Context, bar ui.Element, h *editor.DiffHunkActions) {
 	t := c.Theme()
 	bar.Children(func() {
-		// The editor's lines are 1.5 times its font high.
-		btn := ui.ButtonBase(c).Padding(0, t.Space(2)).Height(a.set.FontSize*1.5-4).Radius(t.Radius-2).
+		btn := ui.ButtonBase(c).Padding(0, t.Space(2)).Height(a.set.FontSize*a.set.lineHeight()-4).Radius(t.Radius-2).
 			Background(t.Surface).Border(1, t.Border).Label(locales.CompareRevert())
 		btn.Children(func() { ui.Text(c, locales.CompareRevert()).FontSize(max(11, t.FontSize-2)) })
 		if btn.Clicked() {
