@@ -13,8 +13,8 @@ import (
 
 // Find in Files looks in the open folders, in a tab's unsaved text rather
 // than its file, past binary files and the names Where leaves out. Its
-// matched lines go to one Find Results tab, from which Enter goes to the
-// matches.
+// matched lines go to one Find Results tab, from which Enter and F4 go to
+// the matches.
 func TestFindInFiles(t *testing.T) {
 	dir := t.TempDir()
 	for name, text := range map[string]string{
@@ -54,6 +54,10 @@ func TestFindInFiles(t *testing.T) {
 	tt.Key(0, ui.KeyEnter)
 	if d := a.current(); d.path != b || d.st.SelectedText() != "Alpha" {
 		t.Fatalf("Enter on b.txt's line: %q selects %q", d.name(), d.st.SelectedText())
+	}
+	tt.Key(0, ui.KeyF4)
+	if a.current() != src || src.st.SelectedText() != "alpha" || src.st.CursorPos().Line != 2 {
+		t.Fatalf("F4: %q selects %q", a.current().name(), a.current().st.SelectedText())
 	}
 
 	n := a.docCount()

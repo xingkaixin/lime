@@ -3572,6 +3572,26 @@ func (msgs Messages) ShortcutGotoDefinition() string {
 	return Catalog.Format(msgs.locale, "shortcutGotoDefinition", nil)
 }
 
+// ShortcutNextResult says "Next Result"
+// in the language the app shows.
+func ShortcutNextResult() string { return In(i18n.Locale()).ShortcutNextResult() }
+
+// ShortcutNextResult says "Next Result"
+// in the language of msgs.
+func (msgs Messages) ShortcutNextResult() string {
+	return Catalog.Format(msgs.locale, "shortcutNextResult", nil)
+}
+
+// ShortcutPrevResult says "Previous Result"
+// in the language the app shows.
+func ShortcutPrevResult() string { return In(i18n.Locale()).ShortcutPrevResult() }
+
+// ShortcutPrevResult says "Previous Result"
+// in the language of msgs.
+func (msgs Messages) ShortcutPrevResult() string {
+	return Catalog.Format(msgs.locale, "shortcutPrevResult", nil)
+}
+
 // ShortcutNextTab says "Next Tab"
 // in the language the app shows.
 func ShortcutNextTab() string { return In(i18n.Locale()).ShortcutNextTab() }

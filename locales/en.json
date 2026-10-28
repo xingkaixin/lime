@@ -523,6 +523,8 @@
     "placeholders": { "level": { "type": "int", "example": "2" } }
   },
   "shortcutGotoDefinition": "Goto Definition",
+  "shortcutNextResult": "Next Result",
+  "shortcutPrevResult": "Previous Result",
   "shortcutNextTab": "Next Tab",
   "shortcutPrevTab": "Previous Tab",
   "shortcutNextTabInStack": "Next Recently Used Tab",

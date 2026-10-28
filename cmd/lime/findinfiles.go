@@ -403,6 +403,7 @@ type results struct {
 	spans   [][2]int // the matches in the text
 	marks   []editor.TextBackground
 	color   ui.Color // of marks
+	at      int      // the hit next_result went to last, -1 before the first
 	clicked bool     // a double click is going on, which goes to its hit as it ends
 }
 
@@ -420,7 +421,7 @@ func (r *results) show(d *doc, text string, hits []hit, spans [][2]int) {
 	d.st.Buffer.Reset(text)
 	d.saved = d.st.Buffer.Snapshot()
 	d.st.Select(0, 0)
-	r.hits, r.spans, r.marks, r.color = hits, spans, nil, ui.Color{}
+	r.hits, r.spans, r.marks, r.color, r.at = hits, spans, nil, ui.Color{}, -1
 }
 
 // resultsTab shows the Find Results tab, made in the focused group when
@@ -429,7 +430,7 @@ func (a *app) resultsTab() *doc {
 	d := a.fif.tab
 	if gi, _ := a.locate(d); d == nil || gi < 0 {
 		d = newDoc("", "")
-		d.kind, d.results = findDoc, &results{}
+		d.kind, d.results = findDoc, &results{at: -1}
 		d.st.ReadOnly, d.st.LineNumbers, d.st.NoFolding, d.st.NoIndentGuides = true, editor.LineNumbersOff, true, true
 		g := a.group()
 		g.docs = append(g.docs, d)
@@ -474,7 +475,30 @@ func (a *app) openResult(d *doc, row int) {
 	if i == len(r.hits) || r.hits[i].row != row && r.hits[i].head != row {
 		return
 	}
+	r.at = i
 	a.openHit(r.hits[i])
+}
+
+// stepResult is Sublime Text's next_result, or prev_result: it goes to
+// the next hit of the Find Results, wrapping, and puts their caret on it.
+func (a *app) stepResult(step int) {
+	d := a.fif.tab
+	if gi, _ := a.locate(d); d == nil || gi < 0 || len(d.results.hits) == 0 {
+		return
+	}
+	r := d.results
+	n := len(r.hits)
+	switch {
+	case r.at < 0 && step > 0:
+		r.at = 0
+	case r.at < 0:
+		r.at = n - 1
+	default:
+		r.at = ((r.at+step)%n + n) % n
+	}
+	h := r.hits[r.at]
+	d.st.GoTo(editor.Pos{Line: h.row})
+	a.openHit(h)
 }
 
 // openHit shows the file of h with its match selected, as the file has

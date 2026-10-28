@@ -78,7 +78,8 @@ var shortcutGroups = func() []shortcutGroup {
 			s("show_panel replace", m.MenuReplace), s("find_all_under", m.MenuQuickFindAll),
 			s("find_under_expand", m.MenuQuickAddNext), s("find_under_expand_skip", m.MenuQuickSkipNext),
 			s("slurp_find_string", m.MenuUseSelectionForFind),
-			s("show_panel find_in_files", m.MenuFindInFiles),
+			s("show_panel find_in_files", m.MenuFindInFiles), s("next_result", m.ShortcutNextResult),
+			s("prev_result", m.ShortcutPrevResult),
 		}},
 		{m.MenuView, []shortcut{
 			s("toggle_side_bar", m.StatusSideBar), s("toggle_files_panel", m.SideBarFilesPanel), s("toggle_git_panel", m.SideBarGitPanel),

@@ -356,6 +356,8 @@
   "shortcutUnfoldAll": "全部展开",
   "shortcutFoldLevel": "折叠到第 {level} 级",
   "shortcutGotoDefinition": "转到定义",
+  "shortcutNextResult": "下一个结果",
+  "shortcutPrevResult": "上一个结果",
   "shortcutNextTab": "下一个标签页",
   "shortcutPrevTab": "上一个标签页",
   "shortcutNextTabInStack": "按最近使用切换到下一个",
