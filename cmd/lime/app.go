@@ -237,6 +237,7 @@ type app struct {
 	scheme  *scheme
 	panel   *panel
 	scroll  *peek // what a closed panel scrolls back to (scrollBack)
+	jumps   jumps
 	find    finding
 	proj    project
 	git     gitRepo
@@ -488,6 +489,7 @@ func (a *app) add(path, text string) *doc {
 	if cur := g.current(); path != "" && cur != nil && cur.path == "" && cur.st.Buffer.Len() == 0 && !cur.dirty() {
 		g.docs[g.active] = d
 		a.mru = slices.DeleteFunc(a.mru, func(x *doc) bool { return x == cur })
+		a.jumps.forget(cur)
 	} else {
 		g.docs = append(g.docs, d)
 	}
@@ -757,6 +759,7 @@ func release(docs ...*doc) {
 // take takes d out of the window.
 func (a *app) take(d *doc) bool {
 	a.mru = slices.DeleteFunc(a.mru, func(x *doc) bool { return x == d })
+	a.jumps.forget(d)
 	return a.detach(d)
 }
 

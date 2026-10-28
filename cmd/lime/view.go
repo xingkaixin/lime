@@ -29,6 +29,7 @@ func (a *app) view(c *ui.Context) {
 	th.Font = a.set.UIFont
 	c.SetTheme(th)
 	a.syncFocus(c.Modifiers()&ui.Ctrl != 0)
+	a.trackJumps()
 	if t := a.drag; t != nil {
 		if gi, _ := a.locate(t.d); gi < 0 {
 			a.drag = nil
@@ -489,6 +490,9 @@ func (a *app) shortcuts(c *ui.Context) {
 		return
 	}
 	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.chord = true })
+	// A mouse's side buttons, as in Zed: Sublime Text's switch tabs.
+	c.OnShortcut(0, ui.KeyBack, func() { a.run("jump_back") })
+	c.OnShortcut(0, ui.KeyForward, func() { a.run("jump_forward") })
 	for _, k := range keys {
 		if !k.chord {
 			c.OnShortcut(k.mods, k.key, func() { a.run(k.id) })

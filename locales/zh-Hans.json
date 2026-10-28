@@ -95,6 +95,8 @@
   "cmdGotoAnything": "转到任意位置",
   "cmdGotoLine": "转到行",
   "cmdGotoSymbol": "转到符号",
+  "cmdJumpBack": "后退",
+  "cmdJumpForward": "前进",
   "cmdToggleSideBar": "视图：显示或隐藏侧边栏",
   "cmdToggleFilesPanel": "视图：显示或隐藏文件面板",
   "cmdToggleGitPanel": "视图：显示或隐藏 Git 面板",

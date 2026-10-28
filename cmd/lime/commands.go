@@ -97,6 +97,8 @@ func makeCommands() []command {
 		{id: "show_command_palette", run: (*app).showCommandPalette},
 		{id: "goto_line", caption: locales.Messages.CmdGotoLine, run: func(a *app) { a.showGoto(":") }},
 		{id: "goto_symbol", caption: locales.Messages.CmdGotoSymbol, run: func(a *app) { a.showGoto("@") }},
+		{id: "jump_back", caption: locales.Messages.CmdJumpBack, run: func(a *app) { a.jump(&a.jumps.back, &a.jumps.forward) }},
+		{id: "jump_forward", caption: locales.Messages.CmdJumpForward, run: func(a *app) { a.jump(&a.jumps.forward, &a.jumps.back) }},
 		{id: "show_panel find", run: func(a *app) { a.showFind(false) }},
 		{id: "show_panel replace", run: func(a *app) { a.showFind(true) }},
 		{id: "next_view", run: func(a *app) { a.selectTab(a.group().active + 1) }},

@@ -119,6 +119,9 @@ func (l *lime) newMenu() *mygo.Menu {
 			mygo.Separator(),
 			l.menuItem(locales.MenuNextModification(), "next_modification"),
 			l.menuItem(locales.MenuPreviousModification(), "prev_modification"),
+			mygo.Separator(),
+			l.menuItem(locales.CmdJumpBack(), "jump_back"),
+			l.menuItem(locales.CmdJumpForward(), "jump_forward"),
 		}},
 		{Label: locales.MenuProject(), Submenu: []*mygo.MenuItem{
 			l.menuItem(locales.MenuOpenProject(), "prompt_open_project"),
