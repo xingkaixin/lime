@@ -29,6 +29,8 @@ All code is `package main` in `cmd/lime`. Keep it one package.
   or not; `history.go`: its History tab; `commitview.go`: a tab of the diffs
   of a commit's files, or of the staged or unstaged changes; `avatar.go`:
   commit authors' pictures, from GitHub
+- `minidiff.go`: what the gutter marks changes against: the file in git
+  (`git_diff_target`), or on disk if git doesn't track it
 - `settings.go`, `settingsview.go`, `shortcutsview.go`: settings.json and its dialog
 - `session.go`: hot exit (session.json)
 - `theme.go`: color schemes and the chrome colors derived from them
