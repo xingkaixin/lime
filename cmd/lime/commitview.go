@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -645,7 +646,8 @@ func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
 	}
 	ui.Row(c).FillWidth().Height(28).Padding(0, 12).Gap(6).AlignItems(ui.Center).Background(a.scheme.bg).Unselectable().Children(func() {
 		ui.Box(c).Grow(1)
-		if !unstage {
+		// The website's git applies to the index alone.
+		if !unstage && runtime.GOOS != "js" {
 			button(locales.ButtonDiscard(), func() {
 				h := f.hunks[i]
 				a.confirm(locales.DialogDiscardHunk(filepath.Base(f.path)), locales.DialogDiscardLost(), locales.ButtonDiscard(),

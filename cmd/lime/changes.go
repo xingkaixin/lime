@@ -3,6 +3,7 @@ package main
 import (
 	"path"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -301,6 +302,10 @@ func (a *app) changeMenu(m *ui.Menu) {
 	}
 	if m.Item(locales.ChangesUnstage()).Disabled(len(toUnstage) == 0).Chosen() {
 		a.stageFiles(toUnstage, true)
+	}
+	// The website's git restores nothing, and browsers have no Trash.
+	if runtime.GOOS == "js" {
+		return
 	}
 	m.Separator()
 	if m.Item(locales.ChangesDiscard()).Disabled(len(toStage) == 0).Chosen() {
