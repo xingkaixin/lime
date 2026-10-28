@@ -30,7 +30,10 @@ const (
 type gitMarks struct {
 	folders []string           // the folders read; nil reads them again as the side bar shows them
 	bases   map[string]gitBase // by the folder of the side bar the files of a work tree are under
-	gen     int                // counts the readings, for the last to win
+	// One reading runs at a time; again reads once more after it, for
+	// what changed meanwhile, as a Save All or many changes on disk ask
+	// for one each.
+	reading, again bool
 }
 
 // gitBase is the files of a work tree from a folder of the side bar:
@@ -50,13 +53,19 @@ func (a *app) readMarks() {
 		return
 	}
 	g.folders = slices.Clone(a.proj.folders)
-	g.gen++
-	gen, folders := g.gen, g.folders
+	if g.reading {
+		g.again = true
+		return
+	}
+	g.reading = true
+	folders := g.folders
 	a.background(func() func() {
 		bases := readGitBases(folders)
 		return func() {
-			if g.gen == gen {
-				g.bases = bases
+			g.bases, g.reading = bases, false
+			if g.again {
+				g.again = false
+				a.readMarks()
 			}
 		}
 	})

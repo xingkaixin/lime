@@ -672,12 +672,11 @@ func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	a.readBases(d)
 	if created && a.proj.holds(path) {
 		a.refreshFolders()
+	} else if a.proj.holds(path) {
+		a.readMarks()
 	}
 	if a.git.root != "" {
 		a.readWorktree()
-	}
-	if a.proj.holds(path) {
-		a.readMarks()
 	}
 	return nil
 }

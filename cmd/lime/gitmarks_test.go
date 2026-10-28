@@ -74,4 +74,11 @@ func TestGitMarks(t *testing.T) {
 			t.Errorf("%s: mark %d, want %d", p, got, want)
 		}
 	}
+
+	// A file the side bar moves is read again.
+	kept := filepath.Join(dir, "kept.txt")
+	a.transfer(filepath.Join(dir, "keep.txt"), kept, false)
+	if got := a.marks.mark(kept); got != gitAdded {
+		t.Errorf("kept.txt moved from keep.txt: mark %d, want %d", got, gitAdded)
+	}
 }
