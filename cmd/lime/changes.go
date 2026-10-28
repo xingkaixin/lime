@@ -556,8 +556,13 @@ func (a *app) uncommit() {
 		parents, body, _ := strings.Cut(out, "\x00")
 		body = strings.TrimSpace(body)
 		return func() {
-			if err != nil || strings.TrimSpace(parents) == "" {
+			switch n := len(strings.Fields(parents)); {
+			case err != nil || n == 0:
 				a.notifyError(locales.StatusNoParentCommit())
+				return
+			// A soft reset to the first parent would lose the others.
+			case n > 1:
+				a.notifyError(locales.StatusUncommitMerge())
 				return
 			}
 			subject, _, _ := strings.Cut(body, "\n")

@@ -453,6 +453,7 @@
   },
   "statusIncompleteJSON": "Invalid JSON: unexpected end of input",
   "statusNoParentCommit": "HEAD has no parent commit to go back to",
+  "statusUncommitMerge": "A merge commit can't be uncommitted",
   "statusNoDefinition": "No definition of “{name}”",
   "@statusNoDefinition": {
     "placeholders": { "name": { "type": "String", "example": "newDoc" } }

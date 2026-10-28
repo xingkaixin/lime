@@ -3004,6 +3004,16 @@ func (msgs Messages) StatusNoParentCommit() string {
 	return Catalog.Format(msgs.locale, "statusNoParentCommit", nil)
 }
 
+// StatusUncommitMerge says "A merge commit can't be uncommitted"
+// in the language the app shows.
+func StatusUncommitMerge() string { return In(i18n.Locale()).StatusUncommitMerge() }
+
+// StatusUncommitMerge says "A merge commit can't be uncommitted"
+// in the language of msgs.
+func (msgs Messages) StatusUncommitMerge() string {
+	return Catalog.Format(msgs.locale, "statusUncommitMerge", nil)
+}
+
 // StatusNoDefinition says "No definition of “{name}”"
 // in the language the app shows.
 func StatusNoDefinition(name string) string { return In(i18n.Locale()).StatusNoDefinition(name) }
