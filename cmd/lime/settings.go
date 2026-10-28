@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/i18n"
@@ -29,6 +30,15 @@ type settings struct {
 	SideBar      bool    `json:"side_bar"`
 	SideBarWidth float32 `json:"side_bar_width"`
 	TabSize      int     `json:"tab_size"`
+	// Rulers are the columns guides are drawn at.
+	Rulers         []int      `json:"rulers"`
+	DrawWhiteSpace whiteSpace `json:"draw_white_space"`
+	LineNumbers    bool       `json:"line_numbers"`
+	// RelativeLineNumbers numbers lines from the caret's, as Zed's.
+	RelativeLineNumbers bool `json:"relative_line_numbers"`
+	HighlightLine       bool `json:"highlight_line"`
+	DrawIndentGuides    bool `json:"draw_indent_guides"`
+	ScrollPastEnd       bool `json:"scroll_past_end"`
 	// TranslateTabsToSpaces indents with spaces when true and tabs when
 	// false; unset, as the language's files usually do.
 	TranslateTabsToSpaces        *bool `json:"translate_tabs_to_spaces,omitempty"`
@@ -86,6 +96,8 @@ func loadSettings(dir string) (settings, error) {
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4, AutoComplete: true,
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
+		Rulers: []int{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
+		ScrollPastEnd: true,
 	}
 	var err error
 	if dir != "" {
@@ -130,6 +142,72 @@ func (s *settings) indent() editor.IndentStyle { return indentStyle(s.TranslateT
 
 func (s *settings) setIndent(style editor.IndentStyle) {
 	s.TranslateTabsToSpaces = translateTabs(style)
+}
+
+// display shows the text of st as the settings say.
+func (s *settings) display(st *editor.State) {
+	st.WrapGuides, st.Whitespace = s.Rulers, s.DrawWhiteSpace.mode()
+	switch {
+	case !s.LineNumbers:
+		st.LineNumbers = editor.LineNumbersOff
+	case s.RelativeLineNumbers:
+		st.LineNumbers = editor.LineNumbersRelative
+	default:
+		st.LineNumbers = editor.LineNumbersOn
+	}
+	st.NoActiveLine, st.NoIndentGuides, st.NoScrollPastEnd = !s.HighlightLine, !s.DrawIndentGuides, !s.ScrollPastEnd
+}
+
+// whiteSpace is draw_white_space: Sublime Text's options of where white
+// space is drawn, applied in order, or one of its older strings, "none",
+// "selection" or "all".
+type whiteSpace []string
+
+func (w *whiteSpace) UnmarshalJSON(b []byte) error {
+	var s string
+	if json.Unmarshal(b, &s) == nil {
+		*w = whiteSpace{s}
+		return nil
+	}
+	return json.Unmarshal(b, (*[]string)(w))
+}
+
+const (
+	wsSelection uint8 = 1 << iota
+	wsLeading
+	wsEnclosed
+	wsTrailing
+	wsIsolated
+	wsAll = wsSelection | wsLeading | wsEnclosed | wsTrailing | wsIsolated
+)
+
+var wsPlaces = map[string]uint8{
+	"selection": wsSelection, "leading": wsLeading, "enclosed": wsEnclosed, "trailing": wsTrailing,
+	"isolated": wsIsolated, "all": wsAll, "none": wsAll,
+}
+
+// mode is the editor's nearest to the options: white space at the ends
+// of lines alone is trailing, and anywhere else is all of it. Options of
+// tabs, spaces or mixed indentation alone draw both.
+func (w whiteSpace) mode() editor.Whitespace {
+	var on uint8
+	for _, o := range w {
+		place, kind, _ := strings.Cut(o, "_")
+		if place == "none" || kind == "none" {
+			on &^= wsPlaces[place]
+		} else {
+			on |= wsPlaces[place]
+		}
+	}
+	switch {
+	case on&(wsLeading|wsEnclosed) != 0:
+		return editor.WhitespaceAll
+	case on&(wsTrailing|wsIsolated) != 0:
+		return editor.WhitespaceTrailing
+	case on&wsSelection != 0:
+		return editor.WhitespaceSelection
+	}
+	return editor.WhitespaceNone
 }
 
 // showScheme makes sc the theme of its appearance, and shows that

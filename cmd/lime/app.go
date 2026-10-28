@@ -156,7 +156,7 @@ func (g *group) current() *doc {
 func (g *group) placeholder() *doc {
 	if g.blank == nil {
 		g.blank = newDoc("", "")
-		g.blank.st.LineNumbers, g.blank.st.NoFolding = editor.LineNumbersOff, true
+		g.blank.st.NoFolding = true
 	}
 	return g.blank
 }
@@ -168,7 +168,7 @@ func (a *app) adopt(g *group) {
 		return
 	}
 	g.blank = nil
-	b.st.LineNumbers, b.st.NoFolding = editor.LineNumbersOn, false
+	b.st.NoFolding = false
 	g.docs = append(g.docs, b)
 	a.show(b)
 }

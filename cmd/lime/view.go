@@ -190,6 +190,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 			a.preview(c, gi, d)
 			return
 		}
+		a.set.display(d.st)
+		if d == g.blank {
+			d.st.LineNumbers = editor.LineNumbersOff
+		}
 		d.st.OnDefinition = func(off int) { a.gotoDefinition(d, off) }
 		d.st.OnCompletion = func(r editor.CompletionRequest) { a.complete(d, r) }
 		d.st.OnInput = func(ev ui.InputEvent) bool {
