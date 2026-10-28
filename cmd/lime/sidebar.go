@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"runtime"
+	"slices"
 
 	"github.com/egoist/mygo/ui"
 
@@ -42,6 +43,9 @@ func (a *app) sideBar(c *ui.Context) {
 		case len(a.proj.folders) == 0:
 			a.sideBarEmpty(c)
 		default:
+			if !slices.Equal(a.marks.folders, a.proj.folders) {
+				a.readMarks()
+			}
 			ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 				ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
 					for _, f := range a.proj.folders {
@@ -322,19 +326,28 @@ func (a *app) treeRow(c *ui.Context, path string, depth int, ic rowIcon, selecte
 	row := ui.Row(c.Key(path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Radius(t.Radius).
 		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected).Transition(motion)
-	tint := ic.tint(a.scheme.chrome().muted)
+	tint, text := ic.tint(a.scheme.chrome().muted), t.Text
 	if selected {
-		tint = t.AccentText
-	} else if row.Hovered() {
-		hover := t.SurfaceHover
-		if c.Vibrancy() {
-			hover = a.shell(c).hover
+		tint, text = t.AccentText, t.AccentText
+	} else {
+		if row.Hovered() {
+			hover := t.SurfaceHover
+			if c.Vibrancy() {
+				hover = a.shell(c).hover
+			}
+			row.Background(hover)
 		}
-		row.Background(hover)
+		switch m := a.marks.mark(path); m {
+		case gitClean:
+		case gitIgnored:
+			tint, text = tint.Alpha(0.5), text.Alpha(0.5)
+		default:
+			text = a.scheme.gitTint(m)
+		}
 	}
 	row.Children(func() {
 		ic.view(c, treeIcon, tint)
-		ui.Text(c, name).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
+		ui.Text(c, name).TextColor(text).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 	})
 	return row
 }

@@ -52,9 +52,10 @@ func (a *app) gitDir() string {
 	return a.proj.folders[0]
 }
 
-// readGit reads the repository of the project's folder again, keeping
-// what shows until it is read.
+// readGit reads the repository of the project's folder again, and what
+// git says of the side bar's files, keeping what shows until it is read.
 func (a *app) readGit() {
+	a.readMarks()
 	dir := a.gitDir()
 	if dir != a.git.dir {
 		a.git = gitRepo{dir: dir}

@@ -259,6 +259,7 @@ type app struct {
 	find    finding
 	fif     findInFiles
 	proj    project
+	marks   gitMarks // what git says of the side bar's files
 	git     gitRepo
 	hist    history
 	changes changes
@@ -674,6 +675,9 @@ func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	}
 	if a.git.root != "" {
 		a.readWorktree()
+	}
+	if a.proj.holds(path) {
+		a.readMarks()
 	}
 	return nil
 }
