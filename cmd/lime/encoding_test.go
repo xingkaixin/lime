@@ -60,3 +60,24 @@ func TestUTF16(t *testing.T) {
 		t.Fatalf("saved %q", got)
 	}
 }
+
+// A file that its encoding would not save back as it was keeps its bytes,
+// which saving writes as they were, and does not reopen in an encoding
+// that would change them.
+func TestEncodingKeepsBytes(t *testing.T) {
+	for _, raw := range []string{
+		"\x81@ \xc4\xe3\n",     // GBK's 丂, which Windows 1252 has no character for
+		"\xff\xfeh\x00i\x00\n", // UTF-16 cut short
+	} {
+		p := filepath.Join(t.TempDir(), "a.txt")
+		os.WriteFile(p, []byte(raw), 0o644)
+		a := newApp("")
+		a.open([]string{p})
+		d := a.current()
+		a.run(encodingNamed("Big5").reopenID())
+		a.save(d)
+		if got, _ := os.ReadFile(p); string(got) != raw || d.encoding() != utf8Encoding {
+			t.Errorf("saved %q in %s, want %q", got, d.encoding().name, raw)
+		}
+	}
+}

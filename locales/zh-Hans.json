@@ -263,6 +263,7 @@
   "statusTabSize": "Tab 宽度：{size}",
   "statusEncoding": "编码：{name}",
   "statusReopenUnsaved": "请先保存改动，再重新打开文件",
+  "statusNotInEncoding": "未重新打开：文件里有不属于 {encoding} 的字节",
   "statusInvalidJSON": "JSON 无效：意外的字符“{char}”",
   "statusIncompleteJSON": "JSON 无效：内容不完整",
   "statusNoDefinition": "找不到“{name}”的定义",

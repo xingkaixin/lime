@@ -2632,6 +2632,18 @@ func (msgs Messages) StatusReopenUnsaved() string {
 	return Catalog.Format(msgs.locale, "statusReopenUnsaved", nil)
 }
 
+// StatusNotInEncoding says "Not reopened: the file has bytes that aren't {encoding}"
+// in the language the app shows.
+func StatusNotInEncoding(encoding string) string {
+	return In(i18n.Locale()).StatusNotInEncoding(encoding)
+}
+
+// StatusNotInEncoding says "Not reopened: the file has bytes that aren't {encoding}"
+// in the language of msgs.
+func (msgs Messages) StatusNotInEncoding(encoding string) string {
+	return Catalog.Format(msgs.locale, "statusNotInEncoding", map[string]any{"encoding": encoding})
+}
+
 // StatusInvalidJSON says "Invalid JSON: unexpected character “{char}”"
 // in the language the app shows.
 func StatusInvalidJSON(char string) string { return In(i18n.Locale()).StatusInvalidJSON(char) }

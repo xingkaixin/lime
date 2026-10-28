@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"errors"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -48,6 +49,8 @@ var encodings = []*fileEncoding{
 	{name: "EUC-KR", enc: korean.EUCKR},
 }
 
+var errNotUTF8 = errors.New("text isn't UTF-8")
+
 // defaultFallback is Sublime Text's fallback_encoding.
 const defaultFallback = "Western (Windows 1252)"
 
@@ -85,24 +88,63 @@ func detectEncoding(raw, fallback string) *fileEncoding {
 	return cmp.Or(encodingNamed(fallback), encodingNamed(defaultFallback))
 }
 
-// decode is raw, bytes in e, as UTF-8 without e's BOM. Bytes e has no
-// character for decode to U+FFFD, but for UTF-8, which keeps them.
-func (e *fileEncoding) decode(raw string) string {
+// decode is raw, bytes in e, as UTF-8 without e's BOM, and whether the
+// text saves back as raw was. Bytes e has no character for decode to
+// U+FFFD, which would save as another character; UTF-8 keeps them as
+// they are.
+func (e *fileEncoding) decode(raw string) (string, bool) {
 	raw = strings.TrimPrefix(raw, e.bom)
 	if e.enc == nil {
-		return raw
+		return raw, true
 	}
 	text, err := e.enc.NewDecoder().String(raw)
 	if err != nil {
-		return raw
+		return "", false
 	}
-	return text
+	back, err := e.enc.NewEncoder().String(text)
+	return text, err == nil && back == raw
+}
+
+// openText is raw, a file's bytes, as UTF-8, and the encoding it is in:
+// as detectEncoding has it, or UTF-8 where that would not save back as
+// raw was, which keeps the bytes as they are.
+func openText(raw, fallback string) (string, *fileEncoding) {
+	e := detectEncoding(raw, fallback)
+	if text, ok := e.decode(raw); ok {
+		return text, e
+	}
+	return raw, utf8Encoding
+}
+
+// reopenText is raw, the file of a doc in e read again, in e where its
+// BOM, or its characters past ASCII being UTF-8, don't say otherwise and
+// it saves back as it was; else as openText has it.
+func reopenText(raw string, e *fileEncoding, fallback string) (string, *fileEncoding) {
+	if d := detectEncoding(raw, e.name); d == e || e.bom == "" && d == utf8Encoding && ascii(raw) {
+		if text, ok := e.decode(raw); ok {
+			return text, e
+		}
+	}
+	return openText(raw, fallback)
+}
+
+func ascii(s string) bool {
+	for i := range len(s) {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
 }
 
 // encode is text, UTF-8, in e and after e's BOM, or the error of a
-// character e has none for.
+// character e has none for. Bytes of text that aren't UTF-8 are an error
+// too, which the encoders of x/text would save as U+FFFD.
 func (e *fileEncoding) encode(text []byte) ([]byte, error) {
 	if e.enc != nil {
+		if !utf8.Valid(text) {
+			return nil, errNotUTF8
+		}
 		var err error
 		if text, err = e.enc.NewEncoder().Bytes(text); err != nil {
 			return nil, err
@@ -125,8 +167,12 @@ func encodingCommands() []command {
 				run: withDoc(func(a *app, d *doc) { a.reopen(d, e) })},
 			command{id: e.saveID(), caption: func(m locales.Messages) string { return m.CmdSaveWithEncoding(e.title(m)) },
 				run: withSource(func(a *app, d *doc) {
-					d.enc = e
-					a.save(d)
+					if d.path == "" {
+						d.enc = e
+						a.saveAs(d)
+						return
+					}
+					a.writeIn(d, d.path, e)
 				})})
 	}
 	return c
@@ -150,7 +196,12 @@ func (a *app) reopen(d *doc, e *fileEncoding) {
 		go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(d.path)), err.Error())
 		return
 	}
-	text, ending := splitLines(e.decode(raw))
+	text, ok := e.decode(raw)
+	if !ok {
+		a.notifyError(locales.StatusNotInEncoding(e.title(locales.In(i18n.Locale()))))
+		return
+	}
+	text, ending := splitLines(text)
 	d.enc = e
 	d.st.Buffer.Reset(text)
 	d.st.Select(0, 0)

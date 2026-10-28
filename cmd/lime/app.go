@@ -437,11 +437,12 @@ type reload struct {
 	d         *doc
 	was, disk stamp
 	text      string
+	enc       *fileEncoding
 }
 
 // changedOnDisk reads the files of the window's tabs that changed since
 // they were opened or saved. It blocks, so call it off the main thread.
-func changedOnDisk(docs []*doc, stamps []stamp, encs []*fileEncoding) []reload {
+func changedOnDisk(docs []*doc, stamps []stamp, encs []*fileEncoding, fallback string) []reload {
 	var rs []reload
 	for i, d := range docs {
 		now := stampOf(d.path)
@@ -449,7 +450,8 @@ func changedOnDisk(docs []*doc, stamps []stamp, encs []*fileEncoding) []reload {
 			continue
 		}
 		if raw, err := readText(d.path); err == nil {
-			rs = append(rs, reload{d, stamps[i], now, encs[i].decode(raw)})
+			text, enc := reopenText(raw, encs[i], fallback)
+			rs = append(rs, reload{d, stamps[i], now, text, enc})
 		}
 	}
 	return rs
@@ -471,8 +473,9 @@ func (a *app) reloadChanged() {
 		return
 	}
 	a.readBases(docs...)
+	fallback := a.set.FallbackEncoding
 	a.background(func() func() {
-		rs := changedOnDisk(docs, stamps, encs)
+		rs := changedOnDisk(docs, stamps, encs, fallback)
 		return func() { a.applyReloads(rs) }
 	})
 }
@@ -489,6 +492,7 @@ func (a *app) applyReloads(rs []reload) {
 			continue
 		}
 		text, ending := splitLines(r.text)
+		d.enc = r.enc
 		d.st.Buffer.Set(text)
 		d.setLineEnding(ending)
 		d.savedEnding = ending
@@ -552,8 +556,8 @@ func (a *app) open(paths []string) {
 			go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(p)), err.Error())
 			continue
 		}
-		enc := detectEncoding(raw, a.set.FallbackEncoding)
-		d := a.add(p, enc.decode(raw))
+		text, enc := openText(raw, a.set.FallbackEncoding)
+		d := a.add(p, text)
 		d.enc = enc
 		if a.set.DetectIndentation {
 			d.guessIndent()
@@ -615,7 +619,11 @@ func (a *app) reopenClosed() {
 }
 
 // write saves d to path, on the main thread.
-func (a *app) write(d *doc, path string) error {
+func (a *app) write(d *doc, path string) error { return a.writeIn(d, path, d.encoding()) }
+
+// writeIn saves d to path in want, which becomes d's encoding once the
+// file is written.
+func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	a.tidy(d)
 	snap := d.st.Buffer.Snapshot()
 	var b bytes.Buffer
@@ -632,7 +640,7 @@ func (a *app) write(d *doc, path string) error {
 	}
 	// A character the encoding has none for saves the file as UTF-8, as
 	// in Sublime Text.
-	enc := d.encoding()
+	enc := want
 	if data, err := enc.encode(out); err == nil {
 		out = data
 	} else {
@@ -651,8 +659,8 @@ func (a *app) write(d *doc, path string) error {
 	}
 	d.st.Buffer.MarkSaved()
 	d.saved, d.savedEnding = snap, d.lineEnding()
-	if enc != d.encoding() {
-		go mygo.Dialog.Error(locales.DialogSavedAsUTF8(filepath.Base(path)), locales.DialogNotRepresentable(d.encoding().title(locales.In(i18n.Locale()))))
+	if enc != want {
+		go mygo.Dialog.Error(locales.DialogSavedAsUTF8(filepath.Base(path)), locales.DialogNotRepresentable(want.title(locales.In(i18n.Locale()))))
 	}
 	d.enc = enc
 	if d.base == "" || d.saved.Len() > largeFile {

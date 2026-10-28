@@ -398,6 +398,10 @@
     "placeholders": { "name": { "type": "String", "example": "UTF-8" } }
   },
   "statusReopenUnsaved": "Save the changes before reopening the file",
+  "statusNotInEncoding": "Not reopened: the file has bytes that aren't {encoding}",
+  "@statusNotInEncoding": {
+    "placeholders": { "encoding": { "type": "String", "example": "GBK" } }
+  },
   "statusInvalidJSON": "Invalid JSON: unexpected character “{char}”",
   "@statusInvalidJSON": {
     "placeholders": { "char": { "type": "String", "example": "}" } }

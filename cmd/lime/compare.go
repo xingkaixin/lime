@@ -82,7 +82,7 @@ func (a *app) compareFile(src *doc, path string) {
 	fallback := a.set.FallbackEncoding
 	go func() {
 		raw, err := readText(path)
-		text := detectEncoding(raw, fallback).decode(raw)
+		text, _ := openText(raw, fallback)
 		a.win.Update(func() {
 			if err != nil {
 				go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(path)), err.Error())

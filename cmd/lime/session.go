@@ -276,14 +276,14 @@ func restoreDoc(sd sessionDoc, fallback string) *doc {
 		}
 		switch {
 		case enc != nil:
+			disk, enc = reopenText(raw, enc, fallback)
 		// The bytes kept of a file that isn't UTF-8 are the file's own,
 		// which the buffer held as they were.
 		case sd.Raw != nil:
-			enc = utf8Encoding
+			disk, enc = reopenText(raw, utf8Encoding, fallback)
 		default:
-			enc = detectEncoding(raw, fallback)
+			disk, enc = openText(raw, fallback)
 		}
-		disk = enc.decode(raw)
 	}
 	d := newDoc(sd.Path, disk)
 	d.enc = enc
