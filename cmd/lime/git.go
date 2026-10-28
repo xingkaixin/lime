@@ -246,6 +246,7 @@ func (a *app) showWorktrees() {
 
 // switchWorktree makes the work tree at path the project's folder.
 func (a *app) switchWorktree(path string) {
+	a.proj.unwatch()
 	a.proj = project{gen: a.proj.gen + 1, jump: true}
 	a.addFolder(path)
 	a.readGit()

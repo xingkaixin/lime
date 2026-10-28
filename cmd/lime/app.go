@@ -949,6 +949,7 @@ func (l *lime) keep(e interface{ PreventDefault() }) bool {
 
 func (l *lime) closed(a *app) {
 	release(a.allDocs()...)
+	a.proj.unwatch()
 	l.wins = slices.DeleteFunc(l.wins, func(w *app) bool { return w == a })
 	if l.last == a {
 		l.last = nil
