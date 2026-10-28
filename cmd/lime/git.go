@@ -300,13 +300,14 @@ func (a *app) deleteBranch(name string, force bool) {
 	}
 	a.background(func() func() {
 		gitWrites.Lock()
-		out, err := gitWith(dir, "", "branch", flag, "--", name)
+		// The advice names -D, which tells a branch not merged.
+		out, err := gitWith(dir, "", "-c", "advice.forceDeleteBranch=true", "branch", flag, "--", name)
 		gitWrites.Unlock()
 		return func() {
 			switch {
 			case err == nil:
 				a.notify(strings.TrimSpace(out))
-			// git hints at -D, in any language, only for a branch not merged.
+			// git advises -D, in any language, only for a branch not merged.
 			case !force && strings.Contains(err.Error(), "branch -D"):
 				a.confirm(locales.DialogBranchNotMerged(name), locales.DialogBranchCommitsLost(), locales.ButtonDelete(),
 					func() { a.deleteBranch(name, true) })
