@@ -132,6 +132,7 @@ var shortcutGroups = func() []shortcutGroup {
 		{m.ShortcutGroupGit, []shortcut{
 			s("git_create_branch", m.CmdCreateBranch), s("git_delete_branch", m.CmdDeleteBranch),
 			s("git_rename_branch", m.CmdRenameBranch), s("git_uncommit", m.CmdUncommit),
+			s("git_push", m.CmdPush), s("git_pull", m.CmdPull), s("git_fetch", m.CmdFetch),
 		}},
 	}
 }()

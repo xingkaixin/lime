@@ -213,6 +213,9 @@
   "cmdDeleteBranch": "Git: Delete Branch…",
   "cmdRenameBranch": "Git: Rename Branch…",
   "cmdUncommit": "Git: Uncommit",
+  "cmdPush": "Git: Push",
+  "cmdPull": "Git: Pull",
+  "cmdFetch": "Git: Fetch",
 
   "panelLabel": "Quick panel",
   "panelCommandPalette": "Command Palette",
@@ -321,6 +324,10 @@
   "dialogUncommitDetail": "Its changes go back to the staged changes.",
   "dialogAmendPushed": "Amend a commit that is already pushed?",
   "dialogPushedDetail": "The branch will then diverge from its upstream, and Lime has no force push.",
+  "dialogGitFailed": "{command} failed",
+  "@dialogGitFailed": {
+    "placeholders": { "command": { "type": "String", "example": "git push" } }
+  },
   "filterProject": "Sublime Project",
 
   "sideBarDropFolder": "Drop a folder here to open it",
@@ -456,6 +463,9 @@
   "statusIncompleteJSON": "Invalid JSON: unexpected end of input",
   "statusNoParentCommit": "HEAD has no parent commit to go back to",
   "statusUncommitMerge": "A merge commit can't be uncommitted",
+  "statusPushing": "Pushing…",
+  "statusPulling": "Pulling…",
+  "statusFetching": "Fetching…",
   "statusNoDefinition": "No definition of “{name}”",
   "@statusNoDefinition": {
     "placeholders": { "name": { "type": "String", "example": "newDoc" } }
