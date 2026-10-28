@@ -72,7 +72,7 @@
     return out
   }
 
-  const commit = (message, all) => {
+  const commit = (message, all, amend) => {
     const w = work()
     if (all) {
       for (const p of [...repo.index.keys()]) {
@@ -81,11 +81,12 @@
       }
     }
     const h = head().tree
-    if (h.size === repo.index.size && [...h].every(([p, t]) => repo.index.get(p) === t)) {
+    if (!amend && h.size === repo.index.size && [...h].every(([p, t]) => repo.index.get(p) === t)) {
       throw new Error("nothing to commit, working tree clean")
     }
     const hash = [...crypto.getRandomValues(new Uint8Array(20))].map((b) => b.toString(16).padStart(2, "0")).join("")
     const c = { hash, body: message.trim() + "\n", name: "You", email: "you@example.com", time: Math.floor(Date.now() / 1000), tree: new Map(repo.index) }
+    if (amend) repo.commits.shift()
     repo.commits.unshift(c)
     return `[${repo.branch} ${short(hash)}] ${subject(c)}\n`
   }
@@ -268,7 +269,7 @@
         return ""
       }
       case "commit":
-        return commit(input, has(rest, "-a"))
+        return commit(input, has(rest, "-a"), has(rest, "--amend"))
       case "log": {
         const n = +(option(rest, "-n") ?? Infinity)
         return repo.commits.slice(0, n).map((c) => format(option(rest, "--format=") ?? "%H", c) + "\n").join("")

@@ -251,6 +251,7 @@
   "changesStagedTitle": "已暂存的改动",
   "changesUnstagedTitle": "未暂存的改动",
   "changesDiscard": "丢弃改动",
+  "changesAmend": "修改上次提交",
   "timeJustNow": "刚刚",
   "timeMinutesAgo": "{count, plural, other {# 分钟前}}",
   "timeHoursAgo": "{count, plural, other {# 小时前}}",

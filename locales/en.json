@@ -335,6 +335,7 @@
   "changesStagedTitle": "Staged Changes",
   "changesUnstagedTitle": "Unstaged Changes",
   "changesDiscard": "Discard Changes",
+  "changesAmend": "Amend",
   "timeJustNow": "Just now",
   "timeMinutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
   "@timeMinutesAgo": {

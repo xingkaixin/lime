@@ -2498,6 +2498,16 @@ func (msgs Messages) ChangesDiscard() string {
 	return Catalog.Format(msgs.locale, "changesDiscard", nil)
 }
 
+// ChangesAmend says "Amend"
+// in the language the app shows.
+func ChangesAmend() string { return In(i18n.Locale()).ChangesAmend() }
+
+// ChangesAmend says "Amend"
+// in the language of msgs.
+func (msgs Messages) ChangesAmend() string {
+	return Catalog.Format(msgs.locale, "changesAmend", nil)
+}
+
 // TimeJustNow says "Just now"
 // in the language the app shows.
 func TimeJustNow() string { return In(i18n.Locale()).TimeJustNow() }
