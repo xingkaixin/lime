@@ -372,6 +372,7 @@
   "replace": "Replace",
   "replaceAll": "Replace All",
   "findWhere": "Where",
+  "findSearching": "Searching…",
   "findResults": "Find Results",
   "findResultsSearching": "Searching for “{query}”…",
   "@findResultsSearching": {
@@ -390,6 +391,14 @@
     "placeholders": { "count": { "type": "int", "example": "10000" } }
   },
   "statusInvalidRegex": "Invalid regular expression",
+  "statusReplacedInFiles": "{count, plural, one {Replaced # occurrence} other {Replaced # occurrences}} {files, plural, one {in # file} other {across # files}}",
+  "@statusReplacedInFiles": {
+    "placeholders": { "count": { "type": "int", "example": "5" }, "files": { "type": "int", "example": "2" } }
+  },
+  "dialogReplaceInFiles": "{count, plural, one {Replace # occurrence} other {Replace # occurrences}} {files, plural, one {in # file?} other {across # files?}}",
+  "@dialogReplaceInFiles": {
+    "placeholders": { "count": { "type": "int", "example": "5" }, "files": { "type": "int", "example": "2" } }
+  },
 
   "menuSettings": "Settings…",
   "cmdSettings": "Preferences: Settings",
