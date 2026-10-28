@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -127,6 +128,13 @@ func (p *project) list(dir string) []os.DirEntry {
 	return es
 }
 
+// watchDirs says whether the side bar follows its open folders on disk.
+// A watch on Windows holds a handle on each folder it covers, and Windows
+// doesn't let a folder be renamed or moved while a handle is open beneath
+// it. There the open folders are read again as the window takes the focus
+// instead.
+const watchDirs = runtime.GOOS != "windows"
+
 // shownDir is what dir, which the side bar shows open, holds. While it
 // shows, dir is followed on disk and read again as what it holds changes.
 func (a *app) shownDir(dir string) []os.DirEntry {
@@ -134,7 +142,7 @@ func (a *app) shownDir(dir string) []os.DirEntry {
 		a.proj.shown = make(map[string]bool)
 	}
 	a.proj.shown[dir] = true
-	if a.win != nil && a.proj.watches[dir] == nil {
+	if watchDirs && a.win != nil && a.proj.watches[dir] == nil {
 		a.watchDir(dir)
 	}
 	return a.proj.list(dir)
