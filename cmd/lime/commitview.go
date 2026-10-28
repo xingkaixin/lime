@@ -396,10 +396,12 @@ func catObjects(dir string, specs []string) []object {
 		if nl < 0 {
 			break
 		}
-		head := strings.Fields(string(b[:nl]))
+		line := string(b[:nl])
 		b = b[nl+1:]
-		if len(head) != 3 {
-			continue // missing
+		// The name of a missing object may hold spaces, as a path does.
+		head := strings.Fields(line)
+		if strings.HasSuffix(line, " missing") || len(head) != 3 {
+			continue
 		}
 		size, err := strconv.Atoi(head[2])
 		if err != nil || size > len(b) {
