@@ -939,7 +939,7 @@ func TestJumps(t *testing.T) {
 	a.remove(b)
 	a.run("jump_forward")
 	at(d, end)
-	a.run("jump_back")
+	tt.Key(0, ui.KeyBack)
 	at(d, 1)
 }
 
