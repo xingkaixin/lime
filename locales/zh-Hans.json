@@ -227,6 +227,7 @@
   "statusSyntax": "语法：{name}",
   "statusInvalidJSON": "JSON 无效：意外的字符“{char}”",
   "statusIncompleteJSON": "JSON 无效：内容不完整",
+  "statusNoDefinition": "找不到“{name}”的定义",
   "statusNoDifferences": "没有差异",
   "statusDifferences": "{count, plural, other {# 处差异}}",
   "statusChanges": "{count, plural, other {# 处修改}}",

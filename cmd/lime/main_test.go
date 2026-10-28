@@ -691,6 +691,32 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+// F12 goes to the definition of the word at the caret, in its tab, else
+// in another, and says when there is none.
+func TestGotoDefinition(t *testing.T) {
+	a := newApp("")
+	other := a.add("/p/b.go", "package p\n\nfunc helper() {}\n")
+	d := a.add("/p/a.go", "package p\n\nfunc main() {\n\trun()\n\thelper()\n\tmissing()\n}\n\nfunc (s *S) run() {}\n")
+	text := d.st.Buffer.String()
+	tt := ui.NewTester(a.view, 800, 500)
+
+	d.st.Select(strings.Index(text, "run"), strings.Index(text, "run"))
+	tt.Key(0, ui.KeyF12)
+	if got, want := d.st.Cursor(), strings.LastIndex(text, "run"); got != want {
+		t.Fatalf("F12 on run: caret at %d, want %d", got, want)
+	}
+	d.st.Select(strings.Index(text, "missing"), strings.Index(text, "missing"))
+	tt.Key(0, ui.KeyF12)
+	if a.notice.text != locales.StatusNoDefinition("missing") {
+		t.Fatalf("F12 on missing: notice %q", a.notice.text)
+	}
+	d.st.Select(strings.Index(text, "helper"), strings.Index(text, "helper"))
+	tt.Key(0, ui.KeyF12)
+	if got, want := other.st.Cursor(), strings.Index(other.st.Buffer.String(), "helper"); a.current() != other || got != want {
+		t.Fatalf("F12 on helper: tab %q, caret at %d, want b.go at %d", a.current().name(), got, want)
+	}
+}
+
 // A file dragged in the side bar onto a folder moves into it, its tab
 // following. A copy leaves it and its tab where they are.
 func TestSideBarDrag(t *testing.T) {

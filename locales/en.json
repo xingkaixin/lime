@@ -333,6 +333,10 @@
     "placeholders": { "char": { "type": "String", "example": "}" } }
   },
   "statusIncompleteJSON": "Invalid JSON: unexpected end of input",
+  "statusNoDefinition": "No definition of “{name}”",
+  "@statusNoDefinition": {
+    "placeholders": { "name": { "type": "String", "example": "newDoc" } }
+  },
   "statusNoDifferences": "No differences",
   "statusDifferences": "{count, plural, one {# difference} other {# differences}}",
   "@statusDifferences": {
