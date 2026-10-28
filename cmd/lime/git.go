@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -224,6 +225,45 @@ func (a *app) showBranches() {
 			a.openPanel(&panel{placeholder: locales.GitBranchPlaceholder(), list: func(q string) []item { return ranked(items, byLabel(q)) }})
 		}
 	})
+}
+
+// inRepo runs fn when the project has a git repository.
+func inRepo(fn func(a *app)) func(a *app) {
+	return func(a *app) {
+		if a.git.root == "" {
+			a.notifyError(locales.SideBarNoRepository())
+			return
+		}
+		fn(a)
+	}
+}
+
+// realGit keeps a command out of the website's command palette, whose
+// git (website/git.js) has no branches or remotes.
+func realGit(caption func(locales.Messages) string) func(locales.Messages) string {
+	if runtime.GOOS == "js" {
+		return nil
+	}
+	return caption
+}
+
+// promptCreateBranch names a branch to make at HEAD and switch to.
+func (a *app) promptCreateBranch() {
+	a.openPanel(&panel{prompt: locales.PromptBranchName(), submit: func(name string) {
+		if name = strings.TrimSpace(name); name != "" {
+			a.gitRun("switch", "-c", name)
+		}
+	}})
+}
+
+// promptRenameBranch renames the branch checked out.
+func (a *app) promptRenameBranch() {
+	old := a.git.branch
+	a.openPanel(&panel{prompt: locales.PromptNewName(), query: old, submit: func(name string) {
+		if name = strings.TrimSpace(name); name != "" && name != old {
+			a.gitRun("branch", "-m", "--", name)
+		}
+	}})
 }
 
 func (a *app) showWorktrees() {

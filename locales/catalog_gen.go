@@ -1848,6 +1848,26 @@ func (msgs Messages) CmdSaveWithEncoding(name string) string {
 	return Catalog.Format(msgs.locale, "cmdSaveWithEncoding", map[string]any{"name": name})
 }
 
+// CmdCreateBranch says "Git: Create Branch…"
+// in the language the app shows.
+func CmdCreateBranch() string { return In(i18n.Locale()).CmdCreateBranch() }
+
+// CmdCreateBranch says "Git: Create Branch…"
+// in the language of msgs.
+func (msgs Messages) CmdCreateBranch() string {
+	return Catalog.Format(msgs.locale, "cmdCreateBranch", nil)
+}
+
+// CmdRenameBranch says "Git: Rename Branch…"
+// in the language the app shows.
+func CmdRenameBranch() string { return In(i18n.Locale()).CmdRenameBranch() }
+
+// CmdRenameBranch says "Git: Rename Branch…"
+// in the language of msgs.
+func (msgs Messages) CmdRenameBranch() string {
+	return Catalog.Format(msgs.locale, "cmdRenameBranch", nil)
+}
+
 // PanelLabel says "Quick panel"
 // in the language the app shows.
 func PanelLabel() string { return In(i18n.Locale()).PanelLabel() }
@@ -1970,6 +1990,16 @@ func PromptNewName() string { return In(i18n.Locale()).PromptNewName() }
 // in the language of msgs.
 func (msgs Messages) PromptNewName() string {
 	return Catalog.Format(msgs.locale, "promptNewName", nil)
+}
+
+// PromptBranchName says "Branch Name:"
+// in the language the app shows.
+func PromptBranchName() string { return In(i18n.Locale()).PromptBranchName() }
+
+// PromptBranchName says "Branch Name:"
+// in the language of msgs.
+func (msgs Messages) PromptBranchName() string {
+	return Catalog.Format(msgs.locale, "promptBranchName", nil)
 }
 
 // DialogUnableToOpen says "Unable to open {name}"
@@ -4048,6 +4078,16 @@ func ShortcutGroupLayout() string { return In(i18n.Locale()).ShortcutGroupLayout
 // in the language of msgs.
 func (msgs Messages) ShortcutGroupLayout() string {
 	return Catalog.Format(msgs.locale, "shortcutGroupLayout", nil)
+}
+
+// ShortcutGroupGit says "Git"
+// in the language the app shows.
+func ShortcutGroupGit() string { return In(i18n.Locale()).ShortcutGroupGit() }
+
+// ShortcutGroupGit says "Git"
+// in the language of msgs.
+func (msgs Messages) ShortcutGroupGit() string {
+	return Catalog.Format(msgs.locale, "shortcutGroupGit", nil)
 }
 
 // ShortcutSoftUndo says "Undo Selection"

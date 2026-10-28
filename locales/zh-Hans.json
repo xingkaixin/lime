@@ -184,6 +184,8 @@
   "cmdLineEndings": "换行符：{name}",
   "cmdReopenWithEncoding": "以其他编码重新打开：{name}",
   "cmdSaveWithEncoding": "以其他编码保存：{name}",
+  "cmdCreateBranch": "Git：新建分支…",
+  "cmdRenameBranch": "Git：重命名分支…",
 
   "panelLabel": "快速面板",
   "panelCommandPalette": "命令面板",
@@ -197,6 +199,7 @@
   "panelBrowseFilesDetail": "用系统对话框选择项目外的文件",
   "panelOpenTab": "已打开",
   "promptNewName": "新名称：",
+  "promptBranchName": "分支名称：",
 
   "dialogUnableToOpen": "无法打开 {name}",
   "dialogSavedAsUTF8": "已将 {name} 存为 UTF-8",
@@ -402,6 +405,7 @@
   "shortcutGroupFolding": "代码折叠",
   "shortcutGroupTabs": "标签页",
   "shortcutGroupLayout": "布局与分组",
+  "shortcutGroupGit": "Git",
   "shortcutSoftUndo": "撤销选区",
   "shortcutSoftRedo": "重做选区",
   "shortcutIndent": "缩进",

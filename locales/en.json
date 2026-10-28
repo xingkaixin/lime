@@ -208,6 +208,8 @@
   "@cmdSaveWithEncoding": {
     "placeholders": { "name": { "type": "String", "example": "GBK" } }
   },
+  "cmdCreateBranch": "Git: Create Branch…",
+  "cmdRenameBranch": "Git: Rename Branch…",
 
   "panelLabel": "Quick panel",
   "panelCommandPalette": "Command Palette",
@@ -230,6 +232,7 @@
     "description": "Marks a file of the list that is open in a tab."
   },
   "promptNewName": "New Name:",
+  "promptBranchName": "Branch Name:",
 
   "dialogUnableToOpen": "Unable to open {name}",
   "@dialogUnableToOpen": {
@@ -613,6 +616,7 @@
   "shortcutGroupFolding": "Code Folding",
   "shortcutGroupTabs": "Tabs",
   "shortcutGroupLayout": "Layout and Groups",
+  "shortcutGroupGit": "Git",
   "shortcutSoftUndo": "Undo Selection",
   "shortcutSoftRedo": "Redo Selection",
   "shortcutIndent": "Indent",
