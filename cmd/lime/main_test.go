@@ -516,6 +516,7 @@ func TestHotExit(t *testing.T) {
 	if a.docAt(gone) != nil || w.docCount() != 2 || w.current().path != gone {
 		t.Fatalf("moving a tab between windows: %d tabs", w.docCount())
 	}
+	a.side, w.side = noPanel, gitPanel
 	if err := a.l.saveSession(); err != nil {
 		t.Fatal(err)
 	}
@@ -527,6 +528,9 @@ func TestHotExit(t *testing.T) {
 		t.Fatalf("windows: %d", len(l.wins))
 	}
 	b := l.wins[0]
+	if b.side != noPanel || l.wins[1].side != gitPanel {
+		t.Fatalf("side bars: %d, %d", b.side, l.wins[1].side)
+	}
 	if len(b.groups) != 2 || b.focus != 1 || b.cols[0] != 30 {
 		t.Fatalf("layout: %d groups, focus %d", len(b.groups), b.focus)
 	}

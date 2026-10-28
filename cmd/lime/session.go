@@ -28,7 +28,12 @@ type sessionWindow struct {
 	Folders []string       `json:"folders,omitempty"`
 	Project string         `json:"project,omitempty"`
 	Bounds  mygo.Rectangle `json:"bounds"`
+	// SideBar is one of panelNames; older sessions, without it, open
+	// with settings' side bar.
+	SideBar string `json:"side_bar,omitempty"`
 }
+
+var panelNames = [...]string{noPanel: "none", filesPanel: "files", gitPanel: "git"}
 
 type sessionGroup struct {
 	Active int          `json:"active"`
@@ -62,7 +67,7 @@ func (l *lime) session() session {
 
 func (a *app) session() sessionWindow {
 	s := sessionWindow{Layout: a.layout.name, Cols: slices.Clone(a.cols), Rows: slices.Clone(a.rows), Focus: a.focus,
-		Folders: slices.Clone(a.proj.folders), Project: a.proj.path}
+		Folders: slices.Clone(a.proj.folders), Project: a.proj.path, SideBar: panelNames[a.side]}
 	if a.win != nil {
 		s.Bounds = a.win.Bounds()
 	}
@@ -213,6 +218,9 @@ func (a *app) restore(s sessionWindow) {
 		g.active = min(max(sg.Active, 0), len(g.docs)-1)
 	}
 	a.proj.folders, a.proj.path = s.Folders, s.Project
+	if i := slices.Index(panelNames[:], s.SideBar); i >= 0 {
+		a.side = sidePanel(i)
+	}
 	a.focusGroup(min(max(s.Focus, 0), len(a.groups)-1))
 }
 
