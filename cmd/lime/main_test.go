@@ -981,6 +981,62 @@ func TestChanges(t *testing.T) {
 	}
 }
 
+// The check boxes, Space and the menu of the rows chosen stage and
+// unstage files.
+func TestStage(t *testing.T) {
+	dir, git := newRepo(t)
+	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+		os.WriteFile(filepath.Join(dir, name), []byte("1\n"), 0o644)
+	}
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+		os.WriteFile(filepath.Join(dir, name), []byte("2\n"), 0o644)
+	}
+	staged := func() string {
+		t.Helper()
+		out, _ := runGit(dir, "diff", "--cached", "--name-only")
+		return strings.Join(strings.Fields(out), " ")
+	}
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarGitPanel())
+	tt.Frame()
+	box, _ := tt.Find(locales.ChangesStageAll())
+	row, _ := tt.Find("a.txt")
+	tt.ClickAt(box.X+box.W/2, row.Y+row.H/2)
+	tt.Frame()
+	if got := staged(); got != "a.txt" {
+		t.Fatalf("the check box staged %q", got)
+	}
+
+	tt.Click("b.txt")
+	tt.ClickWith(ui.Cmd, "c.txt")
+	tt.RightClick("c.txt")
+	if err := tt.ChooseMenuItem(locales.ChangesStage()); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if got := staged(); got != "a.txt b.txt c.txt" {
+		t.Fatalf("the menu staged %q", got)
+	}
+
+	tt.Click(locales.ChangesUnstageAll())
+	tt.Frame()
+	if got := staged(); got != "" {
+		t.Fatalf("Unstage All left %q", got)
+	}
+
+	tt.Click("b.txt")
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if got := staged(); got != "b.txt" {
+		t.Fatalf("Space staged %q", got)
+	}
+}
+
 func TestCommitRows(t *testing.T) {
 	var old, cur []string
 	for i := 1; i <= 10; i++ {

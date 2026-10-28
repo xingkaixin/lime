@@ -27,7 +27,8 @@ type changes struct {
 	files [3][]change
 	gen   int // counts the readings, for the last to win
 	list  ui.ListState
-	cur   int // the row chosen, -1 for none
+	sel   ui.Selection[changeKey]
+	cur   int // the row chosen last, -1 for none
 	rows  []changeRow
 }
 
@@ -152,6 +153,65 @@ func (w *changes) layRows() {
 	}
 }
 
+// stageFiles stages files, or unstages them, as their paths name them
+// literally.
+func (a *app) stageFiles(files []change, unstage bool) {
+	if len(files) == 0 {
+		return
+	}
+	var paths strings.Builder
+	for _, f := range files {
+		paths.WriteString(f.path + "\x00")
+		if f.oldPath != "" {
+			paths.WriteString(f.oldPath + "\x00")
+		}
+	}
+	// reset, unlike restore --staged, unstages before the first commit.
+	cmd := []string{"--literal-pathspecs", "add", "--pathspec-from-file=-", "--pathspec-file-nul"}
+	if unstage {
+		cmd = []string{"--literal-pathspecs", "reset", "-q", "--pathspec-from-file=-", "--pathspec-file-nul"}
+	}
+	a.gitRunWith(paths.String(), nil, cmd...)
+}
+
+// chosen returns the files of sec chosen. A file in conflict is staged
+// alone, as it is resolved.
+func (w *changes) chosen(sec section) []change {
+	var files []change
+	for _, f := range w.files[sec] {
+		if sec != conflicted && w.sel.Has(changeKey{sec, f.path}) {
+			files = append(files, f)
+		}
+	}
+	return files
+}
+
+// stageChosen stages the files chosen, or unstages them as the row
+// chosen last is staged, as Space does in Zed's git panel.
+func (a *app) stageChosen() {
+	w := &a.changes
+	if w.cur < 0 || w.cur >= len(w.rows) {
+		return
+	}
+	if w.rows[w.cur].key.sec == staged {
+		a.stageFiles(w.chosen(staged), true)
+		return
+	}
+	a.stageFiles(w.chosen(unstaged), false)
+}
+
+// changeMenu is the menu of the rows chosen.
+func (a *app) changeMenu(m *ui.Menu) {
+	w := &a.changes
+	toStage, toUnstage := w.chosen(unstaged), w.chosen(staged)
+	if m.Item(locales.ChangesStage()).Disabled(len(toStage) == 0).Chosen() {
+		a.stageFiles(toStage, false)
+	}
+	if m.Item(locales.ChangesUnstage()).Disabled(len(toUnstage) == 0).Chosen() {
+		a.stageFiles(toUnstage, true)
+	}
+}
+
 // showChange shows the change of r: the diffs of its section, at its
 // file, or a file in conflict itself.
 func (a *app) showChange(r changeRow) {
@@ -214,7 +274,7 @@ func (a *app) changesView(c *ui.Context) {
 	w.list.Selected = &w.cur
 	w.list.Header = func(i int) bool { return w.rows[i].file == nil }
 	colors := a.scheme.editorTheme()
-	list := ui.List(c.Key("changes"), &w.list, len(w.rows)).ItemKey(func(i int) any { return w.rows[i].key }).
+	list := ui.List(c.Key("changes"), &w.list, len(w.rows)).ItemKey(func(i int) any { return w.rows[i].key }).Selection(&w.sel).
 		Rows(func(r ui.ListRow) {
 			a.changeRow(c, w.rows[r.Index], r.Selected(), colors.Added, colors.Deleted, colors.Modified)
 		})
@@ -222,6 +282,28 @@ func (a *app) changesView(c *ui.Context) {
 	if list.Changed() && w.cur >= 0 && w.cur < len(w.rows) {
 		a.showChange(w.rows[w.cur])
 	}
+	if w.list.Shortcut(c, 0, ui.KeySpace) {
+		a.stageChosen()
+	}
+}
+
+// stageBox is the check box of a file of sec, or of all of them: checked
+// in Staged, where a click unstages, and unchecked elsewhere, where it
+// stages.
+func (a *app) stageBox(c *ui.Context, sec section, files []change, all bool) {
+	on := sec == staged
+	var label string
+	switch {
+	case all && on:
+		label = locales.ChangesUnstageAll()
+	case all:
+		label = locales.ChangesStageAll()
+	case on:
+		label = locales.ChangesUnstage()
+	default:
+		label = locales.ChangesStage()
+	}
+	ui.Checkbox(c, &on, "").Shrink(0).Label(label).Tooltip(label).OnClick(func() { a.stageFiles(files, sec == staged) })
 }
 
 // changeRow is a section's header, or a file with its name, its folder
@@ -233,6 +315,10 @@ func (a *app) changeRow(c *ui.Context, r changeRow, selected bool, added, delete
 		label := [...]string{locales.ChangesConflicts(), locales.ChangesStaged(), locales.ChangesUnstaged()}[r.key.sec]
 		ui.Row(c).FillWidth().Height(th.Space(7)).Padding(0, th.Space(3)).AlignItems(ui.Center).Background(ch.bg).Children(func() {
 			ui.Text(c, label).FontSize(11).Bold().TextColor(ch.muted).SingleLine()
+			ui.Box(c).Grow(1)
+			if r.key.sec != conflicted {
+				a.stageBox(c, r.key.sec, a.changes.files[r.key.sec], true)
+			}
 		})
 		return
 	}
@@ -251,7 +337,7 @@ func (a *app) changeRow(c *ui.Context, r changeRow, selected bool, added, delete
 		tint = th.AccentText
 	}
 	p := r.file.path
-	ui.Row(c).FillWidth().Height(th.Space(7)).Gap(treeGap).Padding(0, th.Space(3)).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Height(th.Space(7)).Gap(treeGap).Padding(0, th.Space(3)).AlignItems(ui.Center).ContextMenu(a.changeMenu).Children(func() {
 		ic := fileIcon(p, a.scheme.dark)
 		if selected {
 			ic.view(c, treeIcon, text)
@@ -264,5 +350,6 @@ func (a *app) changeRow(c *ui.Context, r changeRow, selected bool, added, delete
 		}
 		ui.Box(c).Grow(1)
 		ui.Text(c, string(r.file.status)).Font(a.codeFont()).FontSize(12).TextColor(tint).Shrink(0)
+		a.stageBox(c, r.key.sec, []change{*r.file}, false)
 	})
 }

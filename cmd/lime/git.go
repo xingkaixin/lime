@@ -115,14 +115,20 @@ func (a *app) background(work func() func()) {
 
 // gitRun runs git in the repository, then shows the folders, the tabs
 // and the branch as it left them, or what it said of a failure.
-func (a *app) gitRun(args ...string) {
+func (a *app) gitRun(args ...string) { a.gitRunWith("", nil, args...) }
+
+// gitRunWith runs git as gitRun does, with input on its standard input,
+// and done after it succeeds.
+func (a *app) gitRunWith(input string, done func(), args ...string) {
 	dir := a.git.root
 	a.background(func() func() {
-		_, err := runGit(dir, args...)
+		_, err := gitWith(dir, input, args...)
 		return func() {
 			if err != nil {
 				msg, _, _ := strings.Cut(err.Error(), "\n")
 				a.notifyError(msg)
+			} else if done != nil {
+				done()
 			}
 			a.refreshFolders()
 			for _, w := range a.l.wins {

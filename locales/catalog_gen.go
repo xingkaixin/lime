@@ -1780,6 +1780,46 @@ func (msgs Messages) ChangesNone() string {
 	return Catalog.Format(msgs.locale, "changesNone", nil)
 }
 
+// ChangesStage says "Stage"
+// in the language the app shows.
+func ChangesStage() string { return In(i18n.Locale()).ChangesStage() }
+
+// ChangesStage says "Stage"
+// in the language of msgs.
+func (msgs Messages) ChangesStage() string {
+	return Catalog.Format(msgs.locale, "changesStage", nil)
+}
+
+// ChangesUnstage says "Unstage"
+// in the language the app shows.
+func ChangesUnstage() string { return In(i18n.Locale()).ChangesUnstage() }
+
+// ChangesUnstage says "Unstage"
+// in the language of msgs.
+func (msgs Messages) ChangesUnstage() string {
+	return Catalog.Format(msgs.locale, "changesUnstage", nil)
+}
+
+// ChangesStageAll says "Stage All"
+// in the language the app shows.
+func ChangesStageAll() string { return In(i18n.Locale()).ChangesStageAll() }
+
+// ChangesStageAll says "Stage All"
+// in the language of msgs.
+func (msgs Messages) ChangesStageAll() string {
+	return Catalog.Format(msgs.locale, "changesStageAll", nil)
+}
+
+// ChangesUnstageAll says "Unstage All"
+// in the language the app shows.
+func ChangesUnstageAll() string { return In(i18n.Locale()).ChangesUnstageAll() }
+
+// ChangesUnstageAll says "Unstage All"
+// in the language of msgs.
+func (msgs Messages) ChangesUnstageAll() string {
+	return Catalog.Format(msgs.locale, "changesUnstageAll", nil)
+}
+
 // ChangesStagedTitle says "Staged Changes"
 // in the language the app shows.
 func ChangesStagedTitle() string { return In(i18n.Locale()).ChangesStagedTitle() }
