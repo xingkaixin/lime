@@ -674,6 +674,16 @@ func (msgs Messages) MenuDeleteFolder() string {
 	return Catalog.Format(msgs.locale, "menuDeleteFolder", nil)
 }
 
+// MenuFindInFolder says "Find in Folder…"
+// in the language the app shows.
+func MenuFindInFolder() string { return In(i18n.Locale()).MenuFindInFolder() }
+
+// MenuFindInFolder says "Find in Folder…"
+// in the language of msgs.
+func (msgs Messages) MenuFindInFolder() string {
+	return Catalog.Format(msgs.locale, "menuFindInFolder", nil)
+}
+
 // MenuRemoveFolder says "Remove Folder from Project"
 // in the language the app shows.
 func MenuRemoveFolder() string { return In(i18n.Locale()).MenuRemoveFolder() }

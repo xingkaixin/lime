@@ -66,6 +66,7 @@
   "menuCopyPath": "Copy Path",
   "menuNewFolder": "New Folder…",
   "menuDeleteFolder": "Delete Folder",
+  "menuFindInFolder": "Find in Folder…",
   "menuRemoveFolder": "Remove Folder from Project",
   "menuCloseTab": "Close Tab",
   "menuCloseTabsToLeft": "Close Tabs to the Left",

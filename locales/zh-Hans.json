@@ -66,6 +66,7 @@
   "menuCopyPath": "复制路径",
   "menuNewFolder": "新建文件夹…",
   "menuDeleteFolder": "删除文件夹",
+  "menuFindInFolder": "在文件夹中查找…",
   "menuRemoveFolder": "从项目中移除文件夹",
   "menuCloseTab": "关闭标签页",
   "menuCloseTabsToLeft": "关闭左侧标签页",
