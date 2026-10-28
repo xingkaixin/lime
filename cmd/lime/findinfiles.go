@@ -197,7 +197,7 @@ func parseWhere(where string, folders []string) scope {
 	switch {
 	case placed:
 	case len(folders) > 0:
-		sc.paths = folders
+		sc.paths = slices.Clone(folders)
 	default:
 		sc.paths = []string{openFiles}
 	}
@@ -264,12 +264,12 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found
 			res.files = append(res.files, fileHits{s, lines})
 			res.matches += n
 		}
-		return res.matches < maxResults && ctx.Err() == nil
+		return res.matches < maxResults
 	}
 	for _, p := range sc.paths {
 		if p == openFiles {
 			for _, s := range open {
-				if sc.wants(filepath.Base(s.name)) && !look(s) {
+				if ctx.Err() != nil || sc.wants(filepath.Base(s.name)) && !look(s) {
 					return res
 				}
 			}
@@ -277,7 +277,7 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found
 		}
 		more := true
 		filepath.WalkDir(p, func(path string, e fs.DirEntry, err error) error {
-			if !more {
+			if !more || ctx.Err() != nil {
 				return filepath.SkipAll
 			}
 			if err != nil {
@@ -298,7 +298,7 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found
 			}
 			return nil
 		})
-		if !more {
+		if !more || ctx.Err() != nil {
 			break
 		}
 	}
