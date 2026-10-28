@@ -29,6 +29,7 @@ func (a *app) view(c *ui.Context) {
 	th.Font = a.set.UIFont
 	c.SetTheme(th)
 	a.syncFocus(c.Modifiers()&ui.Ctrl != 0)
+	a.trackJumps()
 	if t := a.drag; t != nil {
 		if gi, _ := a.locate(t.d); gi < 0 {
 			a.drag = nil

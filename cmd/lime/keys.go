@@ -227,6 +227,11 @@ var appKeys = func() []appKey {
 		}
 		keys = append(keys, k(layout, key, l.id()))
 	}
+	jump := ctrl
+	if !mac {
+		jump = alt
+	}
+	keys = append(keys, k(jump, ui.KeyMinus, "jump_back"), k(jump|sh, ui.KeyMinus, "jump_forward"))
 	if mac {
 		keys = append(keys, k(cmd|alt, ui.KeyF, "show_panel replace"), k(ctrl|cmd, ui.KeyG, "find_all_under"), k(cmd, ui.KeyT, "show_goto"), k(cmd|alt, ui.KeyS, "save_all"),
 			k(cmd|sh, ui.KeyBracketLeft, "prev_view"), k(cmd|sh, ui.KeyBracketRight, "next_view"),

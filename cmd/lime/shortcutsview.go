@@ -93,6 +93,7 @@ var shortcutGroups = func() []shortcutGroup {
 			s("show_goto", m.MenuGotoAnything), s("goto_symbol", m.MenuGotoSymbol), s("goto_line", m.MenuGotoLine), s("show_command_palette", m.MenuCommandPalette),
 			s("goto_definition", m.ShortcutGotoDefinition), s("next_modification", m.MenuNextModification),
 			s("prev_modification", m.MenuPreviousModification), s("revert_hunk", m.CmdRevertHunk),
+			s("jump_back", m.CmdJumpBack), s("jump_forward", m.CmdJumpForward),
 		}},
 		{m.ShortcutGroupTabs, slices.Concat([]shortcut{
 			s("next_view", m.ShortcutNextTab), s("prev_view", m.ShortcutPrevTab),

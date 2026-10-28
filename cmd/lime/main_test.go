@@ -901,6 +901,48 @@ func TestGotoSymbol(t *testing.T) {
 	}
 }
 
+// Jump Back and Jump Forward go through where the caret jumped from: 10
+// lines or more at once, or to another tab. The symbols Goto Symbol shows
+// as they are selected are not jumps, and a closed tab's are forgotten.
+func TestJumps(t *testing.T) {
+	a := newApp("")
+	b := a.add("/p/b.go", "package p\n")
+	gap := strings.Repeat("\n", 30)
+	d := a.add("/p/a.go", "package p\n\nfunc near() {}\n"+gap+"func far() {}\n"+gap+"func end() {}\n")
+	tt := ui.NewTester(a.view, 800, 500)
+	at := func(want *doc, line int) {
+		t.Helper()
+		if got := a.current(); got != want || got.st.CursorPos().Line != line {
+			t.Fatalf("caret in %s on line %d, want %s on line %d", got.name(), got.st.CursorPos().Line, want.name(), line)
+		}
+	}
+	end := d.st.Buffer.Pos(strings.Index(d.st.Buffer.String(), "end")).Line
+
+	tt.Key(0, ui.KeyDown)
+	a.run("goto_symbol")
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Key(0, ui.KeyDown)
+	tt.Key(0, ui.KeyEnter)
+	at(d, end)
+	a.run("jump_back")
+	at(d, 1)
+	a.run("jump_back")
+	at(d, 1)
+	a.run("jump_forward")
+	at(d, end)
+
+	a.show(b)
+	tt.Frame()
+	a.run("jump_back")
+	at(d, end)
+	a.remove(b)
+	a.run("jump_forward")
+	at(d, end)
+	a.run("jump_back")
+	at(d, 1)
+}
+
 // A file dragged in the side bar onto a folder moves into it, its tab
 // following. A copy leaves it and its tab where they are.
 func TestSideBarDrag(t *testing.T) {

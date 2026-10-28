@@ -944,6 +944,26 @@ func (msgs Messages) CmdGotoSymbol() string {
 	return Catalog.Format(msgs.locale, "cmdGotoSymbol", nil)
 }
 
+// CmdJumpBack says "Jump Back"
+// in the language the app shows.
+func CmdJumpBack() string { return In(i18n.Locale()).CmdJumpBack() }
+
+// CmdJumpBack says "Jump Back"
+// in the language of msgs.
+func (msgs Messages) CmdJumpBack() string {
+	return Catalog.Format(msgs.locale, "cmdJumpBack", nil)
+}
+
+// CmdJumpForward says "Jump Forward"
+// in the language the app shows.
+func CmdJumpForward() string { return In(i18n.Locale()).CmdJumpForward() }
+
+// CmdJumpForward says "Jump Forward"
+// in the language of msgs.
+func (msgs Messages) CmdJumpForward() string {
+	return Catalog.Format(msgs.locale, "cmdJumpForward", nil)
+}
+
 // CmdToggleSideBar says "View: Toggle Side Bar"
 // in the language the app shows.
 func CmdToggleSideBar() string { return In(i18n.Locale()).CmdToggleSideBar() }

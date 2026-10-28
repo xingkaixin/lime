@@ -95,6 +95,8 @@
   "cmdGotoAnything": "Goto Anything",
   "cmdGotoLine": "Goto Line",
   "cmdGotoSymbol": "Goto Symbol",
+  "cmdJumpBack": "Jump Back",
+  "cmdJumpForward": "Jump Forward",
   "cmdToggleSideBar": "View: Toggle Side Bar",
   "cmdToggleFilesPanel": "View: Toggle Files Panel",
   "cmdToggleGitPanel": "View: Toggle Git Panel",
