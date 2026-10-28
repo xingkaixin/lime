@@ -169,7 +169,9 @@ func (a *app) addFolder(dir string) {
 		return
 	}
 	a.proj.folders = append(a.proj.folders, dir)
-	a.set.SideBar = true
+	if a.side == noPanel {
+		a.side = filesPanel
+	}
 	a.indexFolders()
 }
 
@@ -214,7 +216,9 @@ func (a *app) openProject(path string) error {
 		}
 		a.proj.folders = append(a.proj.folders, filepath.Clean(p))
 	}
-	a.set.SideBar = true
+	if a.side == noPanel {
+		a.side = filesPanel
+	}
 	a.indexFolders()
 	return nil
 }

@@ -91,7 +91,7 @@ func (a *app) readGit() {
 		return func() {
 			if a.git.dir == dir {
 				a.git = r
-				if a.sideTab == historyTab {
+				if a.side == gitPanel {
 					a.readHistory()
 				}
 			}

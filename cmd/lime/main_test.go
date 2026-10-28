@@ -365,6 +365,24 @@ func TestSideBar(t *testing.T) {
 	if err := tt.Click("src"); err != nil || *a.proj.isOpen(filepath.Dir(main), false) {
 		t.Fatalf("a second click on src leaves it open: %v", err)
 	}
+
+	files, git := locales.SideBarFilesPanel(), locales.SideBarGitPanel()
+	for i, s := range []struct {
+		click string // a panel's button, or "" for toggle_side_bar
+		want  sidePanel
+	}{
+		{git, gitPanel}, {files, filesPanel}, {files, noPanel}, {git, gitPanel}, {git, noPanel}, {files, filesPanel},
+		{"", noPanel}, {"", filesPanel}, {git, gitPanel}, {"", noPanel},
+	} {
+		if s.click == "" {
+			a.run("toggle_side_bar")
+		} else if err := tt.Click(s.click); err != nil {
+			t.Fatal(err)
+		}
+		if tt.Frame(); a.side != s.want || a.set.SideBar != (s.want != noPanel) {
+			t.Fatalf("step %d: side bar %d, setting %v, want %d", i, a.side, a.set.SideBar, s.want)
+		}
+	}
 }
 
 // Renaming a folder from its menu moves the tabs of its files, and it
@@ -820,7 +838,7 @@ func TestHistory(t *testing.T) {
 	a := newApp("")
 	a.open([]string{dir})
 	tt := ui.NewTester(a.view, 900, 600)
-	tt.Click(locales.SideBarHistory())
+	tt.Click(locales.SideBarGitPanel())
 	tt.Frame()
 	if !tt.HasText(locales.HistoryUncommitted()) || !tt.HasText("second") || !tt.HasText("first") {
 		t.Fatalf("history: %q", tt.Texts())

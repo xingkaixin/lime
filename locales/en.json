@@ -91,6 +91,8 @@
   "cmdGotoAnything": "Goto Anything",
   "cmdGotoLine": "Goto Line",
   "cmdToggleSideBar": "View: Toggle Side Bar",
+  "cmdToggleFilesPanel": "View: Toggle Files Panel",
+  "cmdToggleGitPanel": "View: Toggle Git Panel",
   "cmdToggleWordWrap": "Word Wrap: Toggle",
   "cmdIncreaseFontSize": "Font: Increase",
   "cmdDecreaseFontSize": "Font: Decrease",
@@ -222,8 +224,9 @@
   "filterProject": "Sublime Project",
 
   "sideBarDropFolder": "Drop a folder here to open it",
-  "sideBarFiles": "Files",
-  "sideBarHistory": "History",
+  "sideBarFilesPanel": "Files Panel",
+  "sideBarGitPanel": "Git Panel",
+  "sideBarNoRepository": "No Git Repository",
   "historyUncommitted": "Uncommitted Changes",
   "historyFiles": "{count, plural, one {# file} other {# files}}",
   "@historyFiles": {

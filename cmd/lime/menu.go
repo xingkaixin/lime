@@ -138,7 +138,7 @@ func (a *app) syncMenu() {
 	if l.menu == nil || l.last != a {
 		return
 	}
-	state := fmt.Sprint(a.set.SideBar, a.set.WordWrap, a.layout.name, a.scheme.name)
+	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.scheme.name)
 	if state == l.menuState {
 		return
 	}
@@ -148,7 +148,7 @@ func (a *app) syncMenu() {
 			it.SetChecked(on)
 		}
 	}
-	check("toggle_side_bar", a.set.SideBar)
+	check("toggle_side_bar", a.side != noPanel)
 	check("toggle_word_wrap", a.set.WordWrap)
 	check(a.layout.id(), true)
 	check("scheme "+a.scheme.name, true)
