@@ -626,7 +626,7 @@ func (a *app) gapRow(c *ui.Context, cv *commitView, f *commitFile, r diffRow) {
 }
 
 // hunkRow stages hunk i of f, or unstages it in the tab of the changes
-// staged.
+// staged; in the tab of those not, it discards it too.
 func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
 	ch := a.scheme.chrome()
 	unstage := cv.hash == stagedChanges
@@ -634,14 +634,24 @@ func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
 	if unstage {
 		label = locales.ChangesUnstage()
 	}
-	ui.Row(c).FillWidth().Height(28).Padding(0, 12).AlignItems(ui.Center).Background(a.scheme.bg).Unselectable().Children(func() {
-		ui.Box(c).Grow(1)
+	button := func(label string, onClick func()) {
 		btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Shrink(0).Border(1, ch.line).Transition(colorFade).
-			Label(label).OnClick(func() { a.stageHunk(f.path, f.hunks[i], unstage) })
+			Label(label).OnClick(onClick)
 		if btn.Hovered() {
 			btn.Background(ch.hover)
 		}
 		btn.Children(func() { ui.Text(c, label).FontSize(12).TextColor(ch.muted) })
+	}
+	ui.Row(c).FillWidth().Height(28).Padding(0, 12).Gap(6).AlignItems(ui.Center).Background(a.scheme.bg).Unselectable().Children(func() {
+		ui.Box(c).Grow(1)
+		if !unstage {
+			button(locales.ButtonDiscard(), func() {
+				h := f.hunks[i]
+				a.confirm(locales.DialogDiscardHunk(filepath.Base(f.path)), locales.DialogDiscardLost(), locales.ButtonDiscard(),
+					func() { a.discardHunk(f.path, h) })
+			})
+		}
+		button(label, func() { a.stageHunk(f.path, f.hunks[i], unstage) })
 	})
 }
 
@@ -649,17 +659,27 @@ func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
 // Its start on the index's side is where it is there, as its tab diffs
 // the index with HEAD or with the work tree, so it applies alone.
 func (a *app) stageHunk(p string, h editor.PatchHunk, unstage bool) {
+	args := []string{"apply", "--cached", "--recount"}
+	if unstage {
+		args = append(args, "--reverse")
+	}
+	a.gitRunWith(hunkPatch(p, h), nil, append(args, "-")...)
+}
+
+// discardHunk takes h, of the unstaged changes of the file at p, out of
+// the work tree.
+func (a *app) discardHunk(p string, h editor.PatchHunk) {
+	a.gitRunWith(hunkPatch(p, h), nil, "apply", "--recount", "--reverse", "-")
+}
+
+func hunkPatch(p string, h editor.PatchHunk) string {
 	var patch strings.Builder
 	fmt.Fprintf(&patch, "diff --git a/%s b/%s\n--- a/%s\n+++ b/%s\n", p, p, p, p)
 	fmt.Fprintf(&patch, "@@ -%d,%d +%d,%d @@\n", h.OldStart, h.OldLines, h.NewStart, h.NewLines)
 	for _, l := range h.Lines {
 		patch.WriteString(l + "\n")
 	}
-	args := []string{"apply", "--cached", "--recount"}
-	if unstage {
-		args = append(args, "--reverse")
-	}
-	a.gitRunWith(patch.String(), nil, append(args, "-")...)
+	return patch.String()
 }
 
 var (

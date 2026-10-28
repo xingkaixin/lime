@@ -219,6 +219,7 @@
   "dialogItemExists": "{folder} 中已有名为 {name} 的项目。",
   "dialogReplaceDetail": "替换会把原有的项目移到废纸篓。",
   "dialogDiscardFiles": "{count, plural, other {要丢弃 # 个文件的改动吗？}}",
+  "dialogDiscardHunk": "要丢弃 {name} 中的这处改动吗？",
   "dialogDiscardLost": "未暂存的改动丢弃后无法恢复。",
   "dialogDiscardUntracked": "未跟踪的文件会移到废纸篓。",
   "filterProject": "Sublime 项目",

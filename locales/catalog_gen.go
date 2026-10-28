@@ -2188,6 +2188,16 @@ func (msgs Messages) DialogDiscardFiles(count int) string {
 	return Catalog.Format(msgs.locale, "dialogDiscardFiles", map[string]any{"count": count})
 }
 
+// DialogDiscardHunk says "Discard this hunk of {name}?"
+// in the language the app shows.
+func DialogDiscardHunk(name string) string { return In(i18n.Locale()).DialogDiscardHunk(name) }
+
+// DialogDiscardHunk says "Discard this hunk of {name}?"
+// in the language of msgs.
+func (msgs Messages) DialogDiscardHunk(name string) string {
+	return Catalog.Format(msgs.locale, "dialogDiscardHunk", map[string]any{"name": name})
+}
+
 // DialogDiscardLost says "Changes that aren't staged can't be recovered."
 // in the language the app shows.
 func DialogDiscardLost() string { return In(i18n.Locale()).DialogDiscardLost() }

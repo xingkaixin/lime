@@ -297,6 +297,10 @@
   "@dialogDiscardFiles": {
     "placeholders": { "count": { "type": "int", "example": "3" } }
   },
+  "dialogDiscardHunk": "Discard this hunk of {name}?",
+  "@dialogDiscardHunk": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
   "dialogDiscardLost": "Changes that aren't staged can't be recovered.",
   "dialogDiscardUntracked": "Untracked files move to the Trash.",
   "filterProject": "Sublime Project",

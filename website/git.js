@@ -284,6 +284,8 @@
       case "cat-file":
         return catFile(dir, input)
       case "apply":
+        // apply edits the index alone: Discard Hunk, for the work tree, fails.
+        if (!has(rest, "--cached")) throw new Error("error: the demo applies patches to the index only")
         apply(input, has(rest, "--reverse"))
         return ""
       case "for-each-ref":
