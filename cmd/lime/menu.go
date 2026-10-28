@@ -62,6 +62,34 @@ func (l *lime) newMenu() *mygo.Menu {
 		reopen.ID = e.reopenID()
 		reopenItems, saveItems = append(reopenItems, reopen), append(saveItems, l.menuItem(name, e.saveID()))
 	}
+	// Items of the Edit menu's own replace MyGo's default ones, so it
+	// lists those again before Convert Case.
+	editItems := []*mygo.MenuItem{
+		{Role: mygo.RoleUndo}, {Role: mygo.RoleRedo}, mygo.Separator(),
+		{Role: mygo.RoleCut}, {Role: mygo.RoleCopy}, {Role: mygo.RolePaste},
+	}
+	if mac {
+		editItems = append(editItems, &mygo.MenuItem{Role: mygo.RolePasteAndMatchStyle},
+			&mygo.MenuItem{Role: mygo.RoleDelete}, &mygo.MenuItem{Role: mygo.RoleSelectAll})
+	} else {
+		editItems = append(editItems, &mygo.MenuItem{Role: mygo.RoleDelete}, mygo.Separator(), &mygo.MenuItem{Role: mygo.RoleSelectAll})
+	}
+	editItems = append(editItems, mygo.Separator(), &mygo.MenuItem{Label: locales.MenuConvertCase(), Submenu: []*mygo.MenuItem{
+		l.menuItem(locales.MenuTitleCase(), "title_case"),
+		l.menuItem(locales.MenuUpperCase(), "upper_case"),
+		l.menuItem(locales.MenuLowerCase(), "lower_case"),
+		l.menuItem(locales.MenuSwapCase(), "swap_case"),
+		mygo.Separator(),
+		l.menuItem(locales.MenuSnakeCase(), "convert_to_snake"),
+		l.menuItem(locales.MenuKebabCase(), "convert_to_dash"),
+		l.menuItem(locales.MenuCamelCase(), "convert_to_camel"),
+		l.menuItem(locales.MenuPascalCase(), "convert_to_pascal"),
+	}})
+	if mac {
+		editItems = append(editItems, mygo.Separator(), &mygo.MenuItem{Label: locales.MenuSpeech(), Submenu: []*mygo.MenuItem{
+			{Role: mygo.RoleStartSpeaking}, {Role: mygo.RoleStopSpeaking},
+		}})
+	}
 	// Settings go in the app's menu on macOS, and in File elsewhere.
 	settingsItem := l.menuItem(locales.MenuSettings(), "show_settings")
 	appMenu := &mygo.MenuItem{Role: mygo.RoleAppMenu}
@@ -94,7 +122,7 @@ func (l *lime) newMenu() *mygo.Menu {
 			l.menuItem(locales.MenuCloseFile(), "close"),
 			l.menuItem(locales.MenuCloseWindow(), "close_window"),
 		}, fileSettings...)},
-		{Role: mygo.RoleEditMenu},
+		{Role: mygo.RoleEditMenu, Submenu: editItems},
 		{Label: locales.MenuFind(), Submenu: []*mygo.MenuItem{
 			l.menuItem(locales.MenuFindEllipsis(), "show_panel find"),
 			l.menuItem(locales.MenuFindNext(), "find_next"),
