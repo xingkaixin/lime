@@ -12,8 +12,8 @@ import (
 	"github.com/egoist/mygo/ui/editor"
 )
 
-// Open Preview to the Side opens a preview beside the Markdown tab,
-// which keeps the keyboard; the preview follows the tab's edits once typing pauses,
+// Cmd+K V opens a preview beside the Markdown tab, which keeps the
+// keyboard; the preview follows the tab's edits once typing pauses,
 // follows its links, and closes with the tab.
 func TestMarkdownPreview(t *testing.T) {
 	dir := t.TempDir()
@@ -28,14 +28,20 @@ func TestMarkdownPreview(t *testing.T) {
 	src := a.current()
 	tt := ui.NewTester(a.view, 900, 600)
 
-	a.run("open_markdown_preview_to_the_side")
-	tt.Frame()
+	tt.Key(ui.Cmd, ui.KeyK)
+	// A window has V's text before the frame that runs the chord, which
+	// the tester would run in between.
+	tt.Type("v")
+	tt.Key(0, ui.KeyV)
 	if len(a.groups) != 2 || a.current() != src {
-		t.Fatalf("to the side: %d groups, current %q", len(a.groups), a.current().name())
+		t.Fatalf("Cmd+K V: %d groups, current %q", len(a.groups), a.current().name())
 	}
 	p := a.groups[1].current()
 	if p == nil || p.md == nil || p.md.src != src || !tt.HasText("Preview: README.md") {
-		t.Fatalf("to the side: no preview beside the tab in %q", tt.Texts())
+		t.Fatalf("Cmd+K V: no preview beside the tab in %q", tt.Texts())
+	}
+	if got := src.st.Buffer.String(); got[:1] != "#" {
+		t.Fatalf("Cmd+K V typed into the tab: %q", got)
 	}
 
 	n := src.st.Buffer.Len()

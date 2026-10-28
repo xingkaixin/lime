@@ -201,6 +201,9 @@ var appKeys = func() []appKey {
 		ch(0, ui.KeyUp, "new_pane"), ch(0, ui.KeyDown, "close_pane"),
 		ch(0, ui.KeyLeft, "focus_prev_group"), ch(0, ui.KeyRight, "focus_next_group"),
 		ch(sh, ui.KeyLeft, "move_to_prev_group"), ch(sh, ui.KeyRight, "move_to_next_group"),
+		// Zed's Cmd+K V, which Sublime Text has no preview for. Its Cmd+K
+		// Cmd+V pastes from the history.
+		{key: ui.KeyV, chord: true, id: "open_markdown_preview_to_the_side"},
 	}
 	for i := range 9 {
 		keys = append(keys, ch(0, ui.Key1+ui.Key(i), foldLevel(i+1)))

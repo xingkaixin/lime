@@ -197,6 +197,12 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		d.st.OnDefinition = func(off int) { a.gotoDefinition(d, off) }
 		d.st.OnCompletion = func(r editor.CompletionRequest) { a.complete(d, r) }
 		d.st.OnInput = func(ev ui.InputEvent) bool {
+			// The second key of a chord without modifiers, as V of Cmd+K
+			// V, is the window's, before the frame runs it: its text is not
+			// typed.
+			if a.chord && ev.Kind == ui.InputText {
+				return true
+			}
 			a.typing(d, ev)
 			return false
 		}
