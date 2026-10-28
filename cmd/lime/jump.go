@@ -32,37 +32,56 @@ func (a *app) here() spot {
 }
 
 // trackJumps keeps where the caret was as it jumps. It goes by the caret
-// the frames show, so that whatever moves it is kept, but not while a
-// panel is open: the symbols that show as they are selected are not
-// jumps, and the caret they leave is compared with the one before.
+// the frames show, so that whatever moves it is kept. Nothing is while
+// the caret is being chosen: the rows of a panel that show as they are
+// selected, the matches the find panel goes to as its query is typed,
+// the tabs Ctrl+Tab passes. Where that leaves it is compared with where
+// it was before.
 func (a *app) trackJumps() {
-	if a.panel != nil {
+	d := a.current()
+	if a.panel != nil || a.cycle != nil || d != nil && d.plain() && !d.st.Focused() {
 		return
 	}
+	a.keepJump()
+}
+
+// keepJump keeps where the caret was when it is now a jump away.
+func (a *app) keepJump() {
 	j, now := &a.jumps, a.here()
-	if l := j.last; l.d != nil && (l.d != now.d || abs(l.pos.Line-now.pos.Line) >= jumpLines) {
+	if l := j.last; l.d != nil && !near(l, now) {
 		j.back, j.forward = append(j.back, l), nil
 	}
 	j.last = now
 }
 
+// near reports whether s and t are less than a jump apart.
+func near(s, t spot) bool { return s.d == t.d && abs(s.pos.Line-t.pos.Line) < jumpLines }
+
 func abs(n int) int { return max(n, -n) }
 
 // jump goes back to the last spot of from, keeping where the caret is in
-// to, as Sublime Text's jump_back and jump_forward do.
+// to, as Sublime Text's jump_back and jump_forward do. Spots near the
+// caret are passed over, as those a tab closed leaves side by side.
 func (a *app) jump(from, to *[]spot) {
-	n := len(*from)
-	if n == 0 {
+	if a.panel != nil {
 		return
 	}
-	s := (*from)[n-1]
-	*from = (*from)[:n-1]
-	if here := a.here(); here.d != nil {
-		*to = append(*to, here)
+	a.keepJump()
+	here := a.jumps.last
+	for n := len(*from); n > 0; n-- {
+		s := (*from)[n-1]
+		*from = (*from)[:n-1]
+		if near(s, here) {
+			continue
+		}
+		if here.d != nil {
+			*to = append(*to, here)
+		}
+		a.show(s.d)
+		s.d.st.GoTo(s.pos)
+		a.jumps.last = a.here()
+		return
 	}
-	a.show(s.d)
-	s.d.st.GoTo(s.pos)
-	a.jumps.last = a.here()
 }
 
 // forget takes d's spots out as its tab leaves the window.

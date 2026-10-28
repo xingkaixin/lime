@@ -902,8 +902,9 @@ func TestGotoSymbol(t *testing.T) {
 }
 
 // Jump Back and Jump Forward go through where the caret jumped from: 10
-// lines or more at once, or to another tab. The symbols Goto Symbol shows
-// as they are selected are not jumps, and a closed tab's are forgotten.
+// lines or more at once, or to another tab. Nothing is a jump while the
+// caret is being chosen: Goto Symbol's rows, the find panel's query typed,
+// Ctrl+Tab's tabs. A closed tab's are forgotten.
 func TestJumps(t *testing.T) {
 	a := newApp("")
 	b := a.add("/p/b.go", "package p\n")
@@ -915,6 +916,12 @@ func TestJumps(t *testing.T) {
 		if got := a.current(); got != want || got.st.CursorPos().Line != line {
 			t.Fatalf("caret in %s on line %d, want %s on line %d", got.name(), got.st.CursorPos().Line, want.name(), line)
 		}
+	}
+	// The editor shown takes the keyboard a frame after it shows.
+	show := func(d *doc) {
+		a.show(d)
+		tt.Frame()
+		tt.Frame()
 	}
 	end := d.st.Buffer.Pos(strings.Index(d.st.Buffer.String(), "end")).Line
 
@@ -931,16 +938,44 @@ func TestJumps(t *testing.T) {
 	at(d, 1)
 	a.run("jump_forward")
 	at(d, end)
-
-	a.show(b)
+	a.run("goto_symbol")
 	tt.Frame()
+	tt.Key(0, ui.KeyDown)
 	a.run("jump_back")
-	at(d, end)
-	a.remove(b)
+	tt.Key(0, ui.KeyEscape)
 	a.run("jump_forward")
 	at(d, end)
-	tt.Key(0, ui.KeyBack)
-	at(d, 1)
+
+	f := a.add("/p/f.txt", "start\n"+gap+"ab\n"+gap+"abc\n"+gap+"abcd\n")
+	tt.Frame()
+	tt.HoldModifiers(ui.Ctrl)
+	tt.Key(ui.Ctrl, ui.KeyTab)
+	tt.Key(ui.Ctrl, ui.KeyTab)
+	tt.HoldModifiers(0)
+	tt.Frame()
+	at(b, 0)
+	a.run("jump_back")
+	at(f, 0)
+	tt.Frame()
+	a.run("show_panel find")
+	tt.Frame()
+	for _, r := range "abcd" {
+		tt.Type(string(r))
+		tt.Frame()
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	at(f, 93)
+	a.run("jump_back")
+	at(f, 0)
+
+	show(b)
+	show(f)
+	a.remove(b)
+	a.run("jump_back")
+	at(d, end)
+	tt.Key(0, ui.KeyForward)
+	at(f, 0)
 }
 
 // A file dragged in the side bar onto a folder moves into it, its tab
