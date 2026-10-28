@@ -112,33 +112,51 @@ type lineHit struct {
 	spans [][2]int
 }
 
-// lines finds the lines of text with matches, at most limit matches.
-func (m *matcher) lines(text string, limit int) ([]lineHit, int) {
-	var hits []lineHit
-	n, line, counted := 0, 0, 0
-	for _, sub := range m.re.FindAllStringIndex(text, -1) {
-		a, b := sub[0], sub[1]
-		if a == b || m.wholeWord && !wholeWordAt(text, a, b) {
-			continue
+// find returns the matches of m in text, at most limit of them.
+func (m *matcher) find(text string, limit int) [][]int {
+	// The regular expression finds matches that whole words or emptiness
+	// leave out: as many again, until enough are kept.
+	for n := limit; ; n *= 2 {
+		all := m.re.FindAllStringIndex(text, n)
+		var kept [][]int
+		for _, s := range all {
+			if s[0] != s[1] && (!m.wholeWord || wholeWordAt(text, s[0], s[1])) {
+				if kept = append(kept, s); len(kept) == limit {
+					break
+				}
+			}
 		}
-		line += strings.Count(text[counted:a], "\n")
-		counted = a
-		start := strings.LastIndexByte(text[:a], '\n') + 1
-		end := len(text)
-		if i := strings.IndexByte(text[a:], '\n'); i >= 0 {
-			end = a + i
-		}
-		span := [2]int{a - start, min(b, end) - start}
-		if k := len(hits) - 1; k >= 0 && hits[k].line == line {
-			hits[k].spans = append(hits[k].spans, span)
-		} else {
-			hits = append(hits, lineHit{line, text[start:end], [][2]int{span}})
-		}
-		if n++; n == limit {
-			break
+		if len(kept) == limit || len(all) < n {
+			return kept
 		}
 	}
-	return hits, n
+}
+
+// lines finds the lines of text with matches, at most limit matches,
+// going through text once.
+func (m *matcher) lines(text string, limit int) ([]lineHit, int) {
+	var hits []lineHit
+	found := m.find(text, limit)
+	// The line of the last match is from start to end; at is where its
+	// newlines were counted to.
+	line, start, end, at := 0, 0, -1, 0
+	for _, sub := range found {
+		a, b := sub[0], sub[1]
+		if a > end {
+			for i := strings.IndexByte(text[at:a], '\n'); i >= 0; i = strings.IndexByte(text[at:a], '\n') {
+				line, at = line+1, at+i+1
+				start = at
+			}
+			at, end = a, len(text)
+			if i := strings.IndexByte(text[a:], '\n'); i >= 0 {
+				end = a + i
+			}
+			hits = append(hits, lineHit{line: line, text: text[start:end]})
+		}
+		h := &hits[len(hits)-1]
+		h.spans = append(h.spans, [2]int{a - start, min(b, end) - start})
+	}
+	return hits, len(found)
 }
 
 // wholeWordAt reports whether text from a to b is no part of a longer
