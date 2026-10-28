@@ -490,11 +490,14 @@ func (a *app) replaceFound(m *matcher, with string, res found) {
 	n, files := 0, 0
 	for _, fh := range res.files {
 		d := fh.src.d
-		if p := fh.src.path; p != "" {
-			a.open([]string{p})
-			d = a.docAt(p)
-		} else if gi, _ := a.locate(d); gi < 0 {
-			continue
+		if gi, _ := a.locate(d); gi < 0 {
+			d = nil
+			if p := fh.src.path; p != "" {
+				if d = a.tabOf(p); d == nil {
+					a.open([]string{p})
+					d = a.docAt(p)
+				}
+			}
 		}
 		if d == nil || d.kind != textDoc {
 			continue
@@ -504,6 +507,21 @@ func (a *app) replaceFound(m *matcher, with string, res found) {
 		}
 	}
 	a.notify(locales.StatusReplacedInFiles(n, files))
+}
+
+// tabOf returns the tab of the file at path, or of a link to it, or of
+// what it links to: a second tab of the file would save over the first.
+func (a *app) tabOf(path string) *doc {
+	if d := a.docAt(path); d != nil {
+		return d
+	}
+	real := realPath(path)
+	for _, d := range a.allDocs() {
+		if d.path != "" && realPath(d.path) == real {
+			return d
+		}
+	}
+	return nil
 }
 
 // searchOptions follows the first line of a search's results, as Sublime

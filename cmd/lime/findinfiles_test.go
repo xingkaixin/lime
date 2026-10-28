@@ -127,3 +127,27 @@ func TestReplaceInFiles(t *testing.T) {
 		t.Fatalf("two.go saved: %q", b)
 	}
 }
+
+// Replacing in a file and a link to it replaces in the file's tab once,
+// with its unsaved text, and opens no second tab that Save All would
+// write over it with.
+func TestReplaceInLinkedFile(t *testing.T) {
+	dir := t.TempDir()
+	agents := filepath.Join(dir, "AGENTS.md")
+	os.WriteFile(agents, []byte("foo\n"), 0o644)
+	if err := os.Symlink("AGENTS.md", filepath.Join(dir, "CLAUDE.md")); err != nil {
+		t.Skip(err)
+	}
+	a := newApp("")
+	a.addFolder(dir)
+	a.open([]string{agents})
+	d := a.current()
+	d.st.Buffer.Set("foo\nunsaved foo\n")
+	a.fif.query, a.fif.where = "foo", openFolders
+	m, sc, open, ctx := a.prepareSearch(&a.fif.replacing)
+	res := searchFiles(ctx, m, sc, open, math.MaxInt)
+	a.replaceFound(m, "bar", res)
+	if got := d.st.Buffer.String(); a.docCount() != 1 || got != "bar\nunsaved bar\n" {
+		t.Fatalf("%d tabs, AGENTS.md %q; want one tab with both replaced", a.docCount(), got)
+	}
+}
