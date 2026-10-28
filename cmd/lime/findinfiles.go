@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -129,7 +132,7 @@ func (m *matcher) lines(text string, limit int) ([]lineHit, int) {
 		if k := len(hits) - 1; k >= 0 && hits[k].line == line {
 			hits[k].spans = append(hits[k].spans, span)
 		} else {
-			hits = append(hits, lineHit{line, strings.TrimSuffix(text[start:end], "\r"), [][2]int{span}})
+			hits = append(hits, lineHit{line, text[start:end], [][2]int{span}})
 		}
 		if n++; n == limit {
 			break
@@ -227,16 +230,14 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found
 			seen[s.path] = true
 		}
 		var text string
+		var ok bool
 		if s.d != nil {
 			text = s.text.String()
+			ok = !binary(text)
 		} else {
-			t, err := readText(s.path)
-			if err != nil {
-				return true
-			}
-			text = t
+			text, ok = readSearched(s.path)
 		}
-		if binary(text) {
+		if !ok {
 			return true
 		}
 		res.searched++
@@ -269,6 +270,7 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found
 				if path != p && (excluded(name, folderExclude) || excluded(name, sc.exclude)) {
 					return filepath.SkipDir
 				}
+			case !regular(path, e.Type()):
 			case sc.wants(name) && !excluded(name, fileExclude) && !excluded(name, binaryFiles):
 				s, ok := byPath[path]
 				if !ok {
@@ -283,6 +285,38 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source) found
 		}
 	}
 	return res
+}
+
+// regular reports whether the file at path, of type t, is a file of its
+// own, or a link to one: a FIFO would block reading it.
+func regular(path string, t fs.FileMode) bool {
+	if t&fs.ModeSymlink != 0 {
+		fi, err := os.Stat(path)
+		return err == nil && fi.Mode().IsRegular()
+	}
+	return t.IsRegular()
+}
+
+// readSearched reads the file at path as its tab would have it, \r\n as
+// \n, unless it is binary: a NUL in its first 8000 bytes, as fileKind
+// tells, read before the rest.
+func readSearched(path string) (string, bool) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", false
+	}
+	defer f.Close()
+	head := make([]byte, 8000)
+	n, _ := io.ReadFull(f, head)
+	if bytes.IndexByte(head[:n], 0) >= 0 {
+		return "", false
+	}
+	var b strings.Builder
+	b.Write(head[:n])
+	if _, err := io.Copy(&b, f); err != nil {
+		return "", false
+	}
+	return strings.ReplaceAll(b.String(), "\r\n", "\n"), true
 }
 
 // searchInFiles runs the panel's search into the Find Results tab, off
