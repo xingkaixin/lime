@@ -7,8 +7,8 @@ import (
 	"github.com/egoist/mygo/ui/editor"
 )
 
-// Typing completes the words of the tabs, and Enter makes a new line
-// after a word that completes only to itself.
+// Typing completes the words of the tabs, Enter makes a new line after a
+// word that completes only to itself, and Ctrl+Space shows them all.
 func TestWordCompletion(t *testing.T) {
 	a := newApp("")
 	a.add("", "alpaca\n")
@@ -27,5 +27,10 @@ func TestWordCompletion(t *testing.T) {
 	tt.Key(0, ui.KeyEnter)
 	if got := st.Buffer.String(); got != "alphabet\nalpaca alphabet\n" {
 		t.Fatalf("Enter after alphabet: %q, want a new line", got)
+	}
+	tt.Key(ui.Ctrl, ui.KeySpace)
+	tt.Key(0, ui.KeyEnter)
+	if got := st.Buffer.String(); got != "alphabet\nalpaca alphabet\nalphabet" {
+		t.Fatalf("Ctrl+Space, Enter: %q, want the first word", got)
 	}
 }

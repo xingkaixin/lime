@@ -330,6 +330,7 @@
   "shortcutTranspose": "交换字符",
   "shortcutDeleteToEnd": "删除到行尾",
   "shortcutDeleteToStart": "删除到行首",
+  "shortcutShowCompletions": "显示补全",
   "shortcutSelectLine": "选择行",
   "shortcutExpandSelection": "扩大选区",
   "shortcutAddCursorAbove": "在上方添加光标",

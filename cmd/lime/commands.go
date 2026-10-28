@@ -179,6 +179,7 @@ func makeCommands() []command {
 		edit("fold", nil, editor.Fold),
 		edit("unfold", nil, editor.Unfold),
 		edit("goto_definition", nil, editor.GoToDefinition),
+		edit("auto_complete", nil, editor.ShowCompletions),
 		edit("delete_to_eol", nil, editor.DeleteToLineEnd),
 		edit("delete_to_bol", nil, editor.DeleteToLineStart),
 		edit("show_at_center", nil, editor.ScrollCursorCenter),
