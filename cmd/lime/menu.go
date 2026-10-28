@@ -37,7 +37,7 @@ func (l *lime) check(label, id string, typ mygo.MenuItemType) *mygo.MenuItem {
 }
 
 func (l *lime) newMenu() *mygo.Menu {
-	var layoutItems, schemeItems, tabWidths []*mygo.MenuItem
+	var layoutItems, schemeItems, tabWidths, endingItems []*mygo.MenuItem
 	for _, lo := range layouts {
 		layoutItems = append(layoutItems, l.check(lo.label(locales.In(i18n.Locale())), lo.id(), mygo.MenuItemRadio))
 	}
@@ -52,6 +52,9 @@ func (l *lime) newMenu() *mygo.Menu {
 	}
 	for n := 1; n <= 8; n++ {
 		tabWidths = append(tabWidths, l.check(locales.MenuTabWidth(n), tabWidth(n), mygo.MenuItemRadio))
+	}
+	for _, e := range lineEndings {
+		endingItems = append(endingItems, l.check(e.label(locales.In(i18n.Locale())), e.id(), mygo.MenuItemRadio))
 	}
 	// Settings go in the app's menu on macOS, and in File elsewhere.
 	settingsItem := l.menuItem(locales.MenuSettings(), "show_settings")
@@ -119,6 +122,7 @@ func (l *lime) newMenu() *mygo.Menu {
 				l.menuItem(locales.MenuConvertToSpaces(), "expand_tabs"),
 				l.menuItem(locales.MenuConvertToTabs(), "unexpand_tabs"),
 			})},
+			{Label: locales.MenuLineEndings(), Submenu: endingItems},
 			mygo.Separator(),
 			l.check(locales.MenuWordWrap(), "toggle_word_wrap", mygo.MenuItemCheckbox),
 			mygo.Separator(),
@@ -160,11 +164,12 @@ func (a *app) syncMenu() {
 	if l.menu == nil || l.last != a {
 		return
 	}
-	tabSize, spaces := a.set.TabSize, a.set.indent() != editor.IndentTabs
+	tabSize, spaces, ending := a.set.TabSize, a.set.indent() != editor.IndentTabs, "\n"
 	if d := a.current(); d != nil && d.kind == textDoc {
 		tabSize, spaces = a.indentOf(d)
+		ending = d.lineEnding()
 	}
-	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.scheme.name, tabSize, spaces)
+	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.scheme.name, tabSize, spaces, ending)
 	if state == l.menuState {
 		return
 	}
@@ -180,6 +185,7 @@ func (a *app) syncMenu() {
 	check("scheme "+a.scheme.name, true)
 	check("toggle_setting translate_tabs_to_spaces", spaces)
 	check(tabWidth(tabSize), true)
+	check(lineEndings[slices.IndexFunc(lineEndings, func(e lineEnding) bool { return e.text == ending })].id(), true)
 }
 
 // pauseMenu takes the keys away from the menu while a key is recorded,

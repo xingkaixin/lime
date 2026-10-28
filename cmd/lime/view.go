@@ -409,6 +409,8 @@ func (a *app) statusBar(c *ui.Context) {
 		case d.cmp != nil:
 			a.diffLayoutButton(c, d.cmp)
 		case d.kind == textDoc:
+			a.lineEndingButton(c, d)
+			a.indentButton(c, d)
 			a.syntaxButton(c, d)
 		}
 	})

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -216,7 +217,7 @@ func makeCommands() []command {
 		caption := func(m locales.Messages) string { return m.CmdLayout(l.label(m)) }
 		c = append(c, command{id: l.id(), caption: caption, run: func(a *app) { a.setLayout(l) }})
 	}
-	return append(c, indentCommands()...)
+	return slices.Concat(c, indentCommands(), lineEndingCommands())
 }
 
 // deleteBlankLines deletes the lines of white space alone from the lines

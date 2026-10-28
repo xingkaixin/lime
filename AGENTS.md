@@ -22,6 +22,7 @@ All code is `package main` in `cmd/lime`. Keep it one package.
 - `completion.go`: word completions, from the words of the open tabs
 - `jump.go`: Jump Back and Jump Forward, through where the caret jumped from
 - `indentation.go`: each file's own indentation, detected as it opens
+- `format.go`: a file's line endings
 - `compare.go`: diff tabs, of a tab against a file, a tab, the clipboard or disk
 - `project.go`: folders, `.sublime-project` files, file operations
 - `recent.go`: Open Recent and Quick Switch Project, of the files, folders

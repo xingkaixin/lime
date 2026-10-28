@@ -54,6 +54,9 @@ type sessionDoc struct {
 	// unset where it follows the settings.
 	TabSize               int   `json:"tab_size,omitempty"`
 	TranslateTabsToSpaces *bool `json:"translate_tabs_to_spaces,omitempty"`
+	// LineEnding is the type of the line ending not saved, when there is
+	// one: "windows", "unix" or "cr".
+	LineEnding string `json:"line_ending,omitempty"`
 	// unsaved is the text Text or Raw takes as the session is written, off the
 	// main thread.
 	unsaved *editor.Snapshot
@@ -94,7 +97,7 @@ func (a *app) session() sessionWindow {
 			sd := sessionDoc{Path: d.path, Syntax: syntaxName(d.st.Buffer.Language()), TabSize: d.tabSize, TranslateTabsToSpaces: translateTabs(d.indent)}
 			if d.dirty() {
 				snap := d.st.Buffer.Snapshot()
-				sd.unsaved = &snap
+				sd.unsaved, sd.LineEnding = &snap, endingType(d.lineEnding())
 			}
 			for _, sel := range d.st.Selections() {
 				sd.Sels = append(sd.Sels, [2]int{sel.Anchor, sel.Head})
@@ -167,7 +170,7 @@ func (l *lime) sessionChanged() bool {
 		for _, g := range a.groups {
 			fmt.Fprint(&b, "|", g.active)
 			for _, d := range g.docs {
-				fmt.Fprint(&b, ",", d.path, d.st.Buffer.Version(), d.dirty(), syntaxName(d.st.Buffer.Language()), d.tabSize, d.indent)
+				fmt.Fprint(&b, ",", d.path, d.st.Buffer.Version(), d.dirty(), syntaxName(d.st.Buffer.Language()), d.tabSize, d.indent, d.lineEnding())
 			}
 		}
 	}
@@ -269,6 +272,11 @@ func restoreDoc(sd sessionDoc) *doc {
 	d.tabSize, d.indent = sd.TabSize, indentStyle(sd.TranslateTabsToSpaces)
 	if sd.Text != nil {
 		d.st.Buffer.Set(*sd.Text)
+	}
+	for _, e := range lineEndings {
+		if e.typ == sd.LineEnding {
+			d.setLineEnding(e.text)
+		}
 	}
 	for _, l := range syntaxes() {
 		if syntaxName(l) == sd.Syntax {

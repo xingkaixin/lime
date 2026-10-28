@@ -36,7 +36,10 @@ var shortcutGroups = func() []shortcutGroup {
 		}
 		return items
 	}
-	var layoutItems []shortcut
+	var layoutItems, endingItems []shortcut
+	for _, e := range lineEndings {
+		endingItems = append(endingItems, shortcut{e.id(), e.label})
+	}
 	for _, l := range layouts {
 		layoutItems = append(layoutItems, shortcut{l.id(), func(msgs m) string { return msgs.CmdLayout(l.label(msgs)) }})
 	}
@@ -94,6 +97,7 @@ var shortcutGroups = func() []shortcutGroup {
 			s("detect_indentation", m.MenuGuessIndentation),
 			s("expand_tabs", m.MenuConvertToSpaces), s("unexpand_tabs", m.MenuConvertToTabs),
 		})},
+		{m.MenuLineEndings, endingItems},
 		{m.ShortcutGroupFolding, append([]shortcut{
 			s("fold", m.ShortcutFold), s("unfold", m.ShortcutUnfold), s("fold_all", m.ShortcutFoldAll), s("unfold_all", m.ShortcutUnfoldAll),
 		}, numbered(9, func(i int) string { return foldLevel(i + 1) }, m.ShortcutFoldLevel)...)},

@@ -52,6 +52,10 @@
   "menuGuessIndentation": "Guess Settings From Buffer",
   "menuConvertToSpaces": "Convert Indentation to Spaces",
   "menuConvertToTabs": "Convert Indentation to Tabs",
+  "menuLineEndings": "Line Endings",
+  "menuWindows": "Windows",
+  "menuUnix": "Unix",
+  "menuMacOS9": "Mac OS 9",
   "menuWordWrap": "Word Wrap",
   "menuLargerFont": "Larger Font",
   "menuSmallerFont": "Smaller Font",
@@ -171,6 +175,11 @@
   "cmdGuessIndentation": "Indentation: Guess Settings From Buffer",
   "cmdConvertToSpaces": "Indentation: Convert to Spaces",
   "cmdConvertToTabs": "Indentation: Convert to Tabs",
+  "cmdLineEndings": "Line Endings: {name}",
+  "@cmdLineEndings": {
+    "description": "A line ending in the command palette, and the status bar's line ending button to assistive technology.",
+    "placeholders": { "name": { "type": "String", "example": "Unix" } }
+  },
 
   "panelLabel": "Quick panel",
   "panelCommandPalette": "Command Palette",
@@ -354,6 +363,14 @@
   "@statusSyntax": {
     "description": "The status bar's syntax button, to assistive technology.",
     "placeholders": { "name": { "type": "String", "example": "Go" } }
+  },
+  "statusSpaces": "Spaces: {size}",
+  "@statusSpaces": {
+    "placeholders": { "size": { "type": "int", "example": "4" } }
+  },
+  "statusTabSize": "Tab Size: {size}",
+  "@statusTabSize": {
+    "placeholders": { "size": { "type": "int", "example": "4" } }
   },
   "statusInvalidJSON": "Invalid JSON: unexpected character “{char}”",
   "@statusInvalidJSON": {

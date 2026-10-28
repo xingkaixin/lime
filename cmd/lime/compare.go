@@ -86,6 +86,7 @@ func (a *app) compareFile(src *doc, path string) {
 				go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(path)), err.Error())
 				return
 			}
+			text, _ := splitLines(text)
 			old := editor.NewBuffer(text)
 			old.SetLanguage(editor.LanguageFor(path))
 			a.compare(&comparison{src: src, oldName: filepath.Base(path), oldPath: path, diff: editor.DiffState{Old: old}})
