@@ -4,5 +4,17 @@
   "version": "0.1.0",
   "main": "./cmd/lime",
   "out": "build",
-  "i18n": { "dir": "locales", "source": "en" }
+  "i18n": { "dir": "locales", "source": "en" },
+  "macos": {
+    "infoPlist": {
+      "CFBundleDocumentTypes": [
+        {
+          "CFBundleTypeName": "Document",
+          "CFBundleTypeRole": "Editor",
+          "LSHandlerRank": "Alternate",
+          "LSItemContentTypes": ["public.text", "public.data", "public.folder"]
+        }
+      ]
+    }
+  }
 }
