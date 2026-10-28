@@ -242,8 +242,9 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 }
 
 // scrollTabs scrolls the tabs of g that do not fit in room, the width the
-// bar has for them, to show the current tab once it changes. It returns
-// how far they scroll.
+// bar has for them: to show the current tab once it changes, and along
+// while the tab dragged is held at either end (dragScroll). It returns how
+// far they scroll.
 func (a *app) scrollTabs(c *ui.Context, g *group, room float32) float32 {
 	// Tabs that do not fit have all shrunk to tabMinW.
 	over := float32(len(g.docs))*tabMinW - room
@@ -253,6 +254,7 @@ func (a *app) scrollTabs(c *ui.Context, g *group, room float32) float32 {
 		x := float32(g.active) * tabMinW
 		g.scroll = min(max(g.scroll, x+tabMinW-room), x)
 	}
+	a.dragScroll(c, g, room, over)
 	g.scroll = max(min(g.scroll, over), 0)
 	return over
 }

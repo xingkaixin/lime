@@ -3,6 +3,7 @@ package main
 import (
 	"runtime"
 	"slices"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -21,6 +22,9 @@ type tabDrag struct {
 	on    bool     // the pointer moved far enough to drag
 	out   bool     // pulled out of the tab bar
 	off   mygo.Point
+	// edge is when the tab, held at an end of the tabs, last scrolled them
+	// (dragScroll); zero while it is not.
+	edge time.Time
 }
 
 // dragTab follows the pointer pressing row, the tab of d at i of g, and
@@ -94,6 +98,41 @@ func (a *app) makeWay(g *group) {
 	cur := g.current()
 	g.docs = slices.Insert(slices.Delete(g.docs, i, i+1), to, t.d)
 	g.active = slices.Index(g.docs, cur)
+}
+
+// dragEdge is how near an end of the tabs that do not fit the pointer
+// holds the tab dragged to scroll them, and dragSpeed how fast, in DIPs a
+// second.
+const (
+	dragEdge  = 40
+	dragSpeed = 600
+)
+
+// dragScroll scrolls the tabs of g, over DIPs wider than room, while the
+// tab dragged along them is held at either end of the room.
+func (a *app) dragScroll(c *ui.Context, g *group, room, over float32) {
+	t := a.drag
+	if t == nil || !t.on || t.out || t.g != g {
+		return
+	}
+	x := t.at.X - g.bar.X
+	var dir float32
+	switch {
+	case x < dragEdge && g.scroll > 0:
+		dir = -1
+	case x > room-dragEdge && g.scroll < over:
+		dir = 1
+	default:
+		t.edge = time.Time{}
+		return
+	}
+	now := c.Now()
+	if !t.edge.IsZero() {
+		g.scroll += dir * dragSpeed * float32(now.Sub(t.edge).Seconds())
+	}
+	t.edge = now
+	// The pointer held still sends no events to draw the next frame.
+	c.Invalidate()
 }
 
 // draggedTab shows the tab dragged under the pointer: in its tab bar

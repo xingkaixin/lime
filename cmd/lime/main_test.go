@@ -199,8 +199,8 @@ func TestTabDrag(t *testing.T) {
 	}
 }
 
-// Tabs that do not fit scroll: to show the current one, and by a touchpad
-// or wheel either way.
+// Tabs that do not fit scroll: to show the current one, by a touchpad or
+// wheel either way, and along while a tab dragged is held at an end.
 func TestTabOverflow(t *testing.T) {
 	a := newApp("")
 	for i := range 30 {
@@ -225,6 +225,18 @@ func TestTabOverflow(t *testing.T) {
 	if g.scroll != 150 {
 		t.Fatalf("scrolling down over the tabs: scrolled %v, want 150", g.scroll)
 	}
+
+	r, _ := tt.Find("02")
+	tt.Press(r.X+20, r.Y+17)
+	for x := r.X + 20; x < g.bar.X+g.bar.W-30; x += 40 {
+		tt.Move(x, r.Y+17)
+	}
+	tt.Advance(time.Second)
+	i := slices.IndexFunc(g.docs, func(d *doc) bool { return d.name() == "02" })
+	if g.scroll < 600 || i < 12 {
+		t.Fatalf("holding a tab at the end: scrolled %v, the tab at %d", g.scroll, i)
+	}
+	tt.Release(g.bar.X+300, r.Y+17)
 }
 
 func TestGroups(t *testing.T) {
