@@ -69,7 +69,7 @@ func (l *lime) newMenu() *mygo.Menu {
 			l.menuItem(locales.MenuNewWindow(), "new_window"),
 			l.menuItem(locales.MenuOpen(), "prompt_open"),
 			l.menuItem(locales.MenuOpenFolder(), "prompt_open_folder"),
-			l.menuItem(locales.MenuReopenClosedFile(), "reopen_last_file"),
+			l.recentMenu(),
 			mygo.Separator(),
 			l.menuItem(locales.MenuSave(), "save"),
 			l.menuItem(locales.MenuSaveAs(), "prompt_save_as"),

@@ -565,6 +565,35 @@ func TestHotExitKeepsBytes(t *testing.T) {
 	}
 }
 
+// Open Recent lists the files, folders and projects opened, newest first,
+// which the session keeps. Quick Switch Project opens a folder in a window
+// without folders or unsaved text.
+func TestRecent(t *testing.T) {
+	dir := t.TempDir()
+	file, other := filepath.Join(dir, "a.txt"), filepath.Join(dir, "other")
+	os.WriteFile(file, []byte("a\n"), 0o644)
+	os.Mkdir(other, 0o755)
+	proj := filepath.Join(dir, "a.sublime-project")
+	a := newApp(dir)
+	a.open([]string{dir, file})
+	if err := a.saveProject(proj); err != nil {
+		t.Fatal(err)
+	}
+	b := a.l.newWindow()
+	b.switchProject(other)
+	if !slices.Equal(b.proj.folders, []string{other}) {
+		t.Fatalf("switching an empty window to %s: %q", other, b.proj.folders)
+	}
+	if err := a.l.saveSession(); err != nil {
+		t.Fatal(err)
+	}
+	l := newLime(dir)
+	l.restoreSession()
+	if !slices.Equal(l.recent.Files, []string{file}) || !slices.Equal(l.recent.Folders, []string{other, proj, dir}) {
+		t.Fatalf("recent: %+v", l.recent)
+	}
+}
+
 // The color scheme of older settings becomes the appearance and the theme
 // that show it.
 func TestMigrateColorScheme(t *testing.T) {

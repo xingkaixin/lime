@@ -15,9 +15,10 @@ import (
 
 // session is what the app keeps of its windows between runs, as Sublime
 // Text's hot exit does: the tabs, with the text of those not saved, the
-// layout and the folders.
+// layout and the folders; and what Open Recent lists.
 type session struct {
 	Windows []sessionWindow `json:"windows"`
+	Recent  recentList      `json:"recent"`
 }
 
 type sessionWindow struct {
@@ -62,7 +63,7 @@ func (l *lime) sessionPath() string {
 }
 
 func (l *lime) session() session {
-	var s session
+	s := session{Recent: recentList{slices.Clone(l.recent.Files), slices.Clone(l.recent.Folders)}}
 	for _, a := range l.wins {
 		s.Windows = append(s.Windows, a.session())
 	}
@@ -156,6 +157,7 @@ func (l *lime) writeSession(s session, gen uint64) error {
 // tab or the layout changes.
 func (l *lime) sessionChanged() bool {
 	var b strings.Builder
+	fmt.Fprint(&b, l.recent)
 	for _, a := range l.wins {
 		fmt.Fprint(&b, "#", a.layout.name, a.cols, a.rows, a.focus, a.proj.path, a.proj.folders)
 		for _, g := range a.groups {
@@ -200,6 +202,7 @@ func (l *lime) restoreSession() {
 	if len(s.Windows) == 0 && len(s.Groups) > 0 {
 		s.Windows = append(s.Windows, s.sessionWindow)
 	}
+	l.recent = s.Recent
 	for _, sw := range s.Windows {
 		l.newWindow().restore(sw)
 	}

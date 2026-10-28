@@ -21,6 +21,8 @@ All code is `package main` in `cmd/lime`. Keep it one package.
 - `definition.go`: Goto Definition, from the definitions in the open tabs
 - `compare.go`: diff tabs, of a tab against a file, a tab, the clipboard or disk
 - `project.go`: folders, `.sublime-project` files, file operations
+- `recent.go`: Open Recent and Quick Switch Project, of the files, folders
+  and projects opened lately
 - `git.go`: the side bar's work tree and branch, switched from the quick panel
 - `changes.go`: the side bar's Changes tab, of the work tree's changes, staged
   or not; `history.go`: its History tab; `commitview.go`: a tab of the diffs

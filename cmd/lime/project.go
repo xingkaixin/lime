@@ -185,6 +185,7 @@ func (a *app) promptAddFolder() {
 			for _, d := range dirs {
 				a.addFolder(d)
 			}
+			a.l.addRecent(nil, dirs)
 		})
 	}()
 }
@@ -198,15 +199,28 @@ func (a *app) closeProject() {
 	a.proj = project{gen: a.proj.gen + 1}
 }
 
-func (a *app) openProject(path string) error {
+// readProject reads the .sublime-project file at path.
+func readProject(path string) (projectFile, error) {
+	var pf projectFile
 	b, err := os.ReadFile(path)
+	if err != nil {
+		return pf, err
+	}
+	err = json.Unmarshal(b, &pf)
+	return pf, err
+}
+
+func (a *app) openProject(path string) error {
+	pf, err := readProject(path)
 	if err != nil {
 		return err
 	}
-	var pf projectFile
-	if err := json.Unmarshal(b, &pf); err != nil {
-		return err
-	}
+	a.useProject(path, pf)
+	return nil
+}
+
+// useProject makes pf, read from path, the window's project.
+func (a *app) useProject(path string, pf projectFile) {
 	a.closeProject()
 	a.proj.path, a.proj.jump = path, true
 	for _, f := range pf.Folders {
@@ -220,7 +234,7 @@ func (a *app) openProject(path string) error {
 		a.side = filesPanel
 	}
 	a.indexFolders()
-	return nil
+	a.l.addRecent(nil, []string{path})
 }
 
 // saveProject writes the folders to path, relative to it as Sublime Text
@@ -244,6 +258,7 @@ func (a *app) saveProject(path string) error {
 		return err
 	}
 	a.proj.path = path
+	a.l.addRecent(nil, []string{path})
 	return nil
 }
 

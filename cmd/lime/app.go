@@ -181,6 +181,8 @@ type lime struct {
 	last *app // the window last focused, which the menu goes to
 	menu *mygo.Menu
 	keys *keymap
+	// recent is what Open Recent and Quick Switch Project list.
+	recent recentList
 
 	menuPaused bool // while a key is recorded
 
@@ -490,18 +492,23 @@ func (a *app) newFile() { a.add("", "") }
 // open shows files in tabs, or the tabs already showing them, and adds
 // folders to the project.
 func (a *app) open(paths []string) {
+	var files, folders []string
 	for _, p := range paths {
 		p, _ = filepath.Abs(p)
-		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+		fi, err := os.Stat(p)
+		if err == nil && fi.IsDir() {
 			a.addFolder(p)
+			folders = append(folders, p)
 			continue
 		}
 		if d := a.docAt(p); d != nil {
 			a.show(d)
 			continue
 		}
-		if k := fileKind(p); k != textDoc {
+		// An image that is gone fails to read below, as a text file does.
+		if k := fileKind(p); k != textDoc && err == nil {
 			a.add(p, "").kind = k
+			files = append(files, p)
 			continue
 		}
 		text, err := readText(p)
@@ -510,7 +517,9 @@ func (a *app) open(paths []string) {
 			continue
 		}
 		a.add(p, text)
+		files = append(files, p)
 	}
+	a.l.addRecent(files, folders)
 }
 
 // readText reads the file at path as a string, without the copy that

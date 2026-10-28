@@ -184,6 +184,16 @@ func (msgs Messages) MenuOpenFolder() string {
 	return Catalog.Format(msgs.locale, "menuOpenFolder", nil)
 }
 
+// MenuOpenRecent says "Open Recent"
+// in the language the app shows.
+func MenuOpenRecent() string { return In(i18n.Locale()).MenuOpenRecent() }
+
+// MenuOpenRecent says "Open Recent"
+// in the language of msgs.
+func (msgs Messages) MenuOpenRecent() string {
+	return Catalog.Format(msgs.locale, "menuOpenRecent", nil)
+}
+
 // MenuReopenClosedFile says "Reopen Closed File"
 // in the language the app shows.
 func MenuReopenClosedFile() string { return In(i18n.Locale()).MenuReopenClosedFile() }
@@ -192,6 +202,16 @@ func MenuReopenClosedFile() string { return In(i18n.Locale()).MenuReopenClosedFi
 // in the language of msgs.
 func (msgs Messages) MenuReopenClosedFile() string {
 	return Catalog.Format(msgs.locale, "menuReopenClosedFile", nil)
+}
+
+// MenuClearItems says "Clear Items"
+// in the language the app shows.
+func MenuClearItems() string { return In(i18n.Locale()).MenuClearItems() }
+
+// MenuClearItems says "Clear Items"
+// in the language of msgs.
+func (msgs Messages) MenuClearItems() string {
+	return Catalog.Format(msgs.locale, "menuClearItems", nil)
 }
 
 // MenuSave says "Save"
