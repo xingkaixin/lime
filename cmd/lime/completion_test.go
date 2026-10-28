@@ -1,36 +1,53 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 )
 
-// Typing completes the words of the tabs, Enter makes a new line after a
-// word that completes only to itself, and Ctrl+Space shows them all.
+// Typing completes the words of the tabs, but not in comments, nor to the
+// word typed, nor at carets after different words: Enter makes a new
+// line there. Ctrl+Space shows them all.
 func TestWordCompletion(t *testing.T) {
 	a := newApp("")
 	a.add("", "alpaca\n")
-	st := a.add("", "alphabet\n").st
-	st.Buffer.SetLanguage(editor.LanguageNamed("Go"))
-	st.Select(st.Buffer.Len(), st.Buffer.Len())
+	goTab := func(text string) *editor.State {
+		st := a.add("", text).st
+		st.Buffer.SetLanguage(editor.LanguageNamed("Go"))
+		st.Select(st.Buffer.Len(), st.Buffer.Len())
+		return st
+	}
+	st := goTab("alphabet\n")
 	tt := ui.NewTester(a.view, 800, 500)
+	typeKeys := func(s string) {
+		for _, r := range s {
+			tt.Type(string(r))
+		}
+	}
+	enter := func(want, why string) {
+		t.Helper()
+		tt.Key(0, ui.KeyEnter)
+		if got := st.Buffer.String(); !strings.HasSuffix(got, want) {
+			t.Fatalf("%s, Enter: %q, want it to end %q", why, got, want)
+		}
+	}
 
-	tt.Type("alp")
-	tt.Key(0, ui.KeyEnter)
-	if got := st.Buffer.String(); got != "alphabet\nalpaca" {
-		t.Fatalf("Enter after alp: %q, want the other tab's alpaca", got)
-	}
-	tt.Type(" ")
-	tt.Type("alphabet")
-	tt.Key(0, ui.KeyEnter)
-	if got := st.Buffer.String(); got != "alphabet\nalpaca alphabet\n" {
-		t.Fatalf("Enter after alphabet: %q, want a new line", got)
-	}
+	typeKeys("alp")
+	enter("\nalpaca", "alp")
+	typeKeys(" alphabet")
+	enter(" alphabet\n", "alphabet, a word of the text")
+	typeKeys("// alp")
+	enter("// alp\n// ", "a comment")
 	tt.Key(ui.Ctrl, ui.KeySpace)
-	tt.Key(0, ui.KeyEnter)
-	if got := st.Buffer.String(); got != "alphabet\nalpaca alphabet\nalphabet" {
-		t.Fatalf("Ctrl+Space, Enter: %q, want the first word", got)
-	}
+	enter("// alphabet", "Ctrl+Space")
+
+	a.add("", "getName\n")
+	st = goTab("get\nset\n")
+	st.SetSelections(editor.Selection{Anchor: 7, Head: 7}, editor.Selection{Anchor: 3, Head: 3})
+	tt.Frame()
+	typeKeys("N")
+	enter("getN\n\nsetN\n\n", "carets after get and set")
 }

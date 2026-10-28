@@ -184,7 +184,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		}
 		d.st.OnDefinition = func(off int) { a.gotoDefinition(d, off) }
 		d.st.OnCompletion = func(r editor.CompletionRequest) { a.complete(d, r) }
-		d.st.RenderCompletions = renderCompletions
+		d.st.OnInput = func(ev ui.InputEvent) bool {
+			a.typing(d, ev)
+			return false
+		}
 		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
 		a.input(e, d)
 	})

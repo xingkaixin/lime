@@ -231,6 +231,7 @@ type app struct {
 	drag    *tabDrag
 	prefs   prefs
 	notice  notice
+	others  *tabWords // the other tabs' words, as complete last found them
 }
 
 func newLime(dir string) *lime {
