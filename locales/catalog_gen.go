@@ -444,6 +444,66 @@ func (msgs Messages) MenuSyntax() string {
 	return Catalog.Format(msgs.locale, "menuSyntax", nil)
 }
 
+// MenuIndentation says "Indentation"
+// in the language the app shows.
+func MenuIndentation() string { return In(i18n.Locale()).MenuIndentation() }
+
+// MenuIndentation says "Indentation"
+// in the language of msgs.
+func (msgs Messages) MenuIndentation() string {
+	return Catalog.Format(msgs.locale, "menuIndentation", nil)
+}
+
+// MenuIndentUsingSpaces says "Indent Using Spaces"
+// in the language the app shows.
+func MenuIndentUsingSpaces() string { return In(i18n.Locale()).MenuIndentUsingSpaces() }
+
+// MenuIndentUsingSpaces says "Indent Using Spaces"
+// in the language of msgs.
+func (msgs Messages) MenuIndentUsingSpaces() string {
+	return Catalog.Format(msgs.locale, "menuIndentUsingSpaces", nil)
+}
+
+// MenuTabWidth says "Tab Width: {width}"
+// in the language the app shows.
+func MenuTabWidth(width int) string { return In(i18n.Locale()).MenuTabWidth(width) }
+
+// MenuTabWidth says "Tab Width: {width}"
+// in the language of msgs.
+func (msgs Messages) MenuTabWidth(width int) string {
+	return Catalog.Format(msgs.locale, "menuTabWidth", map[string]any{"width": width})
+}
+
+// MenuGuessIndentation says "Guess Settings From Buffer"
+// in the language the app shows.
+func MenuGuessIndentation() string { return In(i18n.Locale()).MenuGuessIndentation() }
+
+// MenuGuessIndentation says "Guess Settings From Buffer"
+// in the language of msgs.
+func (msgs Messages) MenuGuessIndentation() string {
+	return Catalog.Format(msgs.locale, "menuGuessIndentation", nil)
+}
+
+// MenuConvertToSpaces says "Convert Indentation to Spaces"
+// in the language the app shows.
+func MenuConvertToSpaces() string { return In(i18n.Locale()).MenuConvertToSpaces() }
+
+// MenuConvertToSpaces says "Convert Indentation to Spaces"
+// in the language of msgs.
+func (msgs Messages) MenuConvertToSpaces() string {
+	return Catalog.Format(msgs.locale, "menuConvertToSpaces", nil)
+}
+
+// MenuConvertToTabs says "Convert Indentation to Tabs"
+// in the language the app shows.
+func MenuConvertToTabs() string { return In(i18n.Locale()).MenuConvertToTabs() }
+
+// MenuConvertToTabs says "Convert Indentation to Tabs"
+// in the language of msgs.
+func (msgs Messages) MenuConvertToTabs() string {
+	return Catalog.Format(msgs.locale, "menuConvertToTabs", nil)
+}
+
 // MenuWordWrap says "Word Wrap"
 // in the language the app shows.
 func MenuWordWrap() string { return In(i18n.Locale()).MenuWordWrap() }
@@ -1460,6 +1520,56 @@ func CmdSetSyntaxTo(name string) string { return In(i18n.Locale()).CmdSetSyntaxT
 // A syntax in the command palette.
 func (msgs Messages) CmdSetSyntaxTo(name string) string {
 	return Catalog.Format(msgs.locale, "cmdSetSyntaxTo", map[string]any{"name": name})
+}
+
+// CmdIndentUsingSpaces says "Indent Using Spaces: Toggle"
+// in the language the app shows.
+func CmdIndentUsingSpaces() string { return In(i18n.Locale()).CmdIndentUsingSpaces() }
+
+// CmdIndentUsingSpaces says "Indent Using Spaces: Toggle"
+// in the language of msgs.
+func (msgs Messages) CmdIndentUsingSpaces() string {
+	return Catalog.Format(msgs.locale, "cmdIndentUsingSpaces", nil)
+}
+
+// CmdTabWidth says "Indentation: Tab Width {width}"
+// in the language the app shows.
+func CmdTabWidth(width int) string { return In(i18n.Locale()).CmdTabWidth(width) }
+
+// CmdTabWidth says "Indentation: Tab Width {width}"
+// in the language of msgs.
+func (msgs Messages) CmdTabWidth(width int) string {
+	return Catalog.Format(msgs.locale, "cmdTabWidth", map[string]any{"width": width})
+}
+
+// CmdGuessIndentation says "Indentation: Guess Settings From Buffer"
+// in the language the app shows.
+func CmdGuessIndentation() string { return In(i18n.Locale()).CmdGuessIndentation() }
+
+// CmdGuessIndentation says "Indentation: Guess Settings From Buffer"
+// in the language of msgs.
+func (msgs Messages) CmdGuessIndentation() string {
+	return Catalog.Format(msgs.locale, "cmdGuessIndentation", nil)
+}
+
+// CmdConvertToSpaces says "Indentation: Convert to Spaces"
+// in the language the app shows.
+func CmdConvertToSpaces() string { return In(i18n.Locale()).CmdConvertToSpaces() }
+
+// CmdConvertToSpaces says "Indentation: Convert to Spaces"
+// in the language of msgs.
+func (msgs Messages) CmdConvertToSpaces() string {
+	return Catalog.Format(msgs.locale, "cmdConvertToSpaces", nil)
+}
+
+// CmdConvertToTabs says "Indentation: Convert to Tabs"
+// in the language the app shows.
+func CmdConvertToTabs() string { return In(i18n.Locale()).CmdConvertToTabs() }
+
+// CmdConvertToTabs says "Indentation: Convert to Tabs"
+// in the language of msgs.
+func (msgs Messages) CmdConvertToTabs() string {
+	return Catalog.Format(msgs.locale, "cmdConvertToTabs", nil)
 }
 
 // PanelLabel says "Quick panel"

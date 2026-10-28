@@ -43,6 +43,15 @@
   "menuCloseGroup": "Close Group",
   "menuColorScheme": "Color Scheme",
   "menuSyntax": "Syntax…",
+  "menuIndentation": "Indentation",
+  "menuIndentUsingSpaces": "Indent Using Spaces",
+  "menuTabWidth": "Tab Width: {width}",
+  "@menuTabWidth": {
+    "placeholders": { "width": { "type": "int", "example": "4" } }
+  },
+  "menuGuessIndentation": "Guess Settings From Buffer",
+  "menuConvertToSpaces": "Convert Indentation to Spaces",
+  "menuConvertToTabs": "Convert Indentation to Tabs",
   "menuWordWrap": "Word Wrap",
   "menuLargerFont": "Larger Font",
   "menuSmallerFont": "Smaller Font",
@@ -154,6 +163,14 @@
     "description": "A syntax in the command palette.",
     "placeholders": { "name": { "type": "String", "example": "Markdown" } }
   },
+  "cmdIndentUsingSpaces": "Indent Using Spaces: Toggle",
+  "cmdTabWidth": "Indentation: Tab Width {width}",
+  "@cmdTabWidth": {
+    "placeholders": { "width": { "type": "int", "example": "4" } }
+  },
+  "cmdGuessIndentation": "Indentation: Guess Settings From Buffer",
+  "cmdConvertToSpaces": "Indentation: Convert to Spaces",
+  "cmdConvertToTabs": "Indentation: Convert to Tabs",
 
   "panelLabel": "Quick panel",
   "panelCommandPalette": "Command Palette",

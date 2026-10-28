@@ -2,15 +2,47 @@ package main
 
 import (
 	"cmp"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui/editor"
+
+	"lime/locales"
 )
+
+func tabWidth(n int) string { return "set_setting tab_size " + strconv.Itoa(n) }
+
+// indentCommands are those of Sublime Text's View > Indentation menu.
+func indentCommands() []command {
+	c := []command{
+		{id: "toggle_setting translate_tabs_to_spaces", caption: locales.Messages.CmdIndentUsingSpaces, run: withDoc(func(a *app, d *doc) {
+			d.indent = editor.IndentSpaces
+			if _, spaces := a.indentOf(d); spaces {
+				d.indent = editor.IndentTabs
+			}
+		})},
+		{id: "detect_indentation", caption: locales.Messages.CmdGuessIndentation, run: withDoc(func(_ *app, d *doc) { d.guessIndent() })},
+		{id: "expand_tabs", caption: locales.Messages.CmdConvertToSpaces, run: withDoc(func(a *app, d *doc) { a.convertIndent(d, true) })},
+		{id: "unexpand_tabs", caption: locales.Messages.CmdConvertToTabs, run: withDoc(func(a *app, d *doc) { a.convertIndent(d, false) })},
+	}
+	for n := 1; n <= 8; n++ {
+		caption := func(m locales.Messages) string { return m.CmdTabWidth(n) }
+		c = append(c, command{id: tabWidth(n), caption: caption, run: withDoc(func(_ *app, d *doc) { d.tabSize = n })})
+	}
+	return c
+}
 
 // applyIndent has d's editor indent as the file does, or as the settings
 // say where the file has no indentation of its own.
 func (a *app) applyIndent(d *doc) {
 	d.st.TabSize, d.st.Indent = cmp.Or(d.tabSize, a.set.TabSize), cmp.Or(d.indent, a.set.indent())
+}
+
+// indentOf is the width of a tab in d, and whether indenting inserts
+// spaces.
+func (a *app) indentOf(d *doc) (size int, spaces bool) {
+	a.applyIndent(d)
+	return d.st.TabSize, indentUnit(d.st) != "\t"
 }
 
 // guessLines is how many lines guessIndent reads, which a large file
@@ -69,6 +101,40 @@ func (d *doc) guessIndent() {
 	d.indent = style
 	if size > 0 {
 		d.tabSize = size
+	}
+}
+
+// convertIndent rewrites the indentation of d's lines as spaces, or as
+// tabs and the spaces short of a tab, as Sublime Text's expand_tabs and
+// unexpand_tabs do, and has d indent so from then on.
+func (a *app) convertIndent(d *doc, spaces bool) {
+	size, _ := a.indentOf(d)
+	t := d.st.Buffer.Snapshot()
+	var edits []editor.Edit
+	for i := range t.LineCount() {
+		line := t.Line(i)
+		lead := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+		col := 0
+		for _, c := range []byte(lead) {
+			if c == '\t' {
+				col += size - col%size
+			} else {
+				col++
+			}
+		}
+		to := strings.Repeat(" ", col)
+		if !spaces {
+			to = strings.Repeat("\t", col/size) + strings.Repeat(" ", col%size)
+		}
+		if to != lead {
+			start := t.LineStart(i)
+			edits = append(edits, editor.Edit{Start: start, End: start + len(lead), Text: to})
+		}
+	}
+	d.st.Buffer.Edit(edits...)
+	d.indent = editor.IndentTabs
+	if spaces {
+		d.indent = editor.IndentSpaces
 	}
 }
 

@@ -88,6 +88,12 @@ var shortcutGroups = func() []shortcutGroup {
 			s("reset_font_size", m.MenuResetFontSize), s("select_color_scheme", m.ShortcutSelectColorScheme),
 			s("select_syntax", m.CmdSetSyntax), s("show_at_center", m.ShortcutScrollToCursor),
 		}},
+		{m.MenuIndentation, slices.Concat([]shortcut{
+			s("toggle_setting translate_tabs_to_spaces", m.MenuIndentUsingSpaces),
+		}, numbered(8, func(i int) string { return tabWidth(i + 1) }, m.MenuTabWidth), []shortcut{
+			s("detect_indentation", m.MenuGuessIndentation),
+			s("expand_tabs", m.MenuConvertToSpaces), s("unexpand_tabs", m.MenuConvertToTabs),
+		})},
 		{m.ShortcutGroupFolding, append([]shortcut{
 			s("fold", m.ShortcutFold), s("unfold", m.ShortcutUnfold), s("fold_all", m.ShortcutFoldAll), s("unfold_all", m.ShortcutUnfoldAll),
 		}, numbered(9, func(i int) string { return foldLevel(i + 1) }, m.ShortcutFoldLevel)...)},
