@@ -181,6 +181,7 @@ var appKeys = func() []appKey {
 		k(cmd, ui.KeyS, "save"), k(cmd|sh, ui.KeyS, "prompt_save_as"),
 		k(cmd, ui.KeyW, "close"), k(cmd|sh, ui.KeyW, "close_window"),
 		k(cmd, ui.KeyP, "show_goto"), k(cmd|sh, ui.KeyP, "show_command_palette"), k(ctrl, ui.KeyG, "goto_line"),
+		k(cmd, ui.KeyR, "goto_symbol"),
 		k(ctrl, ui.KeyPageUp, "prev_view"), k(ctrl, ui.KeyPageDown, "next_view"),
 		k(ctrl, ui.KeyTab, "next_view_in_stack"), k(ctrl|sh, ui.KeyTab, "prev_view_in_stack"),
 		k(cmd, ui.KeyEqual, "increase_font_size"), k(cmd|sh, ui.KeyEqual, "increase_font_size"),

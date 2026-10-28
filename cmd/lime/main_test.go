@@ -834,6 +834,57 @@ func TestGotoDefinition(t *testing.T) {
 	}
 }
 
+// Goto Symbol lists the tab's definitions and Markdown's headings. One
+// shows as it is selected, and Escape goes back; name@ lists another
+// file's.
+func TestGotoSymbol(t *testing.T) {
+	a := newApp("")
+	md := a.add("/p/README.md", "# Lime\n\nText\n\n## Install ##\n")
+	d := a.add("/p/a.go", "package p\n\nfunc one() {}\n\nfunc two() {}\n")
+	text := d.st.Buffer.String()
+	tt := ui.NewTester(a.view, 800, 500)
+	selected := func(d *doc, name string) bool {
+		at := strings.Index(d.st.Buffer.String(), name)
+		return d.st.Selection() == editor.Selection{Anchor: at, Head: at + len(name)}
+	}
+
+	a.run("goto_symbol")
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	if !selected(d, "two") {
+		t.Fatalf("Down to two: selection %v", d.st.Selection())
+	}
+	tt.Key(0, ui.KeyEscape)
+	if d.st.Cursor() != 0 || a.panel != nil {
+		t.Fatalf("Escape: caret at %d, want 0", d.st.Cursor())
+	}
+	a.run("goto_symbol")
+	tt.Frame()
+	tt.Type("one")
+	tt.Key(0, ui.KeyEnter)
+	if !selected(d, "one") {
+		t.Fatalf("@one: selection %v in %q", d.st.Selection(), text)
+	}
+	a.run("show_goto")
+	tt.Frame()
+	tt.Type("READ@inst")
+	tt.Key(0, ui.KeyEnter)
+	if a.current() != md || !selected(md, "Install") {
+		t.Fatalf("READ@inst: tab %q, selection %v", a.current().name(), md.st.Selection())
+	}
+	// A file of the project's, not open, with CRLFs, which its tab has not.
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\r\n\r\nfunc three() {}\r\n"), 0o644)
+	a.open([]string{dir})
+	a.run("show_goto")
+	tt.Frame()
+	tt.Type("b.go@")
+	tt.Key(0, ui.KeyEnter)
+	if b := a.current(); b.path != filepath.Join(dir, "b.go") || !selected(b, "three") {
+		t.Fatalf("b.go@: tab %q, selection %v", b.name(), b.st.Selection())
+	}
+}
+
 // A file dragged in the side bar onto a folder moves into it, its tab
 // following. A copy leaves it and its tab where they are.
 func TestSideBarDrag(t *testing.T) {
