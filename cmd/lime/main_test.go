@@ -216,10 +216,14 @@ func TestTabOverflow(t *testing.T) {
 	if !whole("29") {
 		t.Fatalf("the tab opened last is out of sight: scrolled %v", g.scroll)
 	}
-	tt.Key(ui.Cmd, ui.Key1)
+	tabs := ui.Cmd
+	if !mac {
+		tabs = ui.Alt
+	}
+	tt.Key(tabs, ui.Key1)
 	tt.Frame()
 	if !whole("00") {
-		t.Fatalf("Cmd+1: the first tab is out of sight: scrolled %v", g.scroll)
+		t.Fatalf("the first tab chosen is out of sight: scrolled %v", g.scroll)
 	}
 	tt.Scroll(g.bar.X+100, g.bar.Y+10, 0, 150)
 	if g.scroll != 150 {
@@ -227,16 +231,17 @@ func TestTabOverflow(t *testing.T) {
 	}
 
 	r, _ := tt.Find("02")
-	tt.Press(r.X+20, r.Y+17)
-	for x := r.X + 20; x < g.bar.X+g.bar.W-30; x += 40 {
-		tt.Move(x, r.Y+17)
+	x, y := r.X+20, r.Y+17
+	tt.Press(x, y)
+	for ; x < g.bar.X+g.bar.W-30; x += 40 {
+		tt.Move(x, y)
 	}
 	tt.Advance(time.Second)
 	i := slices.IndexFunc(g.docs, func(d *doc) bool { return d.name() == "02" })
 	if g.scroll < 600 || i < 12 {
 		t.Fatalf("holding a tab at the end: scrolled %v, the tab at %d", g.scroll, i)
 	}
-	tt.Release(g.bar.X+300, r.Y+17)
+	tt.Release(x, y)
 }
 
 func TestGroups(t *testing.T) {
