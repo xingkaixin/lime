@@ -25,7 +25,7 @@ type mdPreview struct {
 	// shows it once it has stayed for previewPause.
 	seen uint64
 	at   time.Time
-	// doc is text parsed, when it is cut in parts.
+	// doc is text parsed, once it is cut in parts.
 	doc   *parser.Document
 	parts []mdPart
 	opts  *markdown.Options
@@ -41,6 +41,14 @@ type mdPreview struct {
 type mdPart struct {
 	text string
 	head int // the heading the part starts with, a block of doc, or 0
+	key  partKey
+}
+
+// partKey is how the list knows a part as the text changes: by its text,
+// and which of the parts of that text it is.
+type partKey struct {
+	text string
+	n    int
 }
 
 // previewPause is how long the text of a preview's tab stays as it is
@@ -50,8 +58,10 @@ const previewPause = 200 * time.Millisecond
 
 // A Markdown view builds and lays out all its blocks at every frame. A
 // text longer than previewWhole shows in parts of about previewPart, each
-// a row of a list, which builds only the rows in view. A shorter one
-// shows whole, its footnotes linked and its text one selection.
+// a row of a list, which builds only the rows in view: a footnote shows
+// in its part, and a reference to it from another part as written, [^1],
+// and text is selected within a part. A shorter one shows whole, until it
+// was cut in parts once: it stays so, and keeps its place as it shrinks.
 const (
 	previewWhole = 16 << 10
 	previewPart  = 4 << 10
@@ -123,12 +133,13 @@ func (p *mdPreview) refresh(c *ui.Context) {
 func (p *mdPreview) show(text string, ver uint64) {
 	p.text, p.ver = text, ver
 	p.parts = p.parts[:0]
-	if len(text) <= previewWhole {
+	if len(text) <= previewWhole && p.doc == nil {
 		p.parts = append(p.parts, mdPart{text: text})
 		return
 	}
 	if p.doc == nil {
 		p.doc = parser.New(parser.Default)
+		p.list.Key = func(i int) any { return p.parts[i].key }
 	}
 	d := p.doc
 	d.Set(text)
@@ -163,6 +174,12 @@ func (p *mdPreview) show(text string, ver uint64) {
 	}
 	addDefs(text[end:])
 	p.parts = append(p.parts, mdPart{text: text[start:], head: head})
+	seen := map[string]int{}
+	for k := range p.parts {
+		t := p.parts[k].text
+		p.parts[k].key = partKey{t, seen[t]}
+		seen[t]++
+	}
 	if defs.Len() > 0 {
 		defs.WriteString("\n")
 		for k := range p.parts {
