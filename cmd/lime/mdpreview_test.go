@@ -19,8 +19,9 @@ func TestMarkdownPreview(t *testing.T) {
 	readme, guide := filepath.Join(dir, "README.md"), filepath.Join(dir, "docs", "my guide.md")
 	os.MkdirAll(filepath.Dir(guide), 0o755)
 	os.WriteFile(guide, []byte("# Guide\n"), 0o644)
+	// Long enough to show in parts.
 	text := "# Title\n\nSee [the guide](docs/my%20guide.md), [the site](https://example.com) and [the end](#the-end).\n\n" +
-		strings.Repeat("Text.\n\n", 100) + "## The End\n\n" + strings.Repeat("Text.\n\n", 50)
+		strings.Repeat("Text.\n\n", 3000) + "## The End\n\n" + strings.Repeat("Text.\n\n", 50)
 	os.WriteFile(readme, []byte(text), 0o644)
 	a := newApp("")
 	a.open([]string{readme})
@@ -46,8 +47,8 @@ func TestMarkdownPreview(t *testing.T) {
 		t.Fatalf("Cmd+K V typed into the tab: %q", got)
 	}
 
-	n := src.st.Buffer.Len()
-	src.st.Buffer.Edit(editor.Edit{Start: n, End: n, Text: "\nMore text.\n"})
+	n := len("# Title\n\n")
+	src.st.Buffer.Edit(editor.Edit{Start: n, End: n, Text: "More text.\n\n"})
 	tt.Frame()
 	if tt.HasText("More text.") {
 		t.Fatal("the preview parsed the text before typing paused")
@@ -66,10 +67,10 @@ func TestMarkdownPreview(t *testing.T) {
 	if err := tt.Click("the end"); err != nil {
 		t.Fatal(err)
 	}
-	if r, _ := tt.Find("The End"); p.md.scroll.Y == 0 || r.Y > 100 {
-		t.Fatalf("the end's link scrolled to %v, its heading at %v", p.md.scroll.Y, r.Y)
+	if r, ok := tt.Find("The End"); !ok || r.Y < 0 || r.Y > 100 {
+		t.Fatalf("the end's link left its heading at %v, shown %v", r.Y, ok)
 	}
-	p.md.scroll.Y = 0
+	p.md.list.ScrollTo(0, ui.Start)
 	tt.Frame()
 	if err := tt.Click("the guide"); err != nil {
 		t.Fatal(err)

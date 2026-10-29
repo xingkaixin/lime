@@ -23,21 +23,39 @@ type mdPreview struct {
 	ver  uint64 // the version of src's text that text is
 	// seen is the version of src's text the preview last saw, at at: it
 	// shows it once it has stayed for previewPause.
-	seen   uint64
-	at     time.Time
-	opts   *markdown.Options
-	dir    string // the folder of src's file, which opts loads images from
-	theme  markdown.Theme
-	scroll ui.ScrollState
+	seen uint64
+	at   time.Time
+	// doc is text parsed, when it is cut in parts.
+	doc   *parser.Document
+	parts []mdPart
+	opts  *markdown.Options
+	dir   string // the folder of src's file, which opts loads images from
+	theme markdown.Theme
+	list  ui.ListState
 	// anchor is the heading a link asked for, by its slug, which the next
 	// build pass scrolls to as heading.
 	anchor, heading string
+}
+
+// mdPart is a part of a preview's text, which a row of its list shows.
+type mdPart struct {
+	text string
+	head int // the heading the part starts with, a block of doc, or 0
 }
 
 // previewPause is how long the text of a preview's tab stays as it is
 // before the preview shows it, as in Zed: typing in a long file does not
 // parse it all again at every key.
 const previewPause = 200 * time.Millisecond
+
+// A Markdown view builds and lays out all its blocks at every frame. A
+// text longer than previewWhole shows in parts of about previewPart, each
+// a row of a list, which builds only the rows in view. A shorter one
+// shows whole, its footnotes linked and its text one selection.
+const (
+	previewWhole = 16 << 10
+	previewPart  = 4 << 10
+)
 
 // markdown reports whether d's tab shows Markdown in an editor, which
 // a preview can show.
@@ -67,7 +85,8 @@ func (a *app) openPreview(src *doc, side bool) {
 	if i < 0 {
 		v := src.st.Buffer.Version()
 		d := newDoc("", "")
-		d.kind, d.md = mdDoc, &mdPreview{src: src, text: src.st.Buffer.String(), ver: v, seen: v}
+		d.kind, d.md = mdDoc, &mdPreview{src: src, seen: v}
+		d.md.show(src.st.Buffer.String(), v)
 		g.docs = append(g.docs, d)
 		i = len(g.docs) - 1
 	}
@@ -95,12 +114,60 @@ func (p *mdPreview) refresh(c *ui.Context) {
 		c.After(wait)
 		return
 	}
-	p.text, p.ver = b.String(), v
+	p.show(b.String(), v)
+}
+
+// show makes text, version ver of the source's, what p shows: whole, or
+// in a part at each top-level heading, which a link to it scrolls to the
+// top, and wherever a part grew to previewPart.
+func (p *mdPreview) show(text string, ver uint64) {
+	p.text, p.ver = text, ver
+	p.parts = p.parts[:0]
+	if len(text) <= previewWhole {
+		p.parts = append(p.parts, mdPart{text: text})
+		return
+	}
+	if p.doc == nil {
+		p.doc = parser.New(parser.Default)
+	}
+	d := p.doc
+	d.Set(text)
+	// Link reference definitions are no block: they are between blocks,
+	// with the ends of some (a table's last |, a heading's closing #s),
+	// and go before each part for its links to them.
+	var defs strings.Builder
+	start, head, end := 0, 0, 0
+	for i := range d.Children(0) {
+		b := d.Block(i)
+		if gap := text[end:b.Start]; strings.Contains(gap, "[") {
+			for _, s := range strings.Split(gap, "\n\n") {
+				if s = strings.TrimSpace(s); strings.HasPrefix(s, "[") && parser.Parse(s).Len() == 1 {
+					defs.WriteString(s + "\n")
+				}
+			}
+		}
+		end = b.End
+		at := strings.LastIndexByte(text[:b.Start], '\n') + 1
+		if at > start && (b.Kind == parser.Heading || at-start >= previewPart) {
+			p.parts = append(p.parts, mdPart{text: text[start:at], head: head})
+			start, head = at, 0
+		}
+		if at == start && b.Kind == parser.Heading {
+			head = i
+		}
+	}
+	p.parts = append(p.parts, mdPart{text: text[start:], head: head})
+	if defs.Len() > 0 {
+		defs.WriteString("\n")
+		for k := range p.parts {
+			p.parts[k].text = defs.String() + p.parts[k].text
+		}
+	}
 }
 
 // previewOptions are how p shows: in the colors of the scheme, its images
 // loaded from beside its file, its links followed by followLink.
-func (a *app) previewOptions(p *mdPreview, services ui.Services) *markdown.Options {
+func (a *app) previewOptions(c *ui.Context, p *mdPreview) *markdown.Options {
 	dir := ""
 	if p.src.path != "" {
 		dir = filepath.Dir(p.src.path)
@@ -109,7 +176,7 @@ func (a *app) previewOptions(p *mdPreview, services ui.Services) *markdown.Optio
 	// from its new folder.
 	if p.opts == nil || dir != p.dir {
 		p.dir = dir
-		p.opts = &markdown.Options{Block: p.scrollToAnchor}
+		p.opts = &markdown.Options{}
 		load := markdown.FileImages(dir)
 		p.opts.LoadImage = func(u string) (ui.ImageSource, error) {
 			if s, err := url.PathUnescape(u); err == nil {
@@ -122,8 +189,11 @@ func (a *app) previewOptions(p *mdPreview, services ui.Services) *markdown.Optio
 			return load(path)
 		}
 	}
-	p.theme = markdown.Theme{CodeFont: a.set.ContentFont, CodeColors: a.scheme.editorTheme()}
+	// The default theme's spacing spaces the parts.
+	p.theme = *markdown.DefaultTheme(c.Theme())
+	p.theme.CodeFont, p.theme.CodeColors = a.set.ContentFont, a.scheme.editorTheme()
 	p.opts.Theme = &p.theme
+	services := c.Services()
 	p.opts.OnLink = func(link string) { a.followLink(services, p, link) }
 	return p.opts
 }
@@ -146,13 +216,18 @@ func localFile(dir, path string) (string, bool) {
 	return path, err == nil && fi.Mode().IsRegular()
 }
 
+// isHeading reports whether block i of d is the heading of anchor slug.
+func isHeading(d *parser.Document, i int, slug string) bool {
+	return d.Block(i).Kind == parser.Heading && markdown.Slug(parser.PlainText(d.Inlines(i))) == strings.ToLower(slug)
+}
+
 // scrollToAnchor scrolls p.heading to the top of the view, as a link to
 // it does in a browser, before the heading is built.
 func (p *mdPreview) scrollToAnchor(c *ui.Context, d *parser.Document, i int) bool {
-	if p.heading != "" && d.Block(i).Kind == parser.Heading && markdown.Slug(parser.PlainText(d.Inlines(i))) == strings.ToLower(p.heading) {
+	if p.heading != "" && isHeading(d, i, p.heading) {
 		// ScrollIntoView scrolls as little as shows a box: one as high as
 		// the view, from the heading's top, shows from there.
-		ui.Box(c).Absolute().Top(0).Size(1, p.scroll.Bounds(c).H).ScrollIntoView()
+		ui.Box(c).Absolute().Top(0).Size(1, p.list.Bounds(c).H).ScrollIntoView()
 		p.heading = ""
 	}
 	return false
@@ -194,18 +269,41 @@ func (a *app) followLink(services ui.Services, p *mdPreview, link string) {
 func (a *app) previewTab(c *ui.Context, d *doc) {
 	p := d.md
 	p.refresh(c)
-	opts := a.previewOptions(p, c.Services())
+	opts := a.previewOptions(c, p)
 	col := ui.Column(c.Key(key(d))).Grow(1).FillWidth().MinHeight(0).Background(a.scheme.bg)
 	if col.FocusWithin() && a.current() != d {
 		a.show(d)
 	}
 	col.Children(func() {
-		ui.Scroll(c).TrackScroll(&p.scroll).Grow(1).FillWidth().MinHeight(0).Label(d.name()).Children(func() {
-			// The pass after a link's builds what the click changed: the
-			// heading comes into view in it.
-			p.heading, p.anchor = p.anchor, ""
-			ui.Column(c).Padding(24, 32).Children(func() { markdown.View(c, p.text, opts) })
-		})
+		// The pass after a link's builds what the click changed: the
+		// heading comes into view in it, at the top of its part, or else
+		// where its part's view finds it.
+		p.heading, p.anchor = p.anchor, ""
+		if p.heading != "" {
+			if k := slices.IndexFunc(p.parts, func(pt mdPart) bool { return pt.head > 0 && isHeading(p.doc, pt.head, p.heading) }); k >= 0 {
+				p.list.ScrollTo(k, ui.Start)
+				p.heading = ""
+			}
+		}
+		opts.Block = nil
+		if p.heading != "" {
+			opts.Block = p.scrollToAnchor
+		}
+		th := &p.theme
+		ui.List(c, &p.list, len(p.parts), func(k int) {
+			pt := p.parts[k]
+			top, bottom := th.BlockSpacing*th.FontSize, float32(0)
+			if pt.head > 0 {
+				top = max(top, th.Headings[p.doc.Block(pt.head).Level-1].Top*th.FontSize)
+			}
+			if k == 0 {
+				top = 24
+			}
+			if k == len(p.parts)-1 {
+				bottom = 24
+			}
+			ui.Column(c).Padding(top, 32, bottom, 32).Children(func() { markdown.View(c, pt.text, opts) })
+		}).Grow(1).FillWidth().MinHeight(0).Label(d.name())
 	})
 }
 
