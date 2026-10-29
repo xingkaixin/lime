@@ -522,6 +522,7 @@ func (a *app) add(path, text string) *doc {
 		g.docs[g.active] = d
 		a.mru = slices.DeleteFunc(a.mru, func(x *doc) bool { return x == cur })
 		a.jumps.forget(cur)
+		a.closeViews(cur)
 	} else {
 		g.docs = append(g.docs, d)
 	}
@@ -797,8 +798,12 @@ func (a *app) remove(d *doc) {
 		a.closed = append(a.closed, d.path)
 	}
 	release(d)
-	// A diff tab would go on editing a text no tab shows, and a preview
-	// showing it.
+	a.closeViews(d)
+}
+
+// closeViews closes the tabs of every window that show d, gone: a diff
+// tab would go on editing a text no tab shows, and a preview showing it.
+func (a *app) closeViews(d *doc) {
 	for _, w := range a.l.wins {
 		for _, x := range w.allDocs() {
 			if x.cmp != nil && (x.cmp.src == d || x.cmp.old == d) || x.md != nil && x.md.src == d {
