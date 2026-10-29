@@ -135,6 +135,7 @@ var shortcutGroups = func() []shortcutGroup {
 			s("git_rename_branch", m.CmdRenameBranch), s("git_uncommit", m.CmdUncommit),
 			s("git_push", m.CmdPush), s("git_pull", m.CmdPull), s("git_fetch", m.CmdFetch),
 			s("sublime_merge_file_history", m.MenuFileHistory),
+			s("toggle_blame", m.ShortcutToggleBlame), s("toggle_inline_blame", m.ShortcutToggleInlineBlame),
 		}},
 	}
 }()

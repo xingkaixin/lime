@@ -180,6 +180,11 @@ func makeCommands() []command {
 				a.fileHistory(a.current().path)
 			}
 		}},
+		{id: "toggle_blame", caption: locales.Messages.CmdToggleBlame, enabled: currentBlameable, run: (*app).toggleBlame},
+		{id: "toggle_inline_blame", caption: locales.Messages.CmdToggleInlineBlame, run: func(a *app) {
+			a.set.InlineBlame = !a.set.InlineBlame
+			a.l.saveSettings()
+		}},
 
 		convertCase("upper_case", locales.Messages.CmdUpperCase, editor.Uppercase, false),
 		convertCase("lower_case", locales.Messages.CmdLowerCase, editor.Lowercase, false),

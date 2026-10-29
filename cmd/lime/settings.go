@@ -67,6 +67,9 @@ type settings struct {
 	// GitDiffTarget is the text in git that the gutter marks a file's
 	// changes against: "index", or "head" for the last commit's.
 	GitDiffTarget string `json:"git_diff_target"`
+	// InlineBlame shows who last changed the caret's line at its end, as
+	// Zed's inline blame does.
+	InlineBlame bool `json:"inline_blame"`
 	// Keys are the commands' keys the user changed, the one changed last
 	// last.
 	Keys []keyChange `json:"keys,omitempty"`
@@ -103,7 +106,7 @@ func loadSettings(dir string) (settings, error) {
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4, AutoComplete: true,
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
 		Rulers: rulers{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
-		ScrollPastEnd: true, FontOptions: []string{},
+		ScrollPastEnd: true, FontOptions: []string{}, InlineBlame: true,
 	}
 	var err error
 	if dir != "" {

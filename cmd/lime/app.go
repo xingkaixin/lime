@@ -59,6 +59,7 @@ type doc struct {
 	words    *wordList
 	scanning bool
 	asked    editor.CompletionRequest
+	blame    *blaming // nil until it shows
 }
 
 func (d *doc) name() string {

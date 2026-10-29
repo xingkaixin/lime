@@ -1454,6 +1454,26 @@ func (msgs Messages) CmdFileHistory() string {
 	return Catalog.Format(msgs.locale, "cmdFileHistory", nil)
 }
 
+// CmdToggleBlame says "Git: Toggle Blame"
+// in the language the app shows.
+func CmdToggleBlame() string { return In(i18n.Locale()).CmdToggleBlame() }
+
+// CmdToggleBlame says "Git: Toggle Blame"
+// in the language of msgs.
+func (msgs Messages) CmdToggleBlame() string {
+	return Catalog.Format(msgs.locale, "cmdToggleBlame", nil)
+}
+
+// CmdToggleInlineBlame says "Git: Toggle Inline Blame"
+// in the language the app shows.
+func CmdToggleInlineBlame() string { return In(i18n.Locale()).CmdToggleInlineBlame() }
+
+// CmdToggleInlineBlame says "Git: Toggle Inline Blame"
+// in the language of msgs.
+func (msgs Messages) CmdToggleInlineBlame() string {
+	return Catalog.Format(msgs.locale, "cmdToggleInlineBlame", nil)
+}
+
 // CmdUpperCase says "Convert Case: Upper Case"
 // in the language the app shows.
 func CmdUpperCase() string { return In(i18n.Locale()).CmdUpperCase() }
@@ -2516,6 +2536,16 @@ func HistoryAllCommits() string { return In(i18n.Locale()).HistoryAllCommits() }
 // in the language of msgs.
 func (msgs Messages) HistoryAllCommits() string {
 	return Catalog.Format(msgs.locale, "historyAllCommits", nil)
+}
+
+// BlameNotCommitted says "Not Committed Yet"
+// in the language the app shows.
+func BlameNotCommitted() string { return In(i18n.Locale()).BlameNotCommitted() }
+
+// BlameNotCommitted says "Not Committed Yet"
+// in the language of msgs.
+func (msgs Messages) BlameNotCommitted() string {
+	return Catalog.Format(msgs.locale, "blameNotCommitted", nil)
 }
 
 // ChangesConflicts says "Conflicts"
@@ -4372,6 +4402,26 @@ func ShortcutGroupGit() string { return In(i18n.Locale()).ShortcutGroupGit() }
 // in the language of msgs.
 func (msgs Messages) ShortcutGroupGit() string {
 	return Catalog.Format(msgs.locale, "shortcutGroupGit", nil)
+}
+
+// ShortcutToggleBlame says "Toggle Blame"
+// in the language the app shows.
+func ShortcutToggleBlame() string { return In(i18n.Locale()).ShortcutToggleBlame() }
+
+// ShortcutToggleBlame says "Toggle Blame"
+// in the language of msgs.
+func (msgs Messages) ShortcutToggleBlame() string {
+	return Catalog.Format(msgs.locale, "shortcutToggleBlame", nil)
+}
+
+// ShortcutToggleInlineBlame says "Toggle Inline Blame"
+// in the language the app shows.
+func ShortcutToggleInlineBlame() string { return In(i18n.Locale()).ShortcutToggleInlineBlame() }
+
+// ShortcutToggleInlineBlame says "Toggle Inline Blame"
+// in the language of msgs.
+func (msgs Messages) ShortcutToggleInlineBlame() string {
+	return Catalog.Format(msgs.locale, "shortcutToggleInlineBlame", nil)
 }
 
 // ShortcutSoftUndo says "Undo Selection"
