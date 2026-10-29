@@ -352,6 +352,7 @@
   "blameNotCommitted": "Not Committed Yet",
   "statusPermalinkCopied": "Copied the permalink",
   "statusNoGitHub": "No remote of this repository is on GitHub",
+  "statusPermalinkChanged": "The file differs from HEAD's: the permalink's lines may be others",
   "statusNotPushed": "HEAD isn't pushed yet: the permalink opens nothing until it is",
   "changesConflicts": "Conflicts",
   "changesStaged": "Staged",

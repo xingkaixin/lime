@@ -2608,6 +2608,16 @@ func (msgs Messages) StatusNoGitHub() string {
 	return Catalog.Format(msgs.locale, "statusNoGitHub", nil)
 }
 
+// StatusPermalinkChanged says "The file differs from HEAD's: the permalink's lines may be others"
+// in the language the app shows.
+func StatusPermalinkChanged() string { return In(i18n.Locale()).StatusPermalinkChanged() }
+
+// StatusPermalinkChanged says "The file differs from HEAD's: the permalink's lines may be others"
+// in the language of msgs.
+func (msgs Messages) StatusPermalinkChanged() string {
+	return Catalog.Format(msgs.locale, "statusPermalinkChanged", nil)
+}
+
 // StatusNotPushed says "HEAD isn't pushed yet: the permalink opens nothing until it is"
 // in the language the app shows.
 func StatusNotPushed() string { return In(i18n.Locale()).StatusNotPushed() }

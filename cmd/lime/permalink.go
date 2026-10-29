@@ -39,9 +39,9 @@ func (a *app) permalink(d *doc, open bool) {
 		return
 	}
 	from, to := selectedLines(d.st)
-	path := d.path
+	path, dirty := d.path, d.dirty()
 	a.background(func() func() {
-		link, pushed, err := readPermalink(path, from, to)
+		link, pushed, same, err := readPermalink(path, from, to)
 		return func() {
 			switch {
 			case errors.Is(err, errNoGitHub):
@@ -58,6 +58,8 @@ func (a *app) permalink(d *doc, open bool) {
 				mygo.Clipboard.WriteText(link)
 			}
 			switch {
+			case dirty || !same:
+				a.notify(locales.StatusPermalinkChanged())
 			case !pushed:
 				a.notify(locales.StatusNotPushed())
 			case !open:
@@ -91,10 +93,11 @@ func selectedLines(st *editor.State) (int, int) {
 }
 
 // readPermalink reads the link on GitHub to lines from to to of the file at
-// path, at HEAD's commit, and whether a branch of the remote has the
-// commit, without which the link opens nothing. It blocks, so call it off
-// the main thread.
-func readPermalink(path string, from, to int) (link string, pushed bool, err error) {
+// path, at HEAD's commit; whether a branch of the remote has the commit,
+// without which the link opens nothing; and whether the file is the same
+// as at HEAD, without which its lines may be others. It blocks, so call it
+// off the main thread.
+func readPermalink(path string, from, to int) (link string, pushed, same bool, err error) {
 	real := path
 	if r, err := filepath.EvalSymlinks(path); err == nil {
 		real = r
@@ -102,11 +105,11 @@ func readPermalink(path string, from, to int) (link string, pushed bool, err err
 	dir := filepath.Dir(real)
 	web, remote := githubRepo(dir)
 	if web == "" {
-		return "", false, errNoGitHub
+		return "", false, false, errNoGitHub
 	}
 	out, err := runGit(dir, "rev-parse", "--show-prefix", "HEAD")
 	if err != nil {
-		return "", false, err
+		return "", false, false, err
 	}
 	prefix, head, _ := strings.Cut(strings.TrimSuffix(out, "\n"), "\n")
 	var segs []string
@@ -123,7 +126,8 @@ func readPermalink(path string, from, to int) (link string, pushed bool, err err
 		link += "-L" + strconv.Itoa(to+1)
 	}
 	branches, _ := runGit(dir, "branch", "-r", "--contains", head, "--list", remote+"/*")
-	return link, strings.TrimSpace(branches) != "", nil
+	_, err = runGit(dir, "--literal-pathspecs", "diff", "--quiet", "HEAD", "--", filepath.Base(real))
+	return link, strings.TrimSpace(branches) != "", err == nil, nil
 }
 
 // githubRepo reads the web address on GitHub of the repository of dir, and

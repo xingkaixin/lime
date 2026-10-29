@@ -262,6 +262,7 @@
   "blameNotCommitted": "尚未提交",
   "statusPermalinkCopied": "已复制永久链接",
   "statusNoGitHub": "这个仓库没有 GitHub 上的远程仓库",
+  "statusPermalinkChanged": "文件与 HEAD 中的不同：永久链接指向的行可能不对",
   "statusNotPushed": "HEAD 尚未推送：推送前永久链接打不开",
   "changesConflicts": "冲突",
   "changesStaged": "已暂存",
