@@ -35,6 +35,8 @@ type changes struct {
 	rows    []changeRow
 	closed  map[changeKey]bool // the folders closed in the tree
 	message string             // of the commit to make
+	amend   bool               // the commit replaces HEAD
+	draft   string             // the message typed before amend loaded HEAD's
 }
 
 // changeKey names a row of the Changes tab: a section's header, of no
@@ -507,15 +509,89 @@ func (a *app) changesList(c *ui.Context) {
 func (w *changes) commitArgs() (args []string, label string, ready bool) {
 	args, label = []string{"commit", "-F", "-"}, locales.ChangesCommit()
 	ready = len(w.files[staged]) > 0
-	if !ready {
+	switch {
+	case w.amend:
+		// Amending may change the message alone.
+		args, ready = []string{"commit", "--amend", "-F", "-"}, true
+	case !ready:
 		args, label = []string{"commit", "-a", "-F", "-"}, locales.ChangesCommitTracked()
 		ready = slices.ContainsFunc(w.files[unstaged], func(f change) bool { return f.status != '?' })
 	}
 	return args, label, ready && strings.TrimSpace(w.message) != ""
 }
 
+// amendChanged loads HEAD's message to amend it, keeping the one typed,
+// which comes back as amend is off again.
+func (a *app) amendChanged() {
+	w := &a.changes
+	if !w.amend {
+		w.message, w.draft = w.draft, ""
+		return
+	}
+	w.draft = w.message
+	root := w.root
+	a.background(func() func() {
+		body, err := runGit(root, "show", "-s", "--format=%B", "HEAD")
+		return func() {
+			switch {
+			case !w.amend || w.root != root:
+			case err != nil:
+				w.amend, w.draft = false, ""
+				msg, _, _ := strings.Cut(err.Error(), "\n")
+				a.notifyError(msg)
+			default:
+				w.message = strings.TrimSpace(body)
+			}
+		}
+	})
+}
+
+// uncommit takes HEAD back into the staged changes after asking, as
+// Zed's Uncommit does, and its message into the box when that is empty:
+// not the first commit, which has no parent to go back to.
+func (a *app) uncommit() {
+	root := a.git.root
+	a.background(func() func() {
+		out, err := runGit(root, "log", "-1", "--format=%P%x00%B", "HEAD")
+		parents, body, _ := strings.Cut(out, "\x00")
+		body = strings.TrimSpace(body)
+		detail := locales.DialogUncommitDetail()
+		if headPushed(root) {
+			detail += " " + locales.DialogPushedDetail()
+		}
+		return func() {
+			switch n := len(strings.Fields(parents)); {
+			case err != nil || n == 0:
+				a.notifyError(locales.StatusNoParentCommit())
+				return
+			// A soft reset to the first parent would lose the others.
+			case n > 1:
+				a.notifyError(locales.StatusUncommitMerge())
+				return
+			}
+			subject, _, _ := strings.Cut(body, "\n")
+			a.confirm(locales.DialogUncommit(subject), detail, locales.ButtonUncommit(), func() {
+				w := &a.changes
+				a.gitRunWith("", func() {
+					if w.root == root && w.message == "" {
+						w.message = body
+					}
+				}, "reset", "--soft", "HEAD~1")
+			})
+		}
+	})
+}
+
+// headPushed reports whether the upstream has HEAD already, from which
+// amending or uncommitting HEAD makes the branch diverge.
+func headPushed(root string) bool {
+	_, err := runGit(root, "merge-base", "--is-ancestor", "HEAD", "@{upstream}")
+	return err == nil
+}
+
 // commitBox is the message of the commit to make and its button. The
-// message clears once the commit is made, unless edited meanwhile.
+// message clears once the commit is made, unless edited meanwhile, or
+// after amending, is the one typed before.
 func (a *app) commitBox(c *ui.Context) {
 	w := &a.changes
 	ch := a.shell(c)
@@ -525,26 +601,46 @@ func (a *app) commitBox(c *ui.Context) {
 		if !ready {
 			return
 		}
-		msg := w.message
-		a.gitRunWith(msg, func() {
-			if w.message == msg {
-				w.message = ""
+		msg, root := w.message, w.root
+		run := func() {
+			a.gitRunWith(msg, func() {
+				if w.message == msg {
+					w.message = w.draft
+				}
+				w.amend, w.draft = false, ""
+			}, args...)
+		}
+		if !w.amend {
+			run()
+			return
+		}
+		a.background(func() func() {
+			pushed := headPushed(root)
+			return func() {
+				if pushed {
+					a.confirm(locales.DialogAmendPushed(), locales.DialogPushedDetail(), locales.ChangesCommit(), run)
+					return
+				}
+				run()
 			}
-		}, args...)
+		})
 	}
 	ui.Column(c).FillWidth().Shrink(0).Padding(8).Gap(8).BorderWidth(1, 0, 0, 0).BorderColor(ch.line).Children(func() {
 		ui.TextArea(c.Key("commitMessage"), &w.message).MinHeight(0).Lines(2, 10).FillWidth().FontSize(13).
 			Placeholder(locales.ChangesMessage()).Label(locales.ChangesMessage()).OnShortcut(ui.Cmd, ui.KeyEnter, commit)
-		th := c.Theme()
-		btn := ui.ButtonBase(c.Key("commit")).FillWidth().Height(28).Radius(6).Center().Background(th.Accent).
-			Transition(colorFade).Label(label).Disabled(!ready).OnClick(commit)
-		switch {
-		case !ready:
-			btn.Opacity(0.5)
-		case btn.Hovered():
-			btn.Background(th.Accent.Mix(th.AccentText, 0.1))
-		}
-		btn.Children(func() { ui.Text(c, label).FontSize(13).TextColor(th.AccentText) })
+		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Checkbox(c.Key("amend"), &w.amend, locales.ChangesAmend()).Shrink(0).OnClick(a.amendChanged)
+			th := c.Theme()
+			btn := ui.ButtonBase(c.Key("commit")).Grow(1).Height(28).Radius(6).Center().Background(th.Accent).
+				Transition(colorFade).Label(label).Disabled(!ready).OnClick(commit)
+			switch {
+			case !ready:
+				btn.Opacity(0.5)
+			case btn.Hovered():
+				btn.Background(th.Accent.Mix(th.AccentText, 0.1))
+			}
+			btn.Children(func() { ui.Text(c, label).FontSize(13).TextColor(th.AccentText) })
+		})
 	})
 }
 

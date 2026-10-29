@@ -12,6 +12,7 @@
   "buttonReplace": "替换",
   "buttonKeepBoth": "保留两者",
   "buttonDiscard": "丢弃",
+  "buttonUncommit": "撤销提交",
 
   "menuFile": "文件",
   "menuNewFile": "新建文件",
@@ -187,6 +188,7 @@
   "cmdCreateBranch": "Git：新建分支…",
   "cmdDeleteBranch": "Git：删除分支…",
   "cmdRenameBranch": "Git：重命名分支…",
+  "cmdUncommit": "Git：撤销提交",
 
   "panelLabel": "快速面板",
   "panelCommandPalette": "命令面板",
@@ -228,6 +230,10 @@
   "dialogDiscardUntracked": "新文件会移到废纸篓。",
   "dialogBranchNotMerged": "{name} 尚未完全合并。仍要删除吗？",
   "dialogBranchCommitsLost": "只在这个分支上的提交会丢失。",
+  "dialogUncommit": "要撤销提交“{subject}”吗？",
+  "dialogUncommitDetail": "它的改动会回到暂存区。",
+  "dialogAmendPushed": "要修改已推送的提交吗？",
+  "dialogPushedDetail": "之后分支会与上游分叉，而 Lime 没有强制推送。",
   "filterProject": "Sublime 项目",
 
   "sideBarDropFolder": "将文件夹拖到这里打开",
@@ -251,6 +257,7 @@
   "changesStagedTitle": "已暂存的改动",
   "changesUnstagedTitle": "未暂存的改动",
   "changesDiscard": "丢弃改动",
+  "changesAmend": "修改上次提交",
   "timeJustNow": "刚刚",
   "timeMinutesAgo": "{count, plural, other {# 分钟前}}",
   "timeHoursAgo": "{count, plural, other {# 小时前}}",
@@ -294,6 +301,8 @@
   "statusNotInEncoding": "未重新打开：文件里有不属于 {encoding} 的字节",
   "statusInvalidJSON": "JSON 无效：意外的字符“{char}”",
   "statusIncompleteJSON": "JSON 无效：内容不完整",
+  "statusNoParentCommit": "HEAD 没有可以退回的父提交",
+  "statusUncommitMerge": "无法撤销合并提交",
   "statusNoDefinition": "找不到“{name}”的定义",
   "statusNoDifferences": "没有差异",
   "statusDifferences": "{count, plural, other {# 处差异}}",

@@ -144,6 +144,16 @@ func (msgs Messages) ButtonDiscard() string {
 	return Catalog.Format(msgs.locale, "buttonDiscard", nil)
 }
 
+// ButtonUncommit says "Uncommit"
+// in the language the app shows.
+func ButtonUncommit() string { return In(i18n.Locale()).ButtonUncommit() }
+
+// ButtonUncommit says "Uncommit"
+// in the language of msgs.
+func (msgs Messages) ButtonUncommit() string {
+	return Catalog.Format(msgs.locale, "buttonUncommit", nil)
+}
+
 // MenuFile says "File"
 // in the language the app shows.
 func MenuFile() string { return In(i18n.Locale()).MenuFile() }
@@ -1878,6 +1888,16 @@ func (msgs Messages) CmdRenameBranch() string {
 	return Catalog.Format(msgs.locale, "cmdRenameBranch", nil)
 }
 
+// CmdUncommit says "Git: Uncommit"
+// in the language the app shows.
+func CmdUncommit() string { return In(i18n.Locale()).CmdUncommit() }
+
+// CmdUncommit says "Git: Uncommit"
+// in the language of msgs.
+func (msgs Messages) CmdUncommit() string {
+	return Catalog.Format(msgs.locale, "cmdUncommit", nil)
+}
+
 // PanelLabel says "Quick panel"
 // in the language the app shows.
 func PanelLabel() string { return In(i18n.Locale()).PanelLabel() }
@@ -2278,6 +2298,46 @@ func (msgs Messages) DialogBranchCommitsLost() string {
 	return Catalog.Format(msgs.locale, "dialogBranchCommitsLost", nil)
 }
 
+// DialogUncommit says "Uncommit “{subject}”?"
+// in the language the app shows.
+func DialogUncommit(subject string) string { return In(i18n.Locale()).DialogUncommit(subject) }
+
+// DialogUncommit says "Uncommit “{subject}”?"
+// in the language of msgs.
+func (msgs Messages) DialogUncommit(subject string) string {
+	return Catalog.Format(msgs.locale, "dialogUncommit", map[string]any{"subject": subject})
+}
+
+// DialogUncommitDetail says "Its changes go back to the staged changes."
+// in the language the app shows.
+func DialogUncommitDetail() string { return In(i18n.Locale()).DialogUncommitDetail() }
+
+// DialogUncommitDetail says "Its changes go back to the staged changes."
+// in the language of msgs.
+func (msgs Messages) DialogUncommitDetail() string {
+	return Catalog.Format(msgs.locale, "dialogUncommitDetail", nil)
+}
+
+// DialogAmendPushed says "Amend a commit that is already pushed?"
+// in the language the app shows.
+func DialogAmendPushed() string { return In(i18n.Locale()).DialogAmendPushed() }
+
+// DialogAmendPushed says "Amend a commit that is already pushed?"
+// in the language of msgs.
+func (msgs Messages) DialogAmendPushed() string {
+	return Catalog.Format(msgs.locale, "dialogAmendPushed", nil)
+}
+
+// DialogPushedDetail says "The branch will then diverge from its upstream, and Lime has no force push."
+// in the language the app shows.
+func DialogPushedDetail() string { return In(i18n.Locale()).DialogPushedDetail() }
+
+// DialogPushedDetail says "The branch will then diverge from its upstream, and Lime has no force push."
+// in the language of msgs.
+func (msgs Messages) DialogPushedDetail() string {
+	return Catalog.Format(msgs.locale, "dialogPushedDetail", nil)
+}
+
 // FilterProject says "Sublime Project"
 // in the language the app shows.
 func FilterProject() string { return In(i18n.Locale()).FilterProject() }
@@ -2496,6 +2556,16 @@ func ChangesDiscard() string { return In(i18n.Locale()).ChangesDiscard() }
 // in the language of msgs.
 func (msgs Messages) ChangesDiscard() string {
 	return Catalog.Format(msgs.locale, "changesDiscard", nil)
+}
+
+// ChangesAmend says "Amend"
+// in the language the app shows.
+func ChangesAmend() string { return In(i18n.Locale()).ChangesAmend() }
+
+// ChangesAmend says "Amend"
+// in the language of msgs.
+func (msgs Messages) ChangesAmend() string {
+	return Catalog.Format(msgs.locale, "changesAmend", nil)
 }
 
 // TimeJustNow says "Just now"
@@ -2942,6 +3012,26 @@ func StatusIncompleteJSON() string { return In(i18n.Locale()).StatusIncompleteJS
 // in the language of msgs.
 func (msgs Messages) StatusIncompleteJSON() string {
 	return Catalog.Format(msgs.locale, "statusIncompleteJSON", nil)
+}
+
+// StatusNoParentCommit says "HEAD has no parent commit to go back to"
+// in the language the app shows.
+func StatusNoParentCommit() string { return In(i18n.Locale()).StatusNoParentCommit() }
+
+// StatusNoParentCommit says "HEAD has no parent commit to go back to"
+// in the language of msgs.
+func (msgs Messages) StatusNoParentCommit() string {
+	return Catalog.Format(msgs.locale, "statusNoParentCommit", nil)
+}
+
+// StatusUncommitMerge says "A merge commit can't be uncommitted"
+// in the language the app shows.
+func StatusUncommitMerge() string { return In(i18n.Locale()).StatusUncommitMerge() }
+
+// StatusUncommitMerge says "A merge commit can't be uncommitted"
+// in the language of msgs.
+func (msgs Messages) StatusUncommitMerge() string {
+	return Catalog.Format(msgs.locale, "statusUncommitMerge", nil)
 }
 
 // StatusNoDefinition says "No definition of “{name}”"

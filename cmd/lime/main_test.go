@@ -1477,6 +1477,39 @@ func TestCommit(t *testing.T) {
 	}
 }
 
+// Amend loads HEAD's message, and its commit takes HEAD's place; the
+// message typed before comes back.
+func TestAmend(t *testing.T) {
+	dir, git := newRepo(t)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("1\n"), 0o644)
+	git("add", ".")
+	git("commit", "-q", "-m", "Add a")
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("2\n"), 0o644)
+	git("add", ".")
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Click(locales.SideBarGitPanel())
+	tt.Frame()
+	tt.Click(locales.ChangesMessage())
+	tt.Type("Draft")
+	tt.Click(locales.ChangesAmend())
+	tt.Frame()
+	if a.changes.message != "Add a" {
+		t.Fatalf("amend loaded %q", a.changes.message)
+	}
+	a.changes.message = "Add a, as 2"
+	tt.Click(locales.ChangesCommit())
+	tt.Frame()
+	if out, _ := runGit(dir, "log", "--format=%s"); out != "Add a, as 2\n" {
+		t.Fatalf("log: %q", out)
+	}
+	if out, _ := runGit(dir, "show", "HEAD:a.txt"); out != "2\n" || a.changes.amend || a.changes.message != "Draft" {
+		t.Fatalf("HEAD has %q; amend %v, message %q", out, a.changes.amend, a.changes.message)
+	}
+}
+
 // A hunk of the unstaged changes stages alone, and unstages again from
 // the staged changes.
 func TestStageHunk(t *testing.T) {
