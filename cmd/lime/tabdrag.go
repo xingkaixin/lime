@@ -160,7 +160,7 @@ func (a *app) draggedTab(c *ui.Context) {
 	}
 	ghost.Children(func() {
 		a.tabIcon(c, t.d, ch.text)
-		ui.Text(c, t.d.name()).FontSize(12).TextColor(ch.text).SingleLine().Ellipsis("…").Grow(1).Shrink(1).MinWidth(0)
+		tabTitle(c, t.d, tabDirs(t.g.docs)[t.d], ch.text)
 	})
 }
 

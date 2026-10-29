@@ -261,6 +261,27 @@ func TestTabOverflow(t *testing.T) {
 	}
 }
 
+// Tabs of files with the same name show the fewest parent folders that
+// tell them apart.
+func TestTabDirs(t *testing.T) {
+	a := newApp("")
+	want := map[string]string{
+		"/w/a/src/index.ts": "a/src", "/w/b/src/index.ts": "b/src",
+		"/w/cmd/lime/main.go": "lime", "/w/cmd/tool/main.go": "tool",
+		"/src/x.go": "/src", "/q/src/x.go": "q/src",
+		"/w/README.md": "",
+	}
+	for p := range want {
+		a.add(filepath.FromSlash(p), "")
+	}
+	dirs := tabDirs(a.group().docs)
+	for _, d := range a.group().docs {
+		if w := filepath.FromSlash(want[filepath.ToSlash(d.path)]); dirs[d] != w {
+			t.Errorf("%s: %q, want %q", d.path, dirs[d], w)
+		}
+	}
+}
+
 func TestGroups(t *testing.T) {
 	if !mac {
 		t.Skip("the test presses macOS keys")

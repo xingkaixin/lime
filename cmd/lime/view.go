@@ -233,9 +233,10 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 				tabs.ClipX().HandleInput(func(ev ui.InputEvent) bool { return g.wheel(ev, over) })
 			}
 			tabs.Children(func() {
+				dirs := tabDirs(g.docs)
 				// A tab's menu closes tabs as the loop builds them.
 				for i, d := range slices.Clone(g.docs) {
-					a.tab(c, g, i, d, i == g.active, gi == a.focus)
+					a.tab(c, g, i, d, dirs[d], i == g.active, gi == a.focus)
 				}
 			})
 			a.newTabButton(c, gi)
@@ -312,7 +313,7 @@ var tabMotion = ui.ElementTransition{
 	Exit:     &ui.Motion{Collapse: true},
 }
 
-func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) {
+func (a *app) tab(c *ui.Context, g *group, i int, d *doc, dir string, active, focused bool) {
 	ch := a.shell(c)
 	// The tab shown changes colors at once, as the editor does: only
 	// hovering fades them.
@@ -339,10 +340,10 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 	case hovered:
 		bg = ch.hover
 	}
-	row.Background(bg).Label(d.name()).OnClick(func() { a.show(d) }).ContextMenu(func(m *ui.Menu) { a.tabMenu(m, g, d) })
+	row.Background(bg).Label(d.name()).Tooltip(d.path).OnClick(func() { a.show(d) }).ContextMenu(func(m *ui.Menu) { a.tabMenu(m, g, d) })
 	row.Children(func() {
 		a.tabIcon(c, d, fg)
-		ui.Text(c, d.name()).FontSize(12).TextColor(fg).SingleLine().Ellipsis("…").Grow(1).Shrink(1).MinWidth(0)
+		tabTitle(c, d, dir, fg)
 		glyph := "×"
 		if d.dirty() && !hovered {
 			glyph = "●"
@@ -354,6 +355,21 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, active, focused bool) 
 		btn.Children(func() {
 			ui.Text(c, glyph).FontSize(12).TextColor(fg).ContentTransition(ui.ContentTransition{})
 		})
+	})
+}
+
+// tabTitle shows d's name, then dir, dimmed, in the room the name
+// leaves.
+func tabTitle(c *ui.Context, d *doc, dir string, fg ui.Color) {
+	name := ui.Text(c, d.name()).FontSize(12).TextColor(fg).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
+	if dir == "" {
+		name.Grow(1)
+		return
+	}
+	// Text with no room still draws its ellipsis, or all of it with no
+	// width at all, past the close button: the box clips it.
+	ui.Box(c).Basis(0).Grow(1).MinWidth(0).ClipX().Children(func() {
+		ui.Text(c, dir).FontSize(12).TextColor(fg.Alpha(0.6)).SingleLine().Ellipsis("…")
 	})
 }
 
