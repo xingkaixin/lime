@@ -490,6 +490,11 @@ func (a *app) editorPage(c *ui.Context) {
 					a.l.saveSettings()
 				}
 			})
+			a.settingsRow(c, locales.SettingsScrollBars(), "", func() {
+				if ui.Switch(c, &a.set.ShowScrollBars).Label(locales.SettingsScrollBars()).Changed() {
+					a.l.saveSettings()
+				}
+			})
 		})
 	})
 	ui.Column(c).FillWidth().Gap(10).Children(func() {

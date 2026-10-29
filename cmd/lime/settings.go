@@ -38,6 +38,8 @@ type settings struct {
 	HighlightLine    bool       `json:"highlight_line"`
 	DrawIndentGuides bool       `json:"draw_indent_guides"`
 	ScrollPastEnd    pastEnd    `json:"scroll_past_end"`
+	// ShowScrollBars draws the text's scroll bars.
+	ShowScrollBars bool `json:"show_scroll_bars"`
 	// LinePaddingTop and LinePaddingBottom add DIPs above and below each
 	// line.
 	LinePaddingTop    float32 `json:"line_padding_top"`

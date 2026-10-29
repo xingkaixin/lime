@@ -661,6 +661,7 @@ func (a *app) resultsView(c *ui.Context, g *group, d *doc) {
 		return false
 	}
 	editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
+	*noScrollBars(d.st) = !a.set.ShowScrollBars
 }
 
 // openResult goes to the hit of the row of the results d, or to the first

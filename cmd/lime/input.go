@@ -68,10 +68,10 @@ var editorOffset = func() uintptr {
 	return f.Offset
 }()
 
-// editorField reads the field of MyGo's editor at the path names, from
+// editorField reaches the field of MyGo's editor at the path names, from
 // State, failing at start rather than misreading memory when an upgrade
 // moves or retypes it.
-func editorField[T any](names ...string) func(*editor.State) T {
+func editorField[T any](names ...string) func(*editor.State) *T {
 	t, off := reflect.TypeFor[editor.State](), uintptr(0)
 	for _, n := range append([]string{"ed"}, names...) {
 		f, ok := t.FieldByName(n)
@@ -83,19 +83,22 @@ func editorField[T any](names ...string) func(*editor.State) T {
 	if t != reflect.TypeFor[T]() {
 		panic("MyGo's editor retyped " + t.String())
 	}
-	return func(st *editor.State) T { return *(*T)(unsafe.Add(unsafe.Pointer(st), off)) }
+	return func(st *editor.State) *T { return (*T)(unsafe.Add(unsafe.Pointer(st), off)) }
 }
 
 var (
 	dragging  = editorField[bool]("gesture", "active")
 	textLeft  = editorField[float32]("textX")
 	editorBox = editorField[ui.Rect]("r")
+	// State has no switch for the scroll bars, and View sets the editor's
+	// options from State: set it after View.
+	noScrollBars = editorField[bool]("o", "noScrollbar")
 )
 
 // pastSide is how far x, in the editor, is left (< 0) or right (> 0) of
 // its text.
 func pastSide(st *editor.State, x float32) float32 {
-	switch l, r := textLeft(st), editorBox(st).W; {
+	switch l, r := *textLeft(st), editorBox(st).W; {
 	case x < l:
 		return x - l
 	case x > r:
@@ -137,7 +140,7 @@ func (a *app) input(e ui.Element, d *doc) {
 		ok := editorInput(ed, ev)
 		if ev.Kind == ui.InputPointerMove {
 			d.drag = ev
-			if !d.sliding && a.win != nil && dragging(st) && pastSide(st, ev.X) != 0 {
+			if !d.sliding && a.win != nil && *dragging(st) && pastSide(st, ev.X) != 0 {
 				a.slide(d, ed)
 			}
 		}
@@ -169,7 +172,7 @@ func (a *app) slideStep(d *doc, ed unsafe.Pointer) bool {
 	dx := pastSide(st, ev.X)
 	ev.Time = time.Now()
 	scroll := ui.InputEvent{Kind: ui.InputScroll, X: ev.X, Y: ev.Y, DX: max(-300, min(dx, 300)) / 4, Time: ev.Time}
-	if dx == 0 || !dragging(st) || a.l.owner(d) != a || !editorInput(ed, scroll) {
+	if dx == 0 || !*dragging(st) || a.l.owner(d) != a || !editorInput(ed, scroll) {
 		d.sliding = false
 		return false
 	}

@@ -371,6 +371,7 @@
   "settingsWhiteSpaceAll": "全部",
   "settingsLineNumbers": "行号",
   "settingsHighlightLine": "高亮当前行",
+  "settingsScrollBars": "滚动条",
   "settingsIndentation": "缩进",
   "settingsTabSize": "Tab 宽度",
   "settingsTabSizeDesc": "一个 Tab 和一级缩进占几列",

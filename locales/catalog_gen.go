@@ -3712,6 +3712,16 @@ func (msgs Messages) SettingsHighlightLine() string {
 	return Catalog.Format(msgs.locale, "settingsHighlightLine", nil)
 }
 
+// SettingsScrollBars says "Scroll Bars"
+// in the language the app shows.
+func SettingsScrollBars() string { return In(i18n.Locale()).SettingsScrollBars() }
+
+// SettingsScrollBars says "Scroll Bars"
+// in the language of msgs.
+func (msgs Messages) SettingsScrollBars() string {
+	return Catalog.Format(msgs.locale, "settingsScrollBars", nil)
+}
+
 // SettingsIndentation says "Indentation"
 // in the language the app shows.
 func SettingsIndentation() string { return In(i18n.Locale()).SettingsIndentation() }

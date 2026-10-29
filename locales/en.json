@@ -562,6 +562,7 @@
   "settingsWhiteSpaceAll": "All",
   "settingsLineNumbers": "Line Numbers",
   "settingsHighlightLine": "Highlight Current Line",
+  "settingsScrollBars": "Scroll Bars",
   "settingsIndentation": "Indentation",
   "settingsTabSize": "Tab Size",
   "settingsTabSizeDesc": "Columns a tab and a level of indentation take",
