@@ -3,9 +3,11 @@ package main
 import (
 	"path"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"lime/locales"
@@ -301,6 +303,98 @@ func (a *app) changeMenu(m *ui.Menu) {
 	if m.Item(locales.ChangesUnstage()).Disabled(len(toUnstage) == 0).Chosen() {
 		a.stageFiles(toUnstage, true)
 	}
+	// The website's git restores nothing, and browsers have no Trash.
+	if runtime.GOOS == "js" {
+		return
+	}
+	m.Separator()
+	if m.Item(locales.ChangesDiscard()).Disabled(len(toStage) == 0).Chosen() {
+		a.confirmDiscard(toStage)
+	}
+}
+
+// confirm asks before what can't be undone, and runs yes if the user
+// goes ahead.
+func (a *app) confirm(message, detail, button string, yes func()) {
+	go func() {
+		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:  a.win,
+			Type:    mygo.MessageWarning,
+			Message: message,
+			Detail:  detail,
+			Buttons: []string{button, locales.ButtonCancel()},
+		})
+		if res.Button == 0 {
+			a.win.Update(yes)
+		}
+	}()
+}
+
+// trashed reports whether discarding f, not staged, moves its file to
+// the Trash: an untracked file, or one added with intent to add, whose
+// text git has none of.
+func trashed(f change) bool { return f.status == '?' || f.status == 'A' }
+
+func (a *app) confirmDiscard(files []change) {
+	var detail []string
+	if slices.ContainsFunc(files, func(f change) bool { return !trashed(f) }) {
+		detail = append(detail, locales.DialogDiscardLost())
+	}
+	if slices.ContainsFunc(files, trashed) {
+		detail = append(detail, locales.DialogDiscardUntracked())
+	}
+	a.confirm(locales.DialogDiscardFiles(len(files)), strings.Join(detail, " "), locales.ButtonDiscard(), func() { a.discardFiles(files) })
+}
+
+// discardFiles discards the changes of files not staged: a tracked file
+// takes the index's text again, and a new one moves to the Trash, whence
+// it can come back.
+func (a *app) discardFiles(files []change) {
+	root := a.git.root
+	var tracked, added strings.Builder
+	var trash []string
+	for _, f := range files {
+		switch {
+		case !trashed(f):
+			tracked.WriteString(f.path + "\x00")
+			continue
+		case f.status == 'A':
+			added.WriteString(f.path + "\x00")
+		}
+		trash = append(trash, filepath.Join(root, filepath.FromSlash(f.path)))
+	}
+	paths, unadd := tracked.String(), added.String()
+	a.background(func() func() {
+		var failed string
+		var err error
+		// A file added with intent to add leaves the index first: restore
+		// would empty it.
+		if unadd != "" {
+			gitWrites.Lock()
+			_, err = gitWith(root, unadd, "--literal-pathspecs", "rm", "--cached", "-q", "--pathspec-from-file=-", "--pathspec-file-nul")
+			gitWrites.Unlock()
+		}
+		for i := 0; err == nil && i < len(trash); i++ {
+			if err = mygo.Shell.TrashItem(trash[i]); err != nil {
+				failed = trash[i]
+			}
+		}
+		return func() {
+			switch {
+			case failed != "":
+				go mygo.Dialog.Error(locales.DialogUnableToDelete(filepath.Base(failed)), err.Error())
+			case err != nil:
+				msg, _, _ := strings.Cut(err.Error(), "\n")
+				a.notifyError(msg)
+			}
+			if paths != "" {
+				a.gitRunWith(paths, nil, "--literal-pathspecs", "restore", "--pathspec-from-file=-", "--pathspec-file-nul")
+				return
+			}
+			a.refreshFolders()
+			a.readGit()
+		}
+	})
 }
 
 // showChange shows the change of r: the diffs of its section, at its

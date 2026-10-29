@@ -1537,6 +1537,50 @@ func TestStageHunk(t *testing.T) {
 	}
 }
 
+// Discarding a hunk or a file takes the work tree back to the index,
+// whose staged changes stay, and the file's tab shows it. A textconv
+// changes the diff shown, not the bytes it applies to.
+func TestDiscard(t *testing.T) {
+	dir, git := newRepo(t)
+	var lines []string
+	for i := 1; i <= 20; i++ {
+		lines = append(lines, strconv.Itoa(i))
+	}
+	file := filepath.Join(dir, "a b.txt")
+	write := func() { os.WriteFile(file, []byte(strings.Join(lines, "\n")+"\n"), 0o644) }
+	write()
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	lines[17] = "eighteen"
+	write()
+	git("add", ".")
+	lines[1], lines[9] = "two", "ten"
+	write()
+	git("config", "diff.upper.textconv", "tr a-z A-Z <")
+	os.WriteFile(filepath.Join(dir, ".git", "info", "attributes"), []byte("*.txt diff=upper\n"), 0o644)
+
+	a := newApp("")
+	a.open([]string{dir, file})
+	tt := ui.NewTester(a.view, 900, 600)
+	cv := a.showCommit(commit{hash: unstagedChanges})
+	tt.Frame()
+	a.discardHunk("a b.txt", cv.files[0].hunks[0])
+	tt.Frame()
+	lines[1] = "2"
+	if got := a.docAt(file).st.Buffer.String(); got != strings.Join(lines, "\n")+"\n" {
+		t.Fatalf("after Discard Hunk: %q", got)
+	}
+	a.discardFiles([]change{{status: 'M', path: "a b.txt"}})
+	tt.Frame()
+	lines[9] = "10"
+	if got := a.docAt(file).st.Buffer.String(); got != strings.Join(lines, "\n")+"\n" {
+		t.Fatalf("after Discard Changes: %q", got)
+	}
+	if out, _ := runGit(dir, "status", "--porcelain"); out != "M  a b.txt\n" && out != "M  \"a b.txt\"\n" {
+		t.Fatalf("status: %q", out)
+	}
+}
+
 func TestCommitRows(t *testing.T) {
 	var old, cur []string
 	for i := 1; i <= 10; i++ {
