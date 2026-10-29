@@ -1645,6 +1645,55 @@ func TestBranchName(t *testing.T) {
 	}
 }
 
+// Push publishes a branch without an upstream; the side bar counts the
+// commits to push, and those Fetch finds to pull, which a click on each
+// count takes.
+func TestRemote(t *testing.T) {
+	dir, git := newRepo(t)
+	remote, other := t.TempDir(), t.TempDir()
+	run := func(dir string, args ...string) {
+		t.Helper()
+		if _, err := runGit(dir, append([]string{"-c", "user.name=t", "-c", "user.email=t@t"}, args...)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run(remote, "init", "-q", "--bare", "-b", "main")
+	git("remote", "add", "origin", remote)
+	git("commit", "-q", "--allow-empty", "-m", "one")
+
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	a.run("git_push")
+	tt.Frame()
+	if !a.git.upstream || a.git.ahead != 0 {
+		t.Fatalf("published: %+v", a.git)
+	}
+	git("commit", "-q", "--allow-empty", "-m", "two")
+	a.readGit()
+	tt.Frame()
+	if err := tt.Click(locales.CmdPush()); err != nil {
+		t.Fatalf("%v in %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if a.git.ahead != 0 {
+		t.Fatalf("pushed: %+v", a.git)
+	}
+
+	run(other, "clone", "-q", remote, ".")
+	run(other, "commit", "-q", "--allow-empty", "-m", "three")
+	run(other, "push", "-q")
+	a.run("git_fetch")
+	tt.Frame()
+	if err := tt.Click(locales.CmdPull()); err != nil {
+		t.Fatalf("%v in %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if out, _ := runGit(dir, "log", "-1", "--format=%s"); out != "three\n" || a.git.behind != 0 {
+		t.Fatalf("pulled %q: %+v", out, a.git)
+	}
+}
+
 func TestCommitRows(t *testing.T) {
 	var old, cur []string
 	for i := 1; i <= 10; i++ {

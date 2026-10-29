@@ -29,6 +29,8 @@ All code is `package main` in `cmd/lime`. Keep it one package.
 - `recent.go`: Open Recent and Quick Switch Project, of the files, folders
   and projects opened lately
 - `git.go`: the side bar's work tree and branch, switched from the quick panel
+- `remote.go`: Push, Pull and Fetch, and the side bar's counts of the commits
+  to push and to pull
 - `changes.go`: the side bar's Changes tab, of the work tree's changes, staged
   or not; `history.go`: its History tab; `commitview.go`: a tab of the diffs
   of a commit's files, or of the staged or unstaged changes; `avatar.go`:

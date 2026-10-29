@@ -408,6 +408,9 @@ func (a *app) statusBar(c *ui.Context) {
 	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6).Gap(8).AlignItems(ui.Center).Background(ch.bg).Children(func() {
 		a.panelButtons(c)
 		ui.Text(c, left).FontSize(12).TextColor(ch.muted).SingleLine().Shrink(0)
+		if a.remote != "" {
+			ui.Text(c, a.remote).FontSize(12).TextColor(ch.muted).SingleLine().Shrink(0)
+		}
 		if d != nil && d.cmp != nil {
 			a.diffCounts(c, d.cmp)
 		}

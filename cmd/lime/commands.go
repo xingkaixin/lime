@@ -165,6 +165,9 @@ func makeCommands() []command {
 		{id: "git_delete_branch", caption: realGit(locales.Messages.CmdDeleteBranch), run: inRepo((*app).showDeleteBranch)},
 		{id: "git_rename_branch", caption: realGit(locales.Messages.CmdRenameBranch), run: inRepo((*app).promptRenameBranch)},
 		{id: "git_uncommit", caption: realGit(locales.Messages.CmdUncommit), run: inRepo((*app).uncommit)},
+		{id: "git_push", caption: realGit(locales.Messages.CmdPush), run: inRepo((*app).push)},
+		{id: "git_pull", caption: realGit(locales.Messages.CmdPull), run: inRepo((*app).pull)},
+		{id: "git_fetch", caption: realGit(locales.Messages.CmdFetch), run: inRepo((*app).fetch)},
 
 		convertCase("upper_case", locales.Messages.CmdUpperCase, editor.Uppercase, false),
 		convertCase("lower_case", locales.Messages.CmdLowerCase, editor.Lowercase, false),

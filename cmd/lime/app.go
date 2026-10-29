@@ -303,6 +303,7 @@ type app struct {
 	hist    history
 	changes changes
 	gitTab  int            // the git panel's: changesTab or historyTab
+	remote  string         // what the git with the remote running does, as Pushing…
 	side    sidePanel      // what the side bar shows
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag

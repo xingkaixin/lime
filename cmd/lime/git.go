@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -16,6 +17,11 @@ type gitRepo struct {
 	root   string // the top of its work tree; "" outside a repository
 	tree   string // the work tree's name: main, or a linked one's folder
 	branch string // or the short hash of a detached HEAD
+	// The commits HEAD has that its upstream lacks, and the other way
+	// round, with upstream set when the branch has one.
+	ahead, behind int
+	upstream      bool
+	detached      bool
 }
 
 // mainTree names the repository's main work tree, as Zed does.
@@ -39,8 +45,13 @@ func readRepo(dir string) gitRepo {
 	}
 	if out, err = runGit(dir, "symbolic-ref", "--quiet", "--short", "HEAD"); err != nil {
 		out, _ = runGit(dir, "rev-parse", "--short", "HEAD")
+		r.detached = true
 	}
 	r.branch = strings.TrimSpace(out)
+	if out, err = runGit(dir, "rev-list", "--left-right", "--count", "HEAD...@{upstream}"); err == nil {
+		_, err = fmt.Sscan(out, &r.ahead, &r.behind)
+		r.upstream = err == nil
+	}
 	return r
 }
 

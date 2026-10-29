@@ -104,6 +104,7 @@ func (a *app) sideBarTitle(c *ui.Context) {
 		// The branch gives way first: the work tree's name is most often main.
 		a.gitButton(c, worktreeIcon, a.git.tree, locales.GitSwitchWorktree(), a.showWorktrees).Shrink(0).MaxWidth(120)
 		a.gitButton(c, branchIcon, a.git.branch, locales.GitSwitchBranch(), a.showBranches)
+		a.syncButton(c)
 		// Around the buttons, the band drags the window, as a title bar.
 		if band > 0 {
 			lead.DragWindow()
@@ -196,12 +197,14 @@ var (
 func (a *app) gitButton(c *ui.Context, icon *ui.SVG, text, label string, onClick func()) ui.Element {
 	ch := a.shell(c)
 	btn := ui.ButtonBase(c.Key(label)).Height(22).AlignSelf(ui.Center).Padding(0, 6).Gap(5).Radius(4).AlignItems(ui.Center).
-		Shrink(1).MinWidth(0).Transition(colorFade).Label(label).Tooltip(label).OnClick(onClick)
+		Shrink(1).MinWidth(0).ClipX().Transition(colorFade).Label(label).Tooltip(label).OnClick(onClick)
 	if btn.Hovered() {
 		btn.Background(ch.hover)
 	}
 	btn.Children(func() {
-		ui.Icon(c, icon).Size(14, 14).Shrink(0).TextColor(ch.muted)
+		if icon != nil {
+			ui.Icon(c, icon).Size(14, 14).Shrink(0).TextColor(ch.muted)
+		}
 		ui.Text(c, text).FontSize(12).TextColor(ch.muted).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 	})
 	return btn

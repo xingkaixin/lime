@@ -1898,6 +1898,36 @@ func (msgs Messages) CmdUncommit() string {
 	return Catalog.Format(msgs.locale, "cmdUncommit", nil)
 }
 
+// CmdPush says "Git: Push"
+// in the language the app shows.
+func CmdPush() string { return In(i18n.Locale()).CmdPush() }
+
+// CmdPush says "Git: Push"
+// in the language of msgs.
+func (msgs Messages) CmdPush() string {
+	return Catalog.Format(msgs.locale, "cmdPush", nil)
+}
+
+// CmdPull says "Git: Pull"
+// in the language the app shows.
+func CmdPull() string { return In(i18n.Locale()).CmdPull() }
+
+// CmdPull says "Git: Pull"
+// in the language of msgs.
+func (msgs Messages) CmdPull() string {
+	return Catalog.Format(msgs.locale, "cmdPull", nil)
+}
+
+// CmdFetch says "Git: Fetch"
+// in the language the app shows.
+func CmdFetch() string { return In(i18n.Locale()).CmdFetch() }
+
+// CmdFetch says "Git: Fetch"
+// in the language of msgs.
+func (msgs Messages) CmdFetch() string {
+	return Catalog.Format(msgs.locale, "cmdFetch", nil)
+}
+
 // PanelLabel says "Quick panel"
 // in the language the app shows.
 func PanelLabel() string { return In(i18n.Locale()).PanelLabel() }
@@ -2336,6 +2366,16 @@ func DialogPushedDetail() string { return In(i18n.Locale()).DialogPushedDetail()
 // in the language of msgs.
 func (msgs Messages) DialogPushedDetail() string {
 	return Catalog.Format(msgs.locale, "dialogPushedDetail", nil)
+}
+
+// DialogGitFailed says "{command} failed"
+// in the language the app shows.
+func DialogGitFailed(command string) string { return In(i18n.Locale()).DialogGitFailed(command) }
+
+// DialogGitFailed says "{command} failed"
+// in the language of msgs.
+func (msgs Messages) DialogGitFailed(command string) string {
+	return Catalog.Format(msgs.locale, "dialogGitFailed", map[string]any{"command": command})
 }
 
 // FilterProject says "Sublime Project"
@@ -3032,6 +3072,36 @@ func StatusUncommitMerge() string { return In(i18n.Locale()).StatusUncommitMerge
 // in the language of msgs.
 func (msgs Messages) StatusUncommitMerge() string {
 	return Catalog.Format(msgs.locale, "statusUncommitMerge", nil)
+}
+
+// StatusPushing says "Pushing…"
+// in the language the app shows.
+func StatusPushing() string { return In(i18n.Locale()).StatusPushing() }
+
+// StatusPushing says "Pushing…"
+// in the language of msgs.
+func (msgs Messages) StatusPushing() string {
+	return Catalog.Format(msgs.locale, "statusPushing", nil)
+}
+
+// StatusPulling says "Pulling…"
+// in the language the app shows.
+func StatusPulling() string { return In(i18n.Locale()).StatusPulling() }
+
+// StatusPulling says "Pulling…"
+// in the language of msgs.
+func (msgs Messages) StatusPulling() string {
+	return Catalog.Format(msgs.locale, "statusPulling", nil)
+}
+
+// StatusFetching says "Fetching…"
+// in the language the app shows.
+func StatusFetching() string { return In(i18n.Locale()).StatusFetching() }
+
+// StatusFetching says "Fetching…"
+// in the language of msgs.
+func (msgs Messages) StatusFetching() string {
+	return Catalog.Format(msgs.locale, "statusFetching", nil)
 }
 
 // StatusNoDefinition says "No definition of “{name}”"
