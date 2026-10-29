@@ -210,6 +210,11 @@ func (a *app) groupView(c *ui.Context, gi int) {
 			return false
 		}
 		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
+		// A layout of more groups builds the editor anew, in a split, and
+		// FocusBind asks for the focus only as a.focused changes.
+		if a.focused == (place{g, d}) {
+			e.AutoFocus()
+		}
 		a.input(e, d)
 	})
 }

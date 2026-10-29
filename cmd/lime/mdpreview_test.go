@@ -38,8 +38,8 @@ func TestMarkdownPreview(t *testing.T) {
 	// the tester would run in between.
 	tt.Type("v")
 	tt.Key(0, ui.KeyV)
-	if len(a.groups) != 2 || a.current() != src {
-		t.Fatalf("Cmd+K V: %d groups, current %q", len(a.groups), a.current().name())
+	if len(a.groups) != 2 || a.current() != src || !src.st.Focused() {
+		t.Fatalf("Cmd+K V: %d groups, current %q, focused %v", len(a.groups), a.current().name(), src.st.Focused())
 	}
 	p := a.groups[1].current()
 	if p == nil || p.md == nil || p.md.src != src || !tt.HasText("Preview: README.md") {
