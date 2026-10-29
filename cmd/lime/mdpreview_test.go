@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+	"github.com/egoist/mygo/ui/markdown/parser"
 )
 
 // Cmd+K V opens a preview beside the Markdown tab, which keeps the
@@ -85,5 +87,30 @@ func TestMarkdownPreview(t *testing.T) {
 	a.remove(src)
 	if slices.ContainsFunc(a.allDocs(), func(d *doc) bool { return d.md != nil }) {
 		t.Fatal("the preview stayed open without its tab")
+	}
+}
+
+// A long text shows in parts that read as it does whole, its link
+// reference definitions, between blocks and at the end, in every part.
+func TestPreviewParts(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("# Parts\n\nSee [the start][mid] and [the end][end].\n\n[mid]: https://example.com/mid\n\n")
+	for i := range 40 {
+		fmt.Fprintf(&b, "Setext %d\n========\n\n## Closed %d ##\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n- one\n- two\n\n```go\ncode()\n```\n\n> A quote.\n\n", i, i)
+	}
+	b.WriteString(strings.Repeat("A paragraph, long enough to fill a part without a heading.\n\n", 200))
+	b.WriteString("[end]: https://example.com/end \"The end\"\n")
+	text := b.String()
+	p := &mdPreview{}
+	p.show(text, 1)
+	if len(p.parts) < 40 {
+		t.Fatalf("%d parts", len(p.parts))
+	}
+	var got strings.Builder
+	for _, pt := range p.parts {
+		got.WriteString(parser.Parse(pt.text).HTML())
+	}
+	if want := parser.Parse(text).HTML(); got.String() != want {
+		t.Fatalf("the parts read\n%s\nthe text\n%s", got.String(), want)
 	}
 }

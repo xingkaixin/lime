@@ -132,20 +132,25 @@ func (p *mdPreview) show(text string, ver uint64) {
 	}
 	d := p.doc
 	d.Set(text)
-	// Link reference definitions are no block: they are between blocks,
-	// with the ends of some (a table's last |, a heading's closing #s),
-	// and go before each part for its links to them.
+	// Link reference definitions are no block: they are between blocks
+	// and after the last, with the ends of some (a table's last |, a
+	// heading's closing #s), and go before each part for its links to
+	// them.
 	var defs strings.Builder
+	addDefs := func(gap string) {
+		if !strings.Contains(gap, "[") {
+			return
+		}
+		for _, s := range strings.Split(gap, "\n\n") {
+			if s = strings.TrimSpace(s); strings.HasPrefix(s, "[") && parser.Parse(s).Len() == 1 {
+				defs.WriteString(s + "\n")
+			}
+		}
+	}
 	start, head, end := 0, 0, 0
 	for i := range d.Children(0) {
 		b := d.Block(i)
-		if gap := text[end:b.Start]; strings.Contains(gap, "[") {
-			for _, s := range strings.Split(gap, "\n\n") {
-				if s = strings.TrimSpace(s); strings.HasPrefix(s, "[") && parser.Parse(s).Len() == 1 {
-					defs.WriteString(s + "\n")
-				}
-			}
-		}
+		addDefs(text[end:b.Start])
 		end = b.End
 		at := strings.LastIndexByte(text[:b.Start], '\n') + 1
 		if at > start && (b.Kind == parser.Heading || at-start >= previewPart) {
@@ -156,6 +161,7 @@ func (p *mdPreview) show(text string, ver uint64) {
 			head = i
 		}
 	}
+	addDefs(text[end:])
 	p.parts = append(p.parts, mdPart{text: text[start:], head: head})
 	if defs.Len() > 0 {
 		defs.WriteString("\n")
