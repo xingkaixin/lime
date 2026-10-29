@@ -113,20 +113,40 @@ func (a *app) previewOptions(p *mdPreview, services ui.Services) *markdown.Optio
 	if p.opts == nil || dir != p.dir {
 		p.dir = dir
 		p.opts = &markdown.Options{Block: p.scrollToAnchor}
-		if dir != "" {
-			load := markdown.FileImages(dir)
-			p.opts.LoadImage = func(u string) (ui.ImageSource, error) {
-				if s, err := url.PathUnescape(u); err == nil {
-					u = s
-				}
-				return load(u)
+		load := markdown.FileImages(dir)
+		p.opts.LoadImage = func(u string) (ui.ImageSource, error) {
+			if s, err := url.PathUnescape(u); err == nil {
+				u = s
 			}
+			path, ok := localFile(dir, strings.TrimPrefix(u, "file:"))
+			if !ok {
+				return nil, os.ErrNotExist
+			}
+			return load(path)
 		}
 	}
 	p.theme = markdown.Theme{CodeFont: a.set.ContentFont, CodeColors: a.scheme.editorTheme()}
 	p.opts.Theme = &p.theme
 	p.opts.OnLink = func(link string) { a.followLink(services, p, link) }
 	return p.opts
+}
+
+// localFile returns the file at path, from dir when relative, if it is an
+// ordinary file of this machine: Windows reads //host/share/x.png from
+// another, which it sends the user's credentials to, and reading a device
+// such as /dev/zero never ends.
+func localFile(dir, path string) (string, bool) {
+	if len(path) > 1 && strings.IndexByte(`/\`, path[0]) >= 0 && strings.IndexByte(`/\`, path[1]) >= 0 {
+		return "", false
+	}
+	if !filepath.IsAbs(path) {
+		if dir == "" {
+			return "", false
+		}
+		path = filepath.Join(dir, filepath.FromSlash(path))
+	}
+	fi, err := os.Stat(path)
+	return path, err == nil && fi.Mode().IsRegular()
 }
 
 // scrollToAnchor scrolls p.heading to the top of the view, as a link to
@@ -165,16 +185,12 @@ func (a *app) followLink(services ui.Services, p *mdPreview, link string) {
 		path = s
 	}
 	// A path of Windows, as C:\docs, parses as of a scheme.
-	if !filepath.IsAbs(path) {
-		if scheme != "" || p.dir == "" {
-			return
-		}
-		path = filepath.Join(p.dir, filepath.FromSlash(path))
-	}
-	if fi, err := os.Stat(path); err != nil || fi.IsDir() {
+	if scheme != "" && !filepath.IsAbs(path) {
 		return
 	}
-	a.open([]string{path})
+	if path, ok := localFile(p.dir, path); ok {
+		a.open([]string{path})
+	}
 }
 
 // previewTab shows the preview tab d in place of the editor of its group.
