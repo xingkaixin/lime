@@ -29,6 +29,9 @@ func TestMarkdownPreview(t *testing.T) {
 	tt := ui.NewTester(a.view, 900, 600)
 
 	tt.Key(ui.Cmd, ui.KeyK)
+	if _, raw := tt.TextInputActive(); !raw {
+		t.Fatal("Cmd+K left input methods on, which would take V")
+	}
 	// A window has V's text before the frame that runs the chord, which
 	// the tester would run in between.
 	tt.Type("v")
