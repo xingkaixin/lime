@@ -92,6 +92,14 @@ func selectedLines(st *editor.State) (int, int) {
 	return from, to
 }
 
+// rendered are the extensions of the files GitHub renders, whose lines have
+// anchors in its plain view alone.
+var rendered = map[string]bool{
+	".md": true, ".markdown": true, ".mdown": true, ".mkdn": true, ".rst": true, ".adoc": true, ".asciidoc": true,
+	".org": true, ".textile": true, ".rdoc": true, ".pod": true, ".creole": true, ".mediawiki": true, ".wiki": true,
+	".ipynb": true, ".csv": true, ".tsv": true,
+}
+
 // readPermalink reads the link on GitHub to lines from to to of the file at
 // path, at HEAD's commit; whether a branch of the remote has the commit,
 // without which the link opens nothing; and whether the file is the same
@@ -117,8 +125,7 @@ func readPermalink(path string, from, to int) (link string, pushed, same bool, e
 		segs = append(segs, url.PathEscape(s))
 	}
 	link = web + "/blob/" + head + "/" + strings.Join(segs, "/")
-	// GitHub renders Markdown, whose lines have no anchors.
-	if strings.HasSuffix(real, ".md") {
+	if rendered[strings.ToLower(filepath.Ext(real))] {
 		link += "?plain=1"
 	}
 	link += "#L" + strconv.Itoa(from+1)
