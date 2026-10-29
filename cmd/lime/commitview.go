@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
@@ -34,6 +35,7 @@ type commitView struct {
 	list    ui.ListState
 	gen     int    // counts the readings, for the last to win
 	at      string // the file to scroll to, once its rows are built
+	github  string // the repository's web address on GitHub, "" for none
 }
 
 // The tabs of the work tree's changes stand for commits of these hashes,
@@ -129,6 +131,10 @@ func (a *app) loadCommit(cv *commitView) {
 	gen := cv.gen
 	a.background(func() func() {
 		body, files := readCommit(root, hash)
+		var github string
+		if hash != stagedChanges && hash != unstagedChanges && runtime.GOOS != "js" {
+			github, _ = githubRepo(root)
+		}
 		return func() {
 			if cv.gen != gen {
 				return
@@ -142,7 +148,7 @@ func (a *app) loadCommit(cv *commitView) {
 					f.folded = v
 				}
 			}
-			cv.body, cv.files, cv.loaded, cv.dirty = body, files, true, true
+			cv.body, cv.files, cv.loaded, cv.dirty, cv.github = body, files, true, true, github
 		}
 	})
 }
@@ -819,18 +825,26 @@ func (a *app) commitMessage(c *ui.Context, cv *commitView) {
 			}
 			ui.Text(c, message).FontSize(13).TextColor(ch.text).Margin(6, 0, 0, 0)
 		})
-		label := locales.CommitCopySHA()
-		btn := ui.ButtonBase(c).Height(22).Padding(0, 8).Radius(4).Shrink(0).Transition(colorFade).
-			Label(label).Tooltip(cv.hash)
-		if btn.Hovered() {
-			btn.Background(ch.hover)
+		button := func(label, tooltip string, click func()) {
+			btn := ui.ButtonBase(c).Height(22).Padding(0, 8).Radius(4).Shrink(0).Transition(colorFade).
+				Label(label).Tooltip(tooltip)
+			if btn.Hovered() {
+				btn.Background(ch.hover)
+			}
+			btn.OnClick(click)
+			btn.Children(func() { ui.Text(c, label).FontSize(12).TextColor(ch.muted) })
 		}
-		services, hash := c.Services(), cv.hash
-		btn.OnClick(func() {
-			services.WriteClipboard(hash)
-			a.notify(locales.CommitCopied(cv.short))
+		ui.Row(c).Gap(4).Shrink(0).Children(func() {
+			if cv.github != "" {
+				link := cv.github + "/commit/" + cv.hash
+				button(locales.MenuOpenOnGitHub(), link, func() { mygo.Shell.OpenExternal(link) })
+			}
+			services, hash := c.Services(), cv.hash
+			button(locales.CommitCopySHA(), hash, func() {
+				services.WriteClipboard(hash)
+				a.notify(locales.CommitCopied(cv.short))
+			})
 		})
-		btn.Children(func() { ui.Text(c, label).FontSize(12).TextColor(ch.muted) })
 	})
 }
 

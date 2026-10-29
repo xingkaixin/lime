@@ -41,6 +41,7 @@ All code is `package main` in `cmd/lime`. Keep it one package.
   (`git_diff_target`), or on disk if git doesn't track it
 - `blame.go`: who last changed the lines, at the end of the caret's line
   (`inline_blame`) and in a column beside the gutter (Toggle Blame)
+- `permalink.go`: links to lines of files on GitHub, at HEAD's commit
 - `settings.go`, `settingsview.go`, `shortcutsview.go`: settings.json and its dialog
 - `session.go`: hot exit (session.json)
 - `theme.go`: color schemes and the chrome colors derived from them

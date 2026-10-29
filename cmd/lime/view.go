@@ -214,6 +214,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 			blameKey(d, ev)
 			return false
 		}
+		d.st.ContextMenu = nil
+		if d.linkable() {
+			d.st.ContextMenu = func(m *ui.Menu) { a.permalinkMenu(m, d) }
+		}
 		a.syncBlame(c, d)
 		a.withBlame(c, d, func() ui.Element {
 			e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
