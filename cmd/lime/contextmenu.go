@@ -53,6 +53,10 @@ func (a *app) tabMenu(m *ui.Menu, g *group, d *doc) {
 			a.openPreview(d, true)
 		}
 	}
+	m.Separator()
+	if m.Item(locales.MenuFileHistory()).Disabled(!a.tracked(d.path)).Chosen() {
+		a.fileHistory(d.path)
+	}
 }
 
 // closeTabs closes the tabs of docs without changes that match.
@@ -85,6 +89,10 @@ func (a *app) fileMenu(c *ui.Context, m *ui.Menu, path string) {
 	}
 	if m.Item(locales.MenuCopyPath()).Chosen() {
 		c.Services().WriteClipboard(path)
+	}
+	m.Separator()
+	if m.Item(locales.MenuFileHistory()).Disabled(!a.tracked(path)).Chosen() {
+		a.fileHistory(path)
 	}
 }
 

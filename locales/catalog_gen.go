@@ -924,6 +924,16 @@ func (msgs Messages) MenuCopyPath() string {
 	return Catalog.Format(msgs.locale, "menuCopyPath", nil)
 }
 
+// MenuFileHistory says "File History"
+// in the language the app shows.
+func MenuFileHistory() string { return In(i18n.Locale()).MenuFileHistory() }
+
+// MenuFileHistory says "File History"
+// in the language of msgs.
+func (msgs Messages) MenuFileHistory() string {
+	return Catalog.Format(msgs.locale, "menuFileHistory", nil)
+}
+
 // MenuNewFolder says "New Folder…"
 // in the language the app shows.
 func MenuNewFolder() string { return In(i18n.Locale()).MenuNewFolder() }
@@ -1432,6 +1442,16 @@ func CmdRefreshFolders() string { return In(i18n.Locale()).CmdRefreshFolders() }
 // in the language of msgs.
 func (msgs Messages) CmdRefreshFolders() string {
 	return Catalog.Format(msgs.locale, "cmdRefreshFolders", nil)
+}
+
+// CmdFileHistory says "Git: File History"
+// in the language the app shows.
+func CmdFileHistory() string { return In(i18n.Locale()).CmdFileHistory() }
+
+// CmdFileHistory says "Git: File History"
+// in the language of msgs.
+func (msgs Messages) CmdFileHistory() string {
+	return Catalog.Format(msgs.locale, "cmdFileHistory", nil)
 }
 
 // CmdUpperCase says "Convert Case: Upper Case"
@@ -2486,6 +2506,16 @@ func GitHistory() string { return In(i18n.Locale()).GitHistory() }
 // in the language of msgs.
 func (msgs Messages) GitHistory() string {
 	return Catalog.Format(msgs.locale, "gitHistory", nil)
+}
+
+// HistoryAllCommits says "Show All Commits"
+// in the language the app shows.
+func HistoryAllCommits() string { return In(i18n.Locale()).HistoryAllCommits() }
+
+// HistoryAllCommits says "Show All Commits"
+// in the language of msgs.
+func (msgs Messages) HistoryAllCommits() string {
+	return Catalog.Format(msgs.locale, "historyAllCommits", nil)
 }
 
 // ChangesConflicts says "Conflicts"

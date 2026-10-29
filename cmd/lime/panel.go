@@ -394,7 +394,7 @@ func (a *app) showCommandPalette() {
 	var items []item
 	for i := range commands {
 		c := &commands[i]
-		if c.caption != nil {
+		if c.caption != nil && (c.enabled == nil || c.enabled(a)) {
 			items = append(items, item{label: c.caption(tx), alias: c.caption(en), hint: a.l.keys.text(c.id), pick: func() { c.run(a) }})
 		}
 	}

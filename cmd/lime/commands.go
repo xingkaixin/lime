@@ -20,7 +20,8 @@ type command struct {
 	id      string
 	caption func(locales.Messages) string // nil keeps it out of the command palette
 	run     func(a *app)
-	ed      editor.Command // the editor's command it runs, whose keys the editor takes
+	ed      editor.Command    // the editor's command it runs, whose keys the editor takes
+	enabled func(a *app) bool // nil for always; the command palette lists it only while true
 }
 
 func foldLevel(n int) string   { return "fold_by_level " + strconv.Itoa(n) }
@@ -50,7 +51,7 @@ func withSource(fn func(a *app, d *doc)) func(a *app) {
 // edit runs cmd in the current editor, or the side of a diff that has
 // the keyboard.
 func edit(id string, caption func(locales.Messages) string, cmd editor.Command) command {
-	return command{id, caption, func(a *app) {
+	return command{id: id, caption: caption, run: func(a *app) {
 		switch d := a.current(); {
 		case d == nil:
 		case d.cmp != nil:
@@ -58,7 +59,13 @@ func edit(id string, caption func(locales.Messages) string, cmd editor.Command) 
 		case d.kind == textDoc:
 			d.st.Run(cmd)
 		}
-	}, cmd}
+	}, ed: cmd}
+}
+
+// currentTracked reports whether git has the current tab's file.
+func currentTracked(a *app) bool {
+	d := a.current()
+	return d != nil && a.tracked(d.path)
 }
 
 // convertCase runs cmd, which converts the case of the selections, on
@@ -168,6 +175,11 @@ func makeCommands() []command {
 		{id: "git_push", caption: realGit(locales.Messages.CmdPush), run: inRepo((*app).push)},
 		{id: "git_pull", caption: realGit(locales.Messages.CmdPull), run: inRepo((*app).pull)},
 		{id: "git_fetch", caption: realGit(locales.Messages.CmdFetch), run: inRepo((*app).fetch)},
+		{id: "sublime_merge_file_history", caption: locales.Messages.CmdFileHistory, enabled: currentTracked, run: func(a *app) {
+			if currentTracked(a) {
+				a.fileHistory(a.current().path)
+			}
+		}},
 
 		convertCase("upper_case", locales.Messages.CmdUpperCase, editor.Uppercase, false),
 		convertCase("lower_case", locales.Messages.CmdLowerCase, editor.Lowercase, false),

@@ -272,7 +272,12 @@
         return commit(input, has(rest, "-a"), has(rest, "--amend"))
       case "log": {
         const n = +(option(rest, "-n") ?? Infinity)
-        return repo.commits.slice(0, n).map((c) => format(option(rest, "--format=") ?? "%H", c) + "\n").join("")
+        // A path after -- lists the commits that change it, and with
+        // --name-only -z, its name after each.
+        const path = rest[rest.indexOf("--") + 1]
+        const cs = rest.includes("--") ? repo.commits.filter((c) => c.tree.get(path) !== parentTree(c).get(path)) : repo.commits
+        const names = has(rest, "--name-only") ? `\0\n${path}\0` : "\n"
+        return cs.slice(0, n).map((c) => format(option(rest, "--format=") ?? "%H", c) + names).join("")
       }
       case "show":
         return format(option(rest, "--format=") ?? "%B", commitOf(rest.at(-1))) + "\n"
