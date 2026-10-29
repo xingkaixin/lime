@@ -165,6 +165,7 @@ func (a *app) watchDir(dir string) {
 				return
 			}
 			delete(a.proj.dirs, dir)
+			a.readMarks()
 			if ended {
 				stop()
 				delete(a.proj.watches, dir)
@@ -287,6 +288,7 @@ func (a *app) promptAddFolder() {
 func (a *app) refreshFolders() {
 	a.proj.dirs = nil
 	a.indexFolders()
+	a.readMarks()
 }
 
 func (a *app) closeProject() {

@@ -35,6 +35,7 @@ func (a *app) makeWindow(r mygo.Rectangle) {
 		a.syncMenu()
 		a.reloadChanged()
 		a.readGit()
+		a.readMarks()
 		if !watchDirs {
 			a.proj.dirs = nil
 		}

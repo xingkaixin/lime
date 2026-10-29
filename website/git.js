@@ -250,6 +250,7 @@
     const [cmd, ...rest] = args
     switch (cmd) {
       case "rev-parse":
+        if (has(rest, "--show-prefix")) return `${repo.root}\n${dir === repo.root ? "" : dir.slice(repo.root.length + 1) + "/"}\n`
         if (has(rest, "--show-toplevel")) return `${repo.root}\n${repo.root}/.git\n${repo.root}/.git\n`
         return (has(rest, "--short") ? short(head().hash) : head().hash) + "\n"
       case "symbolic-ref":
