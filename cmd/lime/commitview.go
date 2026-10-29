@@ -448,7 +448,7 @@ func (a *app) commitTab(c *ui.Context, gi int, d *doc) {
 
 // codeStyle is how the lines of a commit's tab look, the same for each.
 type codeStyle struct {
-	font               string
+	font, features     string
 	size, line, digit  float32
 	tab                string // a tab, as spaces
 	theme              *editor.Theme
@@ -459,8 +459,8 @@ type codeStyle struct {
 
 func (a *app) codeStyle(c *ui.Context) *codeStyle {
 	th := a.scheme.editorTheme()
-	st := &codeStyle{font: a.codeFont(), size: a.set.FontSize, theme: th, tab: strings.Repeat(" ", max(a.set.TabSize, 1))}
-	st.line = float32(math.Round(float64(st.size) * 1.5))
+	st := &codeStyle{font: a.codeFont(), features: a.set.font().Features, size: a.set.FontSize, theme: th, tab: strings.Repeat(" ", max(a.set.TabSize, 1))}
+	st.line = float32(math.Round(float64(st.size * a.set.lineHeight())))
 	w, _ := c.MeasureText(0, ui.Span{Text: "0000000000", Font: st.font, Size: st.size - 1})
 	st.digit = w / 10
 	// The tints of MyGo's diffs.
@@ -597,7 +597,7 @@ func (a *app) lineNumber(c *ui.Context, n int, width float32, bg ui.Color, st *c
 }
 
 func (a *app) code(c *ui.Context, t *fileText, n int, st *codeStyle) {
-	ui.RichText(c, st.spans(t, n)...).Font(st.font).FontSize(st.size).FixedLineHeight(st.line).TextColor(st.theme.Text).
+	ui.RichText(c, st.spans(t, n)...).Font(st.font).FontSize(st.size).FontFeatures(st.features).FixedLineHeight(st.line).TextColor(st.theme.Text).
 		Grow(1).Basis(0).MinWidth(0).Padding(0, 10)
 }
 

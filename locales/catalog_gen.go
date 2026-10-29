@@ -3138,6 +3138,96 @@ func (msgs Messages) SettingsEditor() string {
 	return Catalog.Format(msgs.locale, "settingsEditor", nil)
 }
 
+// SettingsDisplay says "Display"
+// in the language the app shows.
+func SettingsDisplay() string { return In(i18n.Locale()).SettingsDisplay() }
+
+// SettingsDisplay says "Display"
+// in the language of msgs.
+func (msgs Messages) SettingsDisplay() string {
+	return Catalog.Format(msgs.locale, "settingsDisplay", nil)
+}
+
+// SettingsRulers says "Rulers"
+// in the language the app shows.
+func SettingsRulers() string { return In(i18n.Locale()).SettingsRulers() }
+
+// SettingsRulers says "Rulers"
+// in the language of msgs.
+func (msgs Messages) SettingsRulers() string {
+	return Catalog.Format(msgs.locale, "settingsRulers", nil)
+}
+
+// SettingsWhiteSpace says "White Space"
+// in the language the app shows.
+func SettingsWhiteSpace() string { return In(i18n.Locale()).SettingsWhiteSpace() }
+
+// SettingsWhiteSpace says "White Space"
+// in the language of msgs.
+func (msgs Messages) SettingsWhiteSpace() string {
+	return Catalog.Format(msgs.locale, "settingsWhiteSpace", nil)
+}
+
+// SettingsWhiteSpaceNone says "None"
+// in the language the app shows.
+func SettingsWhiteSpaceNone() string { return In(i18n.Locale()).SettingsWhiteSpaceNone() }
+
+// SettingsWhiteSpaceNone says "None"
+// in the language of msgs.
+func (msgs Messages) SettingsWhiteSpaceNone() string {
+	return Catalog.Format(msgs.locale, "settingsWhiteSpaceNone", nil)
+}
+
+// SettingsWhiteSpaceSelection says "In Selection"
+// in the language the app shows.
+func SettingsWhiteSpaceSelection() string { return In(i18n.Locale()).SettingsWhiteSpaceSelection() }
+
+// SettingsWhiteSpaceSelection says "In Selection"
+// in the language of msgs.
+func (msgs Messages) SettingsWhiteSpaceSelection() string {
+	return Catalog.Format(msgs.locale, "settingsWhiteSpaceSelection", nil)
+}
+
+// SettingsWhiteSpaceTrailing says "Trailing"
+// in the language the app shows.
+func SettingsWhiteSpaceTrailing() string { return In(i18n.Locale()).SettingsWhiteSpaceTrailing() }
+
+// SettingsWhiteSpaceTrailing says "Trailing"
+// in the language of msgs.
+func (msgs Messages) SettingsWhiteSpaceTrailing() string {
+	return Catalog.Format(msgs.locale, "settingsWhiteSpaceTrailing", nil)
+}
+
+// SettingsWhiteSpaceAll says "All"
+// in the language the app shows.
+func SettingsWhiteSpaceAll() string { return In(i18n.Locale()).SettingsWhiteSpaceAll() }
+
+// SettingsWhiteSpaceAll says "All"
+// in the language of msgs.
+func (msgs Messages) SettingsWhiteSpaceAll() string {
+	return Catalog.Format(msgs.locale, "settingsWhiteSpaceAll", nil)
+}
+
+// SettingsLineNumbers says "Line Numbers"
+// in the language the app shows.
+func SettingsLineNumbers() string { return In(i18n.Locale()).SettingsLineNumbers() }
+
+// SettingsLineNumbers says "Line Numbers"
+// in the language of msgs.
+func (msgs Messages) SettingsLineNumbers() string {
+	return Catalog.Format(msgs.locale, "settingsLineNumbers", nil)
+}
+
+// SettingsHighlightLine says "Highlight Current Line"
+// in the language the app shows.
+func SettingsHighlightLine() string { return In(i18n.Locale()).SettingsHighlightLine() }
+
+// SettingsHighlightLine says "Highlight Current Line"
+// in the language of msgs.
+func (msgs Messages) SettingsHighlightLine() string {
+	return Catalog.Format(msgs.locale, "settingsHighlightLine", nil)
+}
+
 // SettingsIndentation says "Indentation"
 // in the language the app shows.
 func SettingsIndentation() string { return In(i18n.Locale()).SettingsIndentation() }

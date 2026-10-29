@@ -172,7 +172,7 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		d.st.Theme, d.st.Bindings = s.editorTheme(), a.l.keys.editor
 		d.st.SoftWrap = a.set.WordWrap
 		a.applyIndent(d)
-		d.st.Font.Family, d.st.Font.Size = a.set.ContentFont, a.set.FontSize
+		d.st.Font, d.st.LineHeight = a.set.font(), a.set.lineHeight()
 		d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
 		if d.cmp != nil {
 			a.diffView(c, gi, d)
@@ -189,6 +189,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		if d.kind != textDoc {
 			a.preview(c, gi, d)
 			return
+		}
+		a.set.display(d.st)
+		if d == g.blank {
+			d.st.LineNumbers = editor.LineNumbersOff
 		}
 		d.st.OnDefinition = func(off int) { a.gotoDefinition(d, off) }
 		d.st.OnCompletion = func(r editor.CompletionRequest) { a.complete(d, r) }

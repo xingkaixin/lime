@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/i18n"
+	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
@@ -29,6 +31,20 @@ type settings struct {
 	SideBar      bool    `json:"side_bar"`
 	SideBarWidth float32 `json:"side_bar_width"`
 	TabSize      int     `json:"tab_size"`
+	// Rulers are the columns guides are drawn at.
+	Rulers           rulers     `json:"rulers"`
+	DrawWhiteSpace   whiteSpace `json:"draw_white_space"`
+	LineNumbers      bool       `json:"line_numbers"`
+	HighlightLine    bool       `json:"highlight_line"`
+	DrawIndentGuides bool       `json:"draw_indent_guides"`
+	ScrollPastEnd    pastEnd    `json:"scroll_past_end"`
+	// LinePaddingTop and LinePaddingBottom add DIPs above and below each
+	// line.
+	LinePaddingTop    float32 `json:"line_padding_top"`
+	LinePaddingBottom float32 `json:"line_padding_bottom"`
+	// FontOptions are Sublime Text's, of which the ligature ones count:
+	// "no_liga", "no_clig" and "no_calt".
+	FontOptions []string `json:"font_options"`
 	// TranslateTabsToSpaces indents with spaces when true and tabs when
 	// false; unset, as the language's files usually do.
 	TranslateTabsToSpaces        *bool `json:"translate_tabs_to_spaces,omitempty"`
@@ -86,6 +102,8 @@ func loadSettings(dir string) (settings, error) {
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4, AutoComplete: true,
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
+		Rulers: rulers{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
+		ScrollPastEnd: true, FontOptions: []string{},
 	}
 	var err error
 	if dir != "" {
@@ -130,6 +148,128 @@ func (s *settings) indent() editor.IndentStyle { return indentStyle(s.TranslateT
 
 func (s *settings) setIndent(style editor.IndentStyle) {
 	s.TranslateTabsToSpaces = translateTabs(style)
+}
+
+// display shows the text of st as the settings say.
+func (s *settings) display(st *editor.State) {
+	st.WrapGuides, st.Whitespace = s.Rulers, s.DrawWhiteSpace.mode()
+	st.LineNumbers = editor.LineNumbersOn
+	if !s.LineNumbers {
+		st.LineNumbers = editor.LineNumbersOff
+	}
+	st.NoActiveLine, st.NoIndentGuides, st.NoScrollPastEnd = !s.HighlightLine, !s.DrawIndentGuides, !bool(s.ScrollPastEnd)
+}
+
+// rulers is Sublime Text's rulers: columns, or lists of a column and the
+// ruler's style, which the editor leaves.
+type rulers []int
+
+func (r *rulers) UnmarshalJSON(b []byte) error {
+	var items []any
+	if err := json.Unmarshal(b, &items); err != nil || items == nil {
+		return err
+	}
+	*r = rulers{}
+	for _, it := range items {
+		if l, ok := it.([]any); ok && len(l) > 0 {
+			it = l[0]
+		}
+		if n, ok := it.(float64); ok {
+			*r = append(*r, int(n))
+		}
+	}
+	return nil
+}
+
+// pastEnd is scroll_past_end: a bool, or how far past the end Sublime Text
+// scrolls, of which the editor tells none from some.
+type pastEnd bool
+
+func (p *pastEnd) UnmarshalJSON(b []byte) error {
+	var v any
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	switch v := v.(type) {
+	case bool:
+		*p = pastEnd(v)
+	case float64:
+		*p = v > 0
+	}
+	return nil
+}
+
+// font is the content font, as editors take it.
+func (s *settings) font() ui.Font {
+	var off []string
+	for _, o := range s.FontOptions {
+		switch o {
+		case "no_liga", "no_clig", "no_calt":
+			off = append(off, strings.TrimPrefix(o, "no_")+"=0")
+		}
+	}
+	return ui.Font{Family: s.ContentFont, Size: s.FontSize, Features: strings.Join(off, ",")}
+}
+
+// lineHeight is the height of lines as a multiple of the font's size.
+func (s *settings) lineHeight() float32 {
+	if s.FontSize <= 0 {
+		return 0
+	}
+	// 1.5 is the editor's own line height.
+	return 1.5 + (s.LinePaddingTop+s.LinePaddingBottom)/s.FontSize
+}
+
+// whiteSpace is draw_white_space: Sublime Text's options of where white
+// space is drawn, applied in order, or one of its older strings, "none",
+// "selection" or "all".
+type whiteSpace []string
+
+func (w *whiteSpace) UnmarshalJSON(b []byte) error {
+	var s string
+	if json.Unmarshal(b, &s) == nil {
+		*w = whiteSpace{s}
+		return nil
+	}
+	return json.Unmarshal(b, (*[]string)(w))
+}
+
+const (
+	wsSelection uint8 = 1 << iota
+	wsLeading
+	wsEnclosed
+	wsTrailing
+	wsIsolated
+	wsAll = wsSelection | wsLeading | wsEnclosed | wsTrailing | wsIsolated
+)
+
+var wsPlaces = map[string]uint8{
+	"selection": wsSelection, "leading": wsLeading, "enclosed": wsEnclosed, "trailing": wsTrailing,
+	"isolated": wsIsolated, "all": wsAll, "none": wsAll,
+}
+
+// mode is the editor's nearest to the options: white space at the ends
+// of lines alone is trailing, and anywhere else is all of it. Options of
+// tabs, spaces or mixed indentation alone draw both.
+func (w whiteSpace) mode() editor.Whitespace {
+	var on uint8
+	for _, o := range w {
+		place, kind, _ := strings.Cut(o, "_")
+		if place == "none" || kind == "none" {
+			on &^= wsPlaces[place]
+		} else {
+			on |= wsPlaces[place]
+		}
+	}
+	switch {
+	case on&(wsLeading|wsEnclosed) != 0:
+		return editor.WhitespaceAll
+	case on&(wsTrailing|wsIsolated) != 0:
+		return editor.WhitespaceTrailing
+	case on&wsSelection != 0:
+		return editor.WhitespaceSelection
+	}
+	return editor.WhitespaceNone
 }
 
 // showScheme makes sc the theme of its appearance, and shows that
