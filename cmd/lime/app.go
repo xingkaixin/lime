@@ -518,7 +518,7 @@ func (a *app) add(path, text string) *doc {
 	d := newDoc(path, text)
 	g := a.group()
 	// An empty untitled tab that was never touched gives way to the file.
-	if cur := g.current(); path != "" && cur != nil && cur.path == "" && cur.st.Buffer.Len() == 0 && !cur.dirty() {
+	if cur := g.current(); path != "" && cur != nil && cur.kind == textDoc && cur.path == "" && cur.st.Buffer.Len() == 0 && !cur.dirty() {
 		g.docs[g.active] = d
 		a.mru = slices.DeleteFunc(a.mru, func(x *doc) bool { return x == cur })
 		a.jumps.forget(cur)

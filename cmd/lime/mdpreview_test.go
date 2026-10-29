@@ -76,6 +76,9 @@ func TestMarkdownPreview(t *testing.T) {
 	if d := a.current(); d.path != guide {
 		t.Fatalf("the guide's link opened %q", d.path)
 	}
+	if !slices.Contains(a.groups[1].docs, p) {
+		t.Fatal("the guide took the preview's place")
+	}
 
 	a.remove(src)
 	if slices.ContainsFunc(a.allDocs(), func(d *doc) bool { return d.md != nil }) {
