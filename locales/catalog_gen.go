@@ -284,6 +284,106 @@ func (msgs Messages) MenuCloseWindow() string {
 	return Catalog.Format(msgs.locale, "menuCloseWindow", nil)
 }
 
+// MenuConvertCase says "Convert Case"
+// in the language the app shows.
+func MenuConvertCase() string { return In(i18n.Locale()).MenuConvertCase() }
+
+// MenuConvertCase says "Convert Case"
+// in the language of msgs.
+func (msgs Messages) MenuConvertCase() string {
+	return Catalog.Format(msgs.locale, "menuConvertCase", nil)
+}
+
+// MenuTitleCase says "Title Case"
+// in the language the app shows.
+func MenuTitleCase() string { return In(i18n.Locale()).MenuTitleCase() }
+
+// MenuTitleCase says "Title Case"
+// in the language of msgs.
+func (msgs Messages) MenuTitleCase() string {
+	return Catalog.Format(msgs.locale, "menuTitleCase", nil)
+}
+
+// MenuUpperCase says "Upper Case"
+// in the language the app shows.
+func MenuUpperCase() string { return In(i18n.Locale()).MenuUpperCase() }
+
+// MenuUpperCase says "Upper Case"
+// in the language of msgs.
+func (msgs Messages) MenuUpperCase() string {
+	return Catalog.Format(msgs.locale, "menuUpperCase", nil)
+}
+
+// MenuLowerCase says "Lower Case"
+// in the language the app shows.
+func MenuLowerCase() string { return In(i18n.Locale()).MenuLowerCase() }
+
+// MenuLowerCase says "Lower Case"
+// in the language of msgs.
+func (msgs Messages) MenuLowerCase() string {
+	return Catalog.Format(msgs.locale, "menuLowerCase", nil)
+}
+
+// MenuSwapCase says "Swap Case"
+// in the language the app shows.
+func MenuSwapCase() string { return In(i18n.Locale()).MenuSwapCase() }
+
+// MenuSwapCase says "Swap Case"
+// in the language of msgs.
+func (msgs Messages) MenuSwapCase() string {
+	return Catalog.Format(msgs.locale, "menuSwapCase", nil)
+}
+
+// MenuSnakeCase says "Snake Case"
+// in the language the app shows.
+func MenuSnakeCase() string { return In(i18n.Locale()).MenuSnakeCase() }
+
+// MenuSnakeCase says "Snake Case"
+// in the language of msgs.
+func (msgs Messages) MenuSnakeCase() string {
+	return Catalog.Format(msgs.locale, "menuSnakeCase", nil)
+}
+
+// MenuKebabCase says "Kebab Case"
+// in the language the app shows.
+func MenuKebabCase() string { return In(i18n.Locale()).MenuKebabCase() }
+
+// MenuKebabCase says "Kebab Case"
+// in the language of msgs.
+func (msgs Messages) MenuKebabCase() string {
+	return Catalog.Format(msgs.locale, "menuKebabCase", nil)
+}
+
+// MenuCamelCase says "Camel Case"
+// in the language the app shows.
+func MenuCamelCase() string { return In(i18n.Locale()).MenuCamelCase() }
+
+// MenuCamelCase says "Camel Case"
+// in the language of msgs.
+func (msgs Messages) MenuCamelCase() string {
+	return Catalog.Format(msgs.locale, "menuCamelCase", nil)
+}
+
+// MenuPascalCase says "Pascal Case"
+// in the language the app shows.
+func MenuPascalCase() string { return In(i18n.Locale()).MenuPascalCase() }
+
+// MenuPascalCase says "Pascal Case"
+// in the language of msgs.
+func (msgs Messages) MenuPascalCase() string {
+	return Catalog.Format(msgs.locale, "menuPascalCase", nil)
+}
+
+// MenuSpeech says "Speech"
+// in the language the app shows.
+func MenuSpeech() string { return In(i18n.Locale()).MenuSpeech() }
+
+// MenuSpeech says "Speech"
+// in the language of msgs.
+func (msgs Messages) MenuSpeech() string {
+	return Catalog.Format(msgs.locale, "menuSpeech", nil)
+}
+
 // MenuFind says "Find"
 // in the language the app shows.
 func MenuFind() string { return In(i18n.Locale()).MenuFind() }
@@ -1322,6 +1422,56 @@ func CmdTitleCase() string { return In(i18n.Locale()).CmdTitleCase() }
 // in the language of msgs.
 func (msgs Messages) CmdTitleCase() string {
 	return Catalog.Format(msgs.locale, "cmdTitleCase", nil)
+}
+
+// CmdSwapCase says "Convert Case: Swap Case"
+// in the language the app shows.
+func CmdSwapCase() string { return In(i18n.Locale()).CmdSwapCase() }
+
+// CmdSwapCase says "Convert Case: Swap Case"
+// in the language of msgs.
+func (msgs Messages) CmdSwapCase() string {
+	return Catalog.Format(msgs.locale, "cmdSwapCase", nil)
+}
+
+// CmdSnakeCase says "Convert Case: Snake Case"
+// in the language the app shows.
+func CmdSnakeCase() string { return In(i18n.Locale()).CmdSnakeCase() }
+
+// CmdSnakeCase says "Convert Case: Snake Case"
+// in the language of msgs.
+func (msgs Messages) CmdSnakeCase() string {
+	return Catalog.Format(msgs.locale, "cmdSnakeCase", nil)
+}
+
+// CmdKebabCase says "Convert Case: Kebab Case"
+// in the language the app shows.
+func CmdKebabCase() string { return In(i18n.Locale()).CmdKebabCase() }
+
+// CmdKebabCase says "Convert Case: Kebab Case"
+// in the language of msgs.
+func (msgs Messages) CmdKebabCase() string {
+	return Catalog.Format(msgs.locale, "cmdKebabCase", nil)
+}
+
+// CmdCamelCase says "Convert Case: Camel Case"
+// in the language the app shows.
+func CmdCamelCase() string { return In(i18n.Locale()).CmdCamelCase() }
+
+// CmdCamelCase says "Convert Case: Camel Case"
+// in the language of msgs.
+func (msgs Messages) CmdCamelCase() string {
+	return Catalog.Format(msgs.locale, "cmdCamelCase", nil)
+}
+
+// CmdPascalCase says "Convert Case: Pascal Case"
+// in the language the app shows.
+func CmdPascalCase() string { return In(i18n.Locale()).CmdPascalCase() }
+
+// CmdPascalCase says "Convert Case: Pascal Case"
+// in the language of msgs.
+func (msgs Messages) CmdPascalCase() string {
+	return Catalog.Format(msgs.locale, "cmdPascalCase", nil)
 }
 
 // CmdSortLines says "Sort Lines"
