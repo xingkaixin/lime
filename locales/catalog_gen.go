@@ -1024,6 +1024,26 @@ func (msgs Messages) MenuOpenFile() string {
 	return Catalog.Format(msgs.locale, "menuOpenFile", nil)
 }
 
+// MenuOpenPreview says "Open Preview"
+// in the language the app shows.
+func MenuOpenPreview() string { return In(i18n.Locale()).MenuOpenPreview() }
+
+// MenuOpenPreview says "Open Preview"
+// in the language of msgs.
+func (msgs Messages) MenuOpenPreview() string {
+	return Catalog.Format(msgs.locale, "menuOpenPreview", nil)
+}
+
+// MenuOpenPreviewToTheSide says "Open Preview to the Side"
+// in the language the app shows.
+func MenuOpenPreviewToTheSide() string { return In(i18n.Locale()).MenuOpenPreviewToTheSide() }
+
+// MenuOpenPreviewToTheSide says "Open Preview to the Side"
+// in the language of msgs.
+func (msgs Messages) MenuOpenPreviewToTheSide() string {
+	return Catalog.Format(msgs.locale, "menuOpenPreviewToTheSide", nil)
+}
+
 // LayoutSingle says "Single"
 // in the language the app shows.
 func LayoutSingle() string { return In(i18n.Locale()).LayoutSingle() }
@@ -1602,6 +1622,26 @@ func CmdShowUnsavedChanges() string { return In(i18n.Locale()).CmdShowUnsavedCha
 // in the language of msgs.
 func (msgs Messages) CmdShowUnsavedChanges() string {
 	return Catalog.Format(msgs.locale, "cmdShowUnsavedChanges", nil)
+}
+
+// CmdOpenPreview says "Markdown: Open Preview"
+// in the language the app shows.
+func CmdOpenPreview() string { return In(i18n.Locale()).CmdOpenPreview() }
+
+// CmdOpenPreview says "Markdown: Open Preview"
+// in the language of msgs.
+func (msgs Messages) CmdOpenPreview() string {
+	return Catalog.Format(msgs.locale, "cmdOpenPreview", nil)
+}
+
+// CmdOpenPreviewToTheSide says "Markdown: Open Preview to the Side"
+// in the language the app shows.
+func CmdOpenPreviewToTheSide() string { return In(i18n.Locale()).CmdOpenPreviewToTheSide() }
+
+// CmdOpenPreviewToTheSide says "Markdown: Open Preview to the Side"
+// in the language of msgs.
+func (msgs Messages) CmdOpenPreviewToTheSide() string {
+	return Catalog.Format(msgs.locale, "cmdOpenPreviewToTheSide", nil)
 }
 
 // CmdToggleComment says "Toggle Comment"
@@ -2860,6 +2900,20 @@ func TabUnsavedChanges(name string) string { return In(i18n.Locale()).TabUnsaved
 // in the language of msgs.
 func (msgs Messages) TabUnsavedChanges(name string) string {
 	return Catalog.Format(msgs.locale, "tabUnsavedChanges", map[string]any{"name": name})
+}
+
+// TabPreview says "Preview: {name}"
+// in the language the app shows.
+//
+// The title of a Markdown preview's tab.
+func TabPreview(name string) string { return In(i18n.Locale()).TabPreview(name) }
+
+// TabPreview says "Preview: {name}"
+// in the language of msgs.
+//
+// The title of a Markdown preview's tab.
+func (msgs Messages) TabPreview(name string) string {
+	return Catalog.Format(msgs.locale, "tabPreview", map[string]any{"name": name})
 }
 
 // CompareClipboard says "Clipboard"

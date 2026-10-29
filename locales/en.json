@@ -104,6 +104,8 @@
   "menuCloseUnmodifiedTabs": "Close Unmodified Tabs",
   "menuCloseDeletedTabs": "Close Tabs With Deleted Files",
   "menuOpenFile": "Open File…",
+  "menuOpenPreview": "Open Preview",
+  "menuOpenPreviewToTheSide": "Open Preview to the Side",
 
   "layoutSingle": "Single",
   "layoutColumns2": "Columns: 2",
@@ -164,6 +166,8 @@
   "cmdCompareWith": "Compare: With File or Tab…",
   "cmdCompareWithClipboard": "Compare: With Clipboard",
   "cmdShowUnsavedChanges": "Compare: Show Unsaved Changes",
+  "cmdOpenPreview": "Markdown: Open Preview",
+  "cmdOpenPreviewToTheSide": "Markdown: Open Preview to the Side",
   "cmdToggleComment": "Toggle Comment",
   "cmdToggleBlockComment": "Toggle Block Comment",
   "cmdSplitSelection": "Selection: Split into Lines",
@@ -407,6 +411,11 @@
   "tabUnsavedChanges": "{name}: Unsaved Changes",
   "@tabUnsavedChanges": {
     "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "tabPreview": "Preview: {name}",
+  "@tabPreview": {
+    "description": "The title of a Markdown preview's tab.",
+    "placeholders": { "name": { "type": "String", "example": "README.md" } }
   },
   "compareClipboard": "Clipboard",
   "compareOnDisk": "{name} on Disk",

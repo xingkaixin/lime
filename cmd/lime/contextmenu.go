@@ -44,6 +44,15 @@ func (a *app) tabMenu(m *ui.Menu, g *group, d *doc) {
 		a.focusGroup(slices.Index(a.groups, g))
 		a.promptOpen()
 	}
+	if d.markdown() {
+		m.Separator()
+		if m.Item(locales.MenuOpenPreview()).Chosen() {
+			a.openPreview(d, false)
+		}
+		if m.Item(locales.MenuOpenPreviewToTheSide()).Chosen() {
+			a.openPreview(d, true)
+		}
+	}
 }
 
 // closeTabs closes the tabs of docs without changes that match.

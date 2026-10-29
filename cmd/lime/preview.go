@@ -24,6 +24,7 @@ const (
 	diffDoc           // shown as the changes between two texts, cmp's
 	commitDoc         // shown as the changes of a commit, commit's
 	findDoc           // shown as the matches of a search, results'
+	mdDoc             // shown as the Markdown of another tab, md's
 )
 
 // imageExts are the images DecodeBitmap reads.

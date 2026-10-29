@@ -186,6 +186,10 @@ func (a *app) groupView(c *ui.Context, gi int) {
 			a.resultsView(c, g, d)
 			return
 		}
+		if d.md != nil {
+			a.previewTab(c, d)
+			return
+		}
 		if d.kind != textDoc {
 			a.preview(c, gi, d)
 			return
@@ -196,11 +200,25 @@ func (a *app) groupView(c *ui.Context, gi int) {
 		}
 		d.st.OnDefinition = func(off int) { a.gotoDefinition(d, off) }
 		d.st.OnCompletion = func(r editor.CompletionRequest) { a.complete(d, r) }
+		// An input method would take the second key of a chord without
+		// modifiers, as V of Cmd+K V, and only commit its text: GTK's sends
+		// no key at all, which would leave the chord waiting.
+		d.st.NoInputMethod = a.chord
 		d.st.OnInput = func(ev ui.InputEvent) bool {
+			// That key is the window's, and its text comes before the frame
+			// runs it: the text is not typed.
+			if a.chord && ev.Kind == ui.InputText {
+				return true
+			}
 			a.typing(d, ev)
 			return false
 		}
 		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
+		// A layout of more groups builds the editor anew, in a split, and
+		// FocusBind asks for the focus only as a.focused changes.
+		if a.focused == (place{g, d}) {
+			e.AutoFocus()
+		}
 		a.input(e, d)
 	})
 }

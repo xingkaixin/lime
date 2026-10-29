@@ -190,6 +190,8 @@ func makeCommands() []command {
 		{id: "compare_with", caption: locales.Messages.CmdCompareWith, run: withDoc((*app).showCompare)},
 		{id: "compare_with_clipboard", caption: locales.Messages.CmdCompareWithClipboard, run: withDoc((*app).compareClipboard)},
 		{id: "diff_changes", caption: locales.Messages.CmdShowUnsavedChanges, run: withDoc((*app).showUnsavedChanges)},
+		{id: "open_markdown_preview", caption: locales.Messages.CmdOpenPreview, run: withDoc(func(a *app, d *doc) { a.openPreview(d, false) })},
+		{id: "open_markdown_preview_to_the_side", caption: locales.Messages.CmdOpenPreviewToTheSide, run: withDoc(func(a *app, d *doc) { a.openPreview(d, true) })},
 		edit("toggle_comment", locales.Messages.CmdToggleComment, editor.ToggleComment),
 		edit("toggle_block_comment", locales.Messages.CmdToggleBlockComment, editor.ToggleBlockComment),
 		edit("split_selection_into_lines", locales.Messages.CmdSplitSelection, editor.SplitSelectionIntoLines),

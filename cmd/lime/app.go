@@ -53,6 +53,7 @@ type doc struct {
 	cmp     *comparison // a diffDoc's
 	commit  *commitView // a commitDoc's
 	results *results    // a findDoc's
+	md      *mdPreview  // a mdDoc's
 	// words are the text's words as wordList last found them, while
 	// scanning finds them again; asked is the completions last asked for.
 	words    *wordList
@@ -68,6 +69,8 @@ func (d *doc) name() string {
 		return d.commit.title()
 	case d.results != nil:
 		return locales.FindResults()
+	case d.md != nil:
+		return d.md.title()
 	case d.path == "":
 		return locales.Untitled()
 	}
@@ -556,10 +559,11 @@ func (a *app) add(path, text string) *doc {
 	d := newDoc(path, text)
 	g := a.group()
 	// An empty untitled tab that was never touched gives way to the file.
-	if cur := g.current(); path != "" && cur != nil && cur.path == "" && cur.st.Buffer.Len() == 0 && !cur.dirty() {
+	if cur := g.current(); path != "" && cur != nil && cur.kind == textDoc && cur.path == "" && cur.st.Buffer.Len() == 0 && !cur.dirty() {
 		g.docs[g.active] = d
 		a.mru = slices.DeleteFunc(a.mru, func(x *doc) bool { return x == cur })
 		a.jumps.forget(cur)
+		a.closeViews(cur)
 	} else {
 		g.docs = append(g.docs, d)
 	}
@@ -837,10 +841,15 @@ func (a *app) remove(d *doc) {
 		a.closed = append(a.closed, d.path)
 	}
 	release(d)
-	// A diff tab would go on editing a text no tab shows.
+	a.closeViews(d)
+}
+
+// closeViews closes the tabs of every window that show d, gone: a diff
+// tab would go on editing a text no tab shows, and a preview showing it.
+func (a *app) closeViews(d *doc) {
 	for _, w := range a.l.wins {
 		for _, x := range w.allDocs() {
-			if x.cmp != nil && (x.cmp.src == d || x.cmp.old == d) {
+			if x.cmp != nil && (x.cmp.src == d || x.cmp.old == d) || x.md != nil && x.md.src == d {
 				w.remove(x)
 			}
 		}
