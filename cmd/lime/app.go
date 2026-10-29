@@ -240,6 +240,24 @@ var layouts = []layout{
 	{"Rows: 3", locales.Messages.LayoutRows3, 1, 3},
 }
 
+// layoutStyle is how the groups sit in the window: compact ones meet at
+// a line, comfortable ones are cards with room between them.
+type layoutStyle struct {
+	name  string
+	label func(locales.Messages) string
+}
+
+func (s layoutStyle) id() string { return "layout_style " + s.name }
+
+const (
+	compactLayout     = "compact"
+	comfortableLayout = "comfortable"
+)
+
+var layoutStyles = []layoutStyle{
+	{compactLayout, locales.Messages.LayoutCompact}, {comfortableLayout, locales.Messages.LayoutComfortable},
+}
+
 func layoutOf(cols, rows int) layout {
 	for _, l := range layouts {
 		if l.cols == cols && l.rows == rows {

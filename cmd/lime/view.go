@@ -53,7 +53,9 @@ func (a *app) view(c *ui.Context) {
 			if w := c.TitleBar().Left; w > 0 {
 				a.set.SideBarWidth = max(a.set.SideBarWidth, w+controlsGap)
 			}
-			ui.Split(c, &a.set.SideBarWidth, func() { a.sideBar(c) }, func() { a.groupsView(c) }).Grow(1).FillWidth().MinHeight(0)
+			hide, show := a.dividers(c)
+			hide()
+			ui.Split(c, &a.set.SideBarWidth, func() { show(); a.sideBar(c) }, func() { show(); a.groupsView(c) }).Grow(1).FillWidth().MinHeight(0)
 		} else {
 			a.groupsView(c)
 		}
@@ -75,6 +77,10 @@ const tabIcon = 14
 
 // controlsGap is the room left after the window controls.
 const controlsGap = 12
+
+// cardGap is the room between the groups of a comfortable layout, and
+// around them; cardRadius rounds their corners.
+const cardGap, cardRadius = 6, 8
 
 // titleBand is the height of the band along the window's top that the
 // window controls sit in, over the side bar and the top groups' tab bars;
@@ -116,11 +122,32 @@ func (a *app) groupsView(c *ui.Context) {
 	if len(a.rows) != l.rows-1 {
 		a.rows = even(l.rows)
 	}
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		splits(c, a.rows, true, func(r int) {
-			splits(c, a.cols, false, func(col int) { a.groupView(c, r*l.cols+col) })
+	hide, show := a.dividers(c)
+	groups := ui.Column(c).Grow(1).FillWidth().MinHeight(0)
+	if a.comfortable() {
+		groups.Padding(0, cardGap/2, cardGap/2, cardGap/2)
+	}
+	groups.Children(func() {
+		splits(c, a.rows, true, hide, show, func(r int) {
+			splits(c, a.cols, false, hide, show, func(col int) { a.groupView(c, r*l.cols+col) })
 		})
 	})
+}
+
+func (a *app) comfortable() bool { return a.set.LayoutStyle == comfortableLayout }
+
+// dividers returns hide, which has the splits built after it draw no line
+// between their panes in a comfortable layout, where room parts them, and
+// show, which their panes build after: a split draws its line in the theme
+// it was built in.
+func (a *app) dividers(c *ui.Context) (hide, show func()) {
+	if !a.comfortable() {
+		return func() {}, func() {}
+	}
+	th := c.Theme()
+	lineless := *th
+	lineless.Border = ui.Transparent
+	return func() { c.SetTheme(&lineless) }, func() { c.SetTheme(th) }
 }
 
 // even places the dividers of n panes of the same size: each percentage
@@ -134,8 +161,8 @@ func even(n int) []float32 {
 }
 
 // splits lays out len(p)+1 panes, the ones after the first in the second
-// pane of a split with the first.
-func splits(c *ui.Context, p []float32, vertical bool, pane func(i int)) {
+// pane of a split with the first, as dividers' hide and show have them.
+func splits(c *ui.Context, p []float32, vertical bool, hide, show func(), pane func(i int)) {
 	var from func(i int)
 	from = func(i int) {
 		if i == len(p) {
@@ -146,17 +173,17 @@ func splits(c *ui.Context, p []float32, vertical bool, pane func(i int)) {
 		if vertical {
 			split = ui.SplitVerticalPercent
 		}
-		split(c, &p[i], func() { pane(i) }, func() { from(i + 1) }).Fill()
+		hide()
+		split(c, &p[i], func() { show(); pane(i) }, func() { show(); from(i + 1) }).Fill()
 	}
 	from(0)
 }
 
 func (a *app) groupView(c *ui.Context, gi int) {
 	g := a.groups[gi]
-	s := a.scheme
 	col := ui.Column(c.Key(key(g))).Fill().MinWidth(0).MinHeight(0)
-	if !c.Vibrancy() {
-		col.Background(s.bg)
+	if a.comfortable() {
+		col.Padding(0, cardGap/2, cardGap/2, cardGap/2)
 	}
 	if files := col.DroppedFiles(); files != nil {
 		a.focusGroup(gi)
@@ -165,70 +192,84 @@ func (a *app) groupView(c *ui.Context, gi int) {
 	a.adopt(g)
 	col.Children(func() {
 		a.tabBar(c, g, gi)
-		d := g.current()
-		if d == nil {
-			d = g.placeholder()
+		card := ui.Column(c).Grow(1).FillWidth().MinHeight(0)
+		if !c.Vibrancy() {
+			card.Background(a.scheme.bg)
 		}
-		d.st.Theme, d.st.Bindings = s.editorTheme(), a.l.keys.editor
-		d.st.SoftWrap = a.set.WordWrap
-		a.applyIndent(d)
-		d.st.Font, d.st.LineHeight = a.set.font(), a.set.lineHeight()
-		d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
-		if d.cmp != nil {
-			a.diffView(c, gi, d)
-			return
+		if a.comfortable() {
+			card.Radius(cardRadius).Clip()
 		}
-		if d.commit != nil {
-			a.commitTab(c, gi, d)
-			return
+		card.Children(func() { a.groupContent(c, g, gi) })
+	})
+}
+
+// groupContent shows the current tab of g, the group at gi.
+func (a *app) groupContent(c *ui.Context, g *group, gi int) {
+	s := a.scheme
+	d := g.current()
+	if d == nil {
+		d = g.placeholder()
+	}
+	d.st.Theme, d.st.Bindings = s.editorTheme(), a.l.keys.editor
+	d.st.SoftWrap = a.set.WordWrap
+	a.applyIndent(d)
+	d.st.Font, d.st.LineHeight = a.set.font(), a.set.lineHeight()
+	d.st.RenderFindBar = func(c *ui.Context, bar ui.Element, f *editor.FindBar) { a.findBar(c, bar, f, d) }
+	if d.cmp != nil {
+		a.diffView(c, gi, d)
+		return
+	}
+	if d.commit != nil {
+		a.commitTab(c, gi, d)
+		return
+	}
+	if d.results != nil {
+		a.resultsView(c, g, d)
+		return
+	}
+	if d.md != nil {
+		a.previewTab(c, d)
+		return
+	}
+	if d.kind != textDoc {
+		a.preview(c, gi, d)
+		return
+	}
+	a.set.display(d.st)
+	if d == g.blank {
+		d.st.LineNumbers = editor.LineNumbersOff
+	}
+	d.st.OnDefinition = func(off int) { a.gotoDefinition(d, off) }
+	d.st.OnCompletion = func(r editor.CompletionRequest) { a.complete(d, r) }
+	// An input method would take the second key of a chord without
+	// modifiers, as V of Cmd+K V, and only commit its text: GTK's sends
+	// no key at all, which would leave the chord waiting.
+	d.st.NoInputMethod = a.chord
+	d.st.OnInput = func(ev ui.InputEvent) bool {
+		// That key is the window's, and its text comes before the frame
+		// runs it: the text is not typed.
+		if a.chord && ev.Kind == ui.InputText {
+			return true
 		}
-		if d.results != nil {
-			a.resultsView(c, g, d)
-			return
+		a.typing(d, ev)
+		blameKey(d, ev)
+		return false
+	}
+	d.st.ContextMenu = nil
+	if d.linkable() {
+		d.st.ContextMenu = func(m *ui.Menu) { a.permalinkMenu(m, d) }
+	}
+	a.syncBlame(c, d)
+	a.withBlame(c, d, func() ui.Element {
+		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
+		*noScrollBars(d.st) = !a.set.ShowScrollBars
+		// A layout of more groups builds the editor anew, in a split, and
+		// FocusBind asks for the focus only as a.focused changes.
+		if a.focused == (place{g, d}) {
+			e.AutoFocus()
 		}
-		if d.md != nil {
-			a.previewTab(c, d)
-			return
-		}
-		if d.kind != textDoc {
-			a.preview(c, gi, d)
-			return
-		}
-		a.set.display(d.st)
-		if d == g.blank {
-			d.st.LineNumbers = editor.LineNumbersOff
-		}
-		d.st.OnDefinition = func(off int) { a.gotoDefinition(d, off) }
-		d.st.OnCompletion = func(r editor.CompletionRequest) { a.complete(d, r) }
-		// An input method would take the second key of a chord without
-		// modifiers, as V of Cmd+K V, and only commit its text: GTK's sends
-		// no key at all, which would leave the chord waiting.
-		d.st.NoInputMethod = a.chord
-		d.st.OnInput = func(ev ui.InputEvent) bool {
-			// That key is the window's, and its text comes before the frame
-			// runs it: the text is not typed.
-			if a.chord && ev.Kind == ui.InputText {
-				return true
-			}
-			a.typing(d, ev)
-			blameKey(d, ev)
-			return false
-		}
-		d.st.ContextMenu = nil
-		if d.linkable() {
-			d.st.ContextMenu = func(m *ui.Menu) { a.permalinkMenu(m, d) }
-		}
-		a.syncBlame(c, d)
-		a.withBlame(c, d, func() ui.Element {
-			e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
-			// A layout of more groups builds the editor anew, in a split, and
-			// FocusBind asks for the focus only as a.focused changes.
-			if a.focused == (place{g, d}) {
-				e.AutoFocus()
-			}
-			a.input(e, d)
-			return e
-		})
+		a.input(e, d)
+		return e
 	})
 }
 
@@ -240,7 +281,13 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 	if gi < a.layout.cols {
 		band = titleBand(c)
 	}
-	ui.Row(c).FillWidth().Height(max(band, tabBarHeight)).Shrink(0).AlignItems(ui.Stretch).Background(a.shell(c).bg).Children(func() {
+	row := ui.Row(c).FillWidth().Height(max(band, tabBarHeight)).Shrink(0).AlignItems(ui.Stretch).Background(a.shell(c).bg)
+	// The tab shown meets the card under it, whose rounded corner would
+	// leave a notch under a tab over it.
+	if a.comfortable() {
+		row.PaddingStart(cardRadius)
+	}
+	row.Children(func() {
 		// Without the side bar, the window controls sit before the first
 		// group's tabs, apart from them and outside the bar that dragged
 		// tabs measure.

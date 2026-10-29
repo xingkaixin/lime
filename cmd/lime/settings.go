@@ -38,6 +38,11 @@ type settings struct {
 	HighlightLine    bool       `json:"highlight_line"`
 	DrawIndentGuides bool       `json:"draw_indent_guides"`
 	ScrollPastEnd    pastEnd    `json:"scroll_past_end"`
+	// LayoutStyle is the name of a layoutStyle: how the groups sit in the
+	// window.
+	LayoutStyle string `json:"layout_style"`
+	// ShowScrollBars draws the text's scroll bars.
+	ShowScrollBars bool `json:"show_scroll_bars"`
 	// LinePaddingTop and LinePaddingBottom add DIPs above and below each
 	// line.
 	LinePaddingTop    float32 `json:"line_padding_top"`
@@ -103,7 +108,7 @@ func settingsPath(dir string) string { return filepath.Join(dir, "settings.json"
 func loadSettings(dir string) (settings, error) {
 	s := settings{
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
-		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TabSize: 4, AutoComplete: true,
+		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, LayoutStyle: compactLayout, TabSize: 4, AutoComplete: true,
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
 		Rulers: rulers{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
 		ScrollPastEnd: true, FontOptions: []string{}, InlineBlame: true,
@@ -144,6 +149,17 @@ func (s *settings) locale() string {
 		return ""
 	}
 	return i18n.Normalize(s.Language)
+}
+
+// layoutStyle is the style LayoutStyle names, compact for a name it
+// doesn't know.
+func (s *settings) layoutStyle() layoutStyle {
+	for _, l := range layoutStyles {
+		if l.name == s.LayoutStyle {
+			return l
+		}
+	}
+	return layoutStyles[0]
 }
 
 // indent is what TranslateTabsToSpaces has indenting insert.
