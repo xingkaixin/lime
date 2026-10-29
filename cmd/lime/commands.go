@@ -161,6 +161,10 @@ func makeCommands() []command {
 		{id: "close_project", caption: locales.Messages.CmdCloseProject, run: (*app).closeProject},
 		{id: "refresh_folders", caption: locales.Messages.CmdRefreshFolders, run: (*app).refreshFolders},
 
+		{id: "git_create_branch", caption: realGit(locales.Messages.CmdCreateBranch), run: inRepo((*app).promptCreateBranch)},
+		{id: "git_delete_branch", caption: realGit(locales.Messages.CmdDeleteBranch), run: inRepo((*app).showDeleteBranch)},
+		{id: "git_rename_branch", caption: realGit(locales.Messages.CmdRenameBranch), run: inRepo((*app).promptRenameBranch)},
+
 		convertCase("upper_case", locales.Messages.CmdUpperCase, editor.Uppercase, false),
 		convertCase("lower_case", locales.Messages.CmdLowerCase, editor.Lowercase, false),
 		convertCase("title_case", locales.Messages.CmdTitleCase, editor.TitleCase, false),

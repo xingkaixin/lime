@@ -129,6 +129,10 @@ var shortcutGroups = func() []shortcutGroup {
 			s("close_project", m.MenuCloseProject), s("prompt_add_folder", m.MenuAddFolderToProject),
 			s("refresh_folders", m.MenuRefreshFolders),
 		}},
+		{m.ShortcutGroupGit, []shortcut{
+			s("git_create_branch", m.CmdCreateBranch), s("git_delete_branch", m.CmdDeleteBranch),
+			s("git_rename_branch", m.CmdRenameBranch),
+		}},
 	}
 }()
 

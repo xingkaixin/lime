@@ -1581,6 +1581,37 @@ func TestDiscard(t *testing.T) {
 	}
 }
 
+// Create Branch and Rename Branch take the name from the input panel,
+// and a name git refuses shows what git says of it.
+func TestBranchName(t *testing.T) {
+	dir, git := newRepo(t)
+	git("commit", "-q", "--allow-empty", "-m", "base")
+	a := newApp("")
+	a.open([]string{dir})
+	tt := ui.NewTester(a.view, 900, 600)
+	name := func(id, text string) {
+		t.Helper()
+		a.run(id)
+		tt.Frame()
+		tt.Key(ui.Cmd, ui.KeyA)
+		tt.Type(text)
+		tt.Key(0, ui.KeyEnter)
+		tt.Frame()
+	}
+	name("git_create_branch", "topic")
+	if a.git.branch != "topic" {
+		t.Fatalf("created %q", a.git.branch)
+	}
+	name("git_rename_branch", "feature")
+	if a.git.branch != "feature" {
+		t.Fatalf("renamed to %q", a.git.branch)
+	}
+	name("git_create_branch", "a..b")
+	if !a.notice.err || !strings.Contains(a.notice.text, "a..b") || a.git.branch != "feature" {
+		t.Fatalf("an invalid name: %q, branch %q", a.notice.text, a.git.branch)
+	}
+}
+
 func TestCommitRows(t *testing.T) {
 	var old, cur []string
 	for i := 1; i <= 10; i++ {

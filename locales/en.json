@@ -208,6 +208,9 @@
   "@cmdSaveWithEncoding": {
     "placeholders": { "name": { "type": "String", "example": "GBK" } }
   },
+  "cmdCreateBranch": "Git: Create Branch…",
+  "cmdDeleteBranch": "Git: Delete Branch…",
+  "cmdRenameBranch": "Git: Rename Branch…",
 
   "panelLabel": "Quick panel",
   "panelCommandPalette": "Command Palette",
@@ -230,6 +233,7 @@
     "description": "Marks a file of the list that is open in a tab."
   },
   "promptNewName": "New Name:",
+  "promptBranchName": "Branch Name:",
 
   "dialogUnableToOpen": "Unable to open {name}",
   "@dialogUnableToOpen": {
@@ -303,6 +307,11 @@
   },
   "dialogDiscardLost": "Changes that aren't staged can't be recovered.",
   "dialogDiscardUntracked": "New files move to the Trash.",
+  "dialogBranchNotMerged": "{name} is not fully merged. Delete it anyway?",
+  "@dialogBranchNotMerged": {
+    "placeholders": { "name": { "type": "String", "example": "topic" } }
+  },
+  "dialogBranchCommitsLost": "The commits only it has are lost.",
   "filterProject": "Sublime Project",
 
   "sideBarDropFolder": "Drop a folder here to open it",
@@ -370,6 +379,7 @@
   "gitCurrent": "Current",
   "gitRemoteBranch": "Remote branch",
   "gitStash": "Stash",
+  "gitDeleteBranch": "Delete Branch",
   "previewBinary": "This file is binary and can't be shown.",
   "tabBar": "Tab bar",
   "tabClose": "Close {name}",
@@ -613,6 +623,7 @@
   "shortcutGroupFolding": "Code Folding",
   "shortcutGroupTabs": "Tabs",
   "shortcutGroupLayout": "Layout and Groups",
+  "shortcutGroupGit": "Git",
   "shortcutSoftUndo": "Undo Selection",
   "shortcutSoftRedo": "Redo Selection",
   "shortcutIndent": "Indent",

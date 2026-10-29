@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -222,6 +223,98 @@ func (a *app) showBranches() {
 				}})
 			}
 			a.openPanel(&panel{placeholder: locales.GitBranchPlaceholder(), list: func(q string) []item { return ranked(items, byLabel(q)) }})
+		}
+	})
+}
+
+// inRepo runs fn when the project has a git repository.
+func inRepo(fn func(a *app)) func(a *app) {
+	return func(a *app) {
+		if a.git.root == "" {
+			a.notifyError(locales.SideBarNoRepository())
+			return
+		}
+		fn(a)
+	}
+}
+
+// realGit keeps a command out of the website's command palette, whose
+// git (website/git.js) has no branches or remotes.
+func realGit(caption func(locales.Messages) string) func(locales.Messages) string {
+	if runtime.GOOS == "js" {
+		return nil
+	}
+	return caption
+}
+
+// promptCreateBranch names a branch to make at HEAD and switch to.
+func (a *app) promptCreateBranch() {
+	a.openPanel(&panel{prompt: locales.PromptBranchName(), submit: func(name string) {
+		if name = strings.TrimSpace(name); name != "" {
+			a.gitRun("switch", "-c", name)
+		}
+	}})
+}
+
+// promptRenameBranch renames the branch checked out.
+func (a *app) promptRenameBranch() {
+	old := a.git.branch
+	a.openPanel(&panel{prompt: locales.PromptNewName(), query: old, submit: func(name string) {
+		if name = strings.TrimSpace(name); name != "" && name != old {
+			a.gitRun("branch", "-m", "--", name)
+		}
+	}})
+}
+
+// showDeleteBranch lists the local branches to delete one: not the one
+// checked out here or in another work tree, which git keeps.
+func (a *app) showDeleteBranch() {
+	root, cur := a.git.root, a.git.branch
+	a.background(func() func() {
+		b := readBranches(root)
+		return func() {
+			var items []item
+			for _, name := range b.local {
+				it := item{label: name, pick: func() {
+					a.confirm(locales.DialogDelete(name), "", locales.ButtonDelete(), func() { a.deleteBranch(name, false) })
+				}}
+				switch tree, ok := b.elsewhere[name]; {
+				case name == cur:
+					continue
+				case ok:
+					it.detail, it.pick = tildePath(tree), nil
+				}
+				items = append(items, it)
+			}
+			a.openPanel(&panel{placeholder: locales.GitDeleteBranch(), list: func(q string) []item { return ranked(items, byLabel(q)) }})
+		}
+	})
+}
+
+// deleteBranch deletes the branch name. Unless force, git refuses one
+// not merged, which the user may then delete anyway.
+func (a *app) deleteBranch(name string, force bool) {
+	dir, flag := a.git.root, "-d"
+	if force {
+		flag = "-D"
+	}
+	a.background(func() func() {
+		gitWrites.Lock()
+		// The advice names -D, which tells a branch not merged.
+		out, err := gitWith(dir, "", "-c", "advice.forceDeleteBranch=true", "branch", flag, "--", name)
+		gitWrites.Unlock()
+		return func() {
+			switch {
+			case err == nil:
+				a.notify(strings.TrimSpace(out))
+			// git advises -D, in any language, only for a branch not merged.
+			case !force && strings.Contains(err.Error(), "branch -D"):
+				a.confirm(locales.DialogBranchNotMerged(name), locales.DialogBranchCommitsLost(), locales.ButtonDelete(),
+					func() { a.deleteBranch(name, true) })
+			default:
+				msg, _, _ := strings.Cut(err.Error(), "\n")
+				a.notifyError(msg)
+			}
 		}
 	})
 }
