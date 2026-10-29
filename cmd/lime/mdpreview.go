@@ -79,26 +79,23 @@ func (a *app) openPreview(src *doc, side bool) {
 	a.show(src)
 }
 
-// refreshPreview takes the text of p's tab once it has stayed for
-// previewPause since it changed.
-func (a *app) refreshPreview(p *mdPreview) {
+// refresh takes the text of p's tab once it has stayed for previewPause
+// since it changed.
+func (p *mdPreview) refresh(c *ui.Context) {
 	b := p.src.st.Buffer
 	v := b.Version()
 	if v == p.ver {
 		return
 	}
-	now := time.Now()
 	if v != p.seen {
-		p.seen, p.at = v, now
-		// A window that never opened, as in tests, has no frames to update.
-		if w := a.win; w != nil {
-			time.AfterFunc(previewPause, func() { w.Update(func() {}) })
-		}
+		p.seen, p.at = v, c.Now()
+	}
+	// A frame's After is for that frame: each one until then asks again.
+	if wait := previewPause - c.Now().Sub(p.at); wait > 0 {
+		c.After(wait)
 		return
 	}
-	if now.Sub(p.at) >= previewPause {
-		p.text, p.ver = b.String(), v
-	}
+	p.text, p.ver = b.String(), v
 }
 
 // previewOptions are how p shows: in the colors of the scheme, its images
@@ -196,7 +193,7 @@ func (a *app) followLink(services ui.Services, p *mdPreview, link string) {
 // previewTab shows the preview tab d in place of the editor of its group.
 func (a *app) previewTab(c *ui.Context, d *doc) {
 	p := d.md
-	a.refreshPreview(p)
+	p.refresh(c)
 	opts := a.previewOptions(p, c.Services())
 	col := ui.Column(c.Key(key(d))).Grow(1).FillWidth().MinHeight(0).Background(a.scheme.bg)
 	if col.FocusWithin() && a.current() != d {

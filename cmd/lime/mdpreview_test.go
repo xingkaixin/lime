@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
@@ -53,8 +52,7 @@ func TestMarkdownPreview(t *testing.T) {
 	if tt.HasText("More text.") {
 		t.Fatal("the preview parsed the text before typing paused")
 	}
-	time.Sleep(previewPause)
-	tt.Frame()
+	tt.Advance(previewPause)
 	if !tt.HasText("More text.") {
 		t.Fatalf("the preview did not follow the edit: %q", tt.Texts())
 	}
