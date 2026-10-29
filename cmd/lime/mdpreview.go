@@ -222,11 +222,12 @@ func (a *app) previewOptions(c *ui.Context, p *mdPreview) *markdown.Options {
 }
 
 // localFile returns the file at path, from dir when relative, if it is an
-// ordinary file of this machine: Windows reads //host/share/x.png from
-// another, which it sends the user's credentials to, and reading a device
-// such as /dev/zero never ends.
+// ordinary file of this machine. A volume longer than C:, as Windows reads
+// \\host\share, \\?\ and \??\UNC\host, is another machine's, which it
+// sends the user's credentials to, or a device's; reading a device such as
+// /dev/zero never ends.
 func localFile(dir, path string) (string, bool) {
-	if len(path) > 1 && strings.IndexByte(`/\`, path[0]) >= 0 && strings.IndexByte(`/\`, path[1]) >= 0 {
+	if len(filepath.VolumeName(path)) > 2 {
 		return "", false
 	}
 	if !filepath.IsAbs(path) {
