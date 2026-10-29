@@ -41,6 +41,10 @@ func (l *lime) newMenu() *mygo.Menu {
 	for _, lo := range layouts {
 		layoutItems = append(layoutItems, l.check(lo.label(locales.In(i18n.Locale())), lo.id(), mygo.MenuItemRadio))
 	}
+	layoutItems = append(layoutItems, mygo.Separator())
+	for _, s := range layoutStyles {
+		layoutItems = append(layoutItems, l.check(s.label(locales.In(i18n.Locale())), s.id(), mygo.MenuItemRadio))
+	}
 	for _, sc := range schemes {
 		it := l.check(sc.name, "scheme "+sc.name, mygo.MenuItemRadio)
 		it.Click = func(_ *mygo.MenuItem, w *mygo.Window) {
@@ -205,7 +209,7 @@ func (a *app) syncMenu() {
 		tabSize, spaces = a.indentOf(d)
 		ending, reopen = d.lineEnding(), reopenable(d)
 	}
-	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.scheme.name, tabSize, spaces, ending, reopen)
+	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.set.LayoutStyle, a.scheme.name, tabSize, spaces, ending, reopen)
 	if state == l.menuState {
 		return
 	}
@@ -218,6 +222,7 @@ func (a *app) syncMenu() {
 	check("toggle_side_bar", a.side != noPanel)
 	check("toggle_word_wrap", a.set.WordWrap)
 	check(a.layout.id(), true)
+	check(a.set.layoutStyle().id(), true)
 	check("scheme "+a.scheme.name, true)
 	check("toggle_setting translate_tabs_to_spaces", spaces)
 	check(tabWidth(tabSize), true)

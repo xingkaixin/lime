@@ -1144,6 +1144,26 @@ func (msgs Messages) LayoutRows3() string {
 	return Catalog.Format(msgs.locale, "layoutRows3", nil)
 }
 
+// LayoutCompact says "Compact"
+// in the language the app shows.
+func LayoutCompact() string { return In(i18n.Locale()).LayoutCompact() }
+
+// LayoutCompact says "Compact"
+// in the language of msgs.
+func (msgs Messages) LayoutCompact() string {
+	return Catalog.Format(msgs.locale, "layoutCompact", nil)
+}
+
+// LayoutComfortable says "Comfortable"
+// in the language the app shows.
+func LayoutComfortable() string { return In(i18n.Locale()).LayoutComfortable() }
+
+// LayoutComfortable says "Comfortable"
+// in the language of msgs.
+func (msgs Messages) LayoutComfortable() string {
+	return Catalog.Format(msgs.locale, "layoutComfortable", nil)
+}
+
 // CmdNewFile says "File: New File"
 // in the language the app shows.
 func CmdNewFile() string { return In(i18n.Locale()).CmdNewFile() }
@@ -3990,6 +4010,16 @@ func SettingsModeDesc() string { return In(i18n.Locale()).SettingsModeDesc() }
 // in the language of msgs.
 func (msgs Messages) SettingsModeDesc() string {
 	return Catalog.Format(msgs.locale, "settingsModeDesc", nil)
+}
+
+// SettingsLayoutStyle says "Layout Style"
+// in the language the app shows.
+func SettingsLayoutStyle() string { return In(i18n.Locale()).SettingsLayoutStyle() }
+
+// SettingsLayoutStyle says "Layout Style"
+// in the language of msgs.
+func (msgs Messages) SettingsLayoutStyle() string {
+	return Catalog.Format(msgs.locale, "settingsLayoutStyle", nil)
 }
 
 // SettingsSystem says "System"

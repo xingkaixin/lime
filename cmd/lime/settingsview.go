@@ -305,6 +305,18 @@ func (a *app) appearancePage(c *ui.Context) {
 				a.l.saveSettings()
 			}
 		})
+		a.settingsRow(c, locales.SettingsLayoutStyle(), "", func() {
+			m := locales.In(i18n.Locale())
+			var options []string
+			for _, s := range layoutStyles {
+				options = append(options, s.label(m))
+			}
+			choice := a.set.layoutStyle().label(m)
+			if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsLayoutStyle()).Changed() {
+				a.set.LayoutStyle = layoutStyles[slices.Index(options, choice)].name
+				a.l.saveSettings()
+			}
+		})
 	})
 	a.themes(c, false)
 	a.themes(c, true)

@@ -270,6 +270,13 @@ func makeCommands() []command {
 		caption := func(m locales.Messages) string { return m.CmdLayout(l.label(m)) }
 		c = append(c, command{id: l.id(), caption: caption, run: func(a *app) { a.setLayout(l) }})
 	}
+	for _, s := range layoutStyles {
+		caption := func(m locales.Messages) string { return m.CmdLayout(s.label(m)) }
+		c = append(c, command{id: s.id(), caption: caption, run: func(a *app) {
+			a.set.LayoutStyle = s.name
+			a.l.saveSettings()
+		}})
+	}
 	return slices.Concat(c, indentCommands(), lineEndingCommands(), encodingCommands())
 }
 

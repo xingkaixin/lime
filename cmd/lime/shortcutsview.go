@@ -48,6 +48,9 @@ var shortcutGroups = func() []shortcutGroup {
 	for _, l := range layouts {
 		layoutItems = append(layoutItems, shortcut{l.id(), func(msgs m) string { return msgs.CmdLayout(l.label(msgs)) }})
 	}
+	for _, ls := range layoutStyles {
+		layoutItems = append(layoutItems, shortcut{ls.id(), func(msgs m) string { return msgs.CmdLayout(ls.label(msgs)) }})
+	}
 	return []shortcutGroup{
 		{m.MenuFile, append([]shortcut{
 			s("new_file", m.MenuNewFile), s("new_window", m.MenuNewWindow), s("prompt_open", m.MenuOpen),

@@ -114,6 +114,8 @@
   "layoutGrid4": "四宫格",
   "layoutRows2": "两行",
   "layoutRows3": "三行",
+  "layoutCompact": "紧凑",
+  "layoutComfortable": "舒适",
 
   "cmdNewFile": "文件：新建文件",
   "cmdOpen": "文件：打开…",
@@ -399,6 +401,7 @@
   "settingsOpenFile": "在编辑器中打开",
   "settingsMode": "外观模式",
   "settingsModeDesc": "跟随系统时随系统切换浅色与深色",
+  "settingsLayoutStyle": "布局风格",
   "settingsSystem": "跟随系统",
   "settingsLightTheme": "浅色主题",
   "settingsDarkTheme": "深色主题",
