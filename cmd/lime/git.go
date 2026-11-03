@@ -33,7 +33,15 @@ func runGit(dir string, args ...string) (string, error) { return gitWith(dir, ""
 
 func readRepo(dir string) gitRepo {
 	r := gitRepo{dir: dir}
-	out, err := runGit(dir, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir")
+	var out, head, counts string
+	var err, headErr, countsErr error
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		out, err = runGit(dir, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir")
+	})
+	wg.Go(func() { head, headErr = runGit(dir, "symbolic-ref", "--quiet", "--short", "HEAD") })
+	wg.Go(func() { counts, countsErr = runGit(dir, "rev-list", "--left-right", "--count", "HEAD...@{upstream}") })
+	wg.Wait()
 	paths := strings.Split(strings.TrimSpace(out), "\n")
 	if err != nil || len(paths) != 3 {
 		return r
@@ -43,13 +51,13 @@ func readRepo(dir string) gitRepo {
 	if paths[1] != paths[2] {
 		r.tree = filepath.Base(r.root)
 	}
-	if out, err = runGit(dir, "symbolic-ref", "--quiet", "--short", "HEAD"); err != nil {
-		out, _ = runGit(dir, "rev-parse", "--short", "HEAD")
+	if headErr != nil {
+		head, _ = runGit(dir, "rev-parse", "--short", "HEAD")
 		r.detached = true
 	}
-	r.branch = strings.TrimSpace(out)
-	if out, err = runGit(dir, "rev-list", "--left-right", "--count", "HEAD...@{upstream}"); err == nil {
-		_, err = fmt.Sscan(out, &r.ahead, &r.behind)
+	r.branch = strings.TrimSpace(head)
+	if countsErr == nil {
+		_, err = fmt.Sscan(counts, &r.ahead, &r.behind)
 		r.upstream = err == nil
 	}
 	return r
@@ -74,15 +82,28 @@ func (a *app) readGit() {
 	if dir == "" {
 		return
 	}
+	refresh := func() {
+		if a.side == gitPanel {
+			a.readHistory()
+		}
+		a.readWorktree()
+	}
+	// The repository rarely moves under a folder, so what it shows is read
+	// at once, and again only if its root turns out to have changed.
+	early := a.git.root != ""
+	if early {
+		refresh()
+	}
 	a.background(func() func() {
 		r := readRepo(dir)
 		return func() {
-			if a.git.dir == dir {
-				a.git = r
-				if a.side == gitPanel {
-					a.readHistory()
-				}
-				a.readWorktree()
+			if a.git.dir != dir {
+				return
+			}
+			moved := r.root != a.git.root
+			a.git = r
+			if !early || moved {
+				refresh()
 			}
 		}
 	})
