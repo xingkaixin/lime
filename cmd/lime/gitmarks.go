@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/egoist/mygo/ui"
 	"golang.org/x/text/unicode/norm"
@@ -76,31 +77,53 @@ func (a *app) readMarks() {
 // tree each is in, and in the repositories in those that git status
 // shows as one entry. It blocks, so call it off the main thread.
 func readGitBases(folders []string) map[string]gitBase {
+	type place struct{ dir, top, prefix string }
+	places := make([]place, len(folders))
+	var wg sync.WaitGroup
+	for i, f := range folders {
+		wg.Go(func() {
+			// The prefix, not the top, places f in its work tree: git gives
+			// the top with the links in its path resolved.
+			out, err := runGit(f, "rev-parse", "--path-format=absolute", "--show-toplevel", "--show-prefix")
+			top, prefix, ok := strings.Cut(strings.TrimSuffix(out, "\n"), "\n")
+			if err == nil && ok {
+				places[i] = place{f, top, norm.NFC.String(prefix)}
+			}
+		})
+	}
+	wg.Wait()
+	level := slices.DeleteFunc(places, func(p place) bool { return p.top == "" })
+
 	bases := map[string]gitBase{}
 	read := map[string]treeStatus{}
-	var add func(dir, top, prefix string)
-	add = func(dir, top, prefix string) {
-		s, ok := read[top]
-		if !ok {
-			s = readTreeStatus(top)
-			read[top] = s
-		}
-		bases[dir] = gitBase{s.marks, prefix}
-		for _, p := range s.repos {
-			if rest, ok := strings.CutPrefix(p, prefix); ok {
-				sub := filepath.Join(dir, filepath.FromSlash(rest))
-				add(sub, sub, "")
+	// Each level reads the repositories the one before shows as one entry.
+	for len(level) > 0 {
+		var tops []string
+		for _, p := range level {
+			if _, ok := read[p.top]; !ok && !slices.Contains(tops, p.top) {
+				tops = append(tops, p.top)
 			}
 		}
-	}
-	for _, f := range folders {
-		// The prefix, not the top, places f in its work tree: git gives
-		// the top with the links in its path resolved.
-		out, err := runGit(f, "rev-parse", "--path-format=absolute", "--show-toplevel", "--show-prefix")
-		top, prefix, ok := strings.Cut(strings.TrimSuffix(out, "\n"), "\n")
-		if err == nil && ok {
-			add(f, top, norm.NFC.String(prefix))
+		ss := make([]treeStatus, len(tops))
+		for i, top := range tops {
+			wg.Go(func() { ss[i] = readTreeStatus(top) })
 		}
+		wg.Wait()
+		for i, top := range tops {
+			read[top] = ss[i]
+		}
+		var next []place
+		for _, p := range level {
+			s := read[p.top]
+			bases[p.dir] = gitBase{s.marks, p.prefix}
+			for _, r := range s.repos {
+				if rest, ok := strings.CutPrefix(r, p.prefix); ok {
+					sub := filepath.Join(p.dir, filepath.FromSlash(rest))
+					next = append(next, place{sub, sub, ""})
+				}
+			}
+		}
+		level = next
 	}
 	return bases
 }
