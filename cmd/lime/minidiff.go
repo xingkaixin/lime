@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"sync"
 
 	"github.com/egoist/mygo/ui/editor"
 )
@@ -80,15 +81,22 @@ func gitTexts(paths []string, rev string) []object {
 		dir := filepath.Dir(p)
 		byDir[dir] = append(byDir[dir], i)
 	}
+	var wg sync.WaitGroup
+	slots := make(chan struct{}, 8)
 	for dir, at := range byDir {
-		specs := make([]string, len(at))
-		for k, i := range at {
-			specs[k] = rev + ":./" + filepath.Base(files[i])
-		}
-		for k, o := range catObjects(dir, specs) {
-			objs[at[k]] = o
-		}
+		wg.Go(func() {
+			slots <- struct{}{}
+			defer func() { <-slots }()
+			specs := make([]string, len(at))
+			for k, i := range at {
+				specs[k] = rev + ":./" + filepath.Base(files[i])
+			}
+			for k, o := range catObjects(dir, specs) {
+				objs[at[k]] = o
+			}
+		})
 	}
+	wg.Wait()
 	return objs
 }
 
