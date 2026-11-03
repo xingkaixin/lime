@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -130,11 +131,13 @@ func (a *app) loadCommit(cv *commitView) {
 	cv.gen++
 	gen := cv.gen
 	a.background(func() func() {
-		body, files := readCommit(root, hash)
 		var github string
+		var wg sync.WaitGroup
 		if hash != stagedChanges && hash != unstagedChanges && runtime.GOOS != "js" {
-			github, _ = githubRepo(root)
+			wg.Go(func() { github, _ = githubRepo(root) })
 		}
+		body, files := readCommit(root, hash)
+		wg.Wait()
 		return func() {
 			if cv.gen != gen {
 				return
@@ -164,20 +167,22 @@ func readCommit(root, hash string) (string, []*commitFile) {
 	// An empty rev names the index.
 	var args []string
 	var oldRev, newRev string
+	var wg sync.WaitGroup
 	switch hash {
 	case stagedChanges:
 		args, oldRev, newRev = append(diff, "--cached"), "HEAD", ""
-		changes = readStatus(root)[staged]
+		wg.Go(func() { changes = readStatus(root)[staged] })
 	case unstagedChanges:
 		args, oldRev, newRev = diff, "", ""
-		changes = readStatus(root)[unstaged]
+		wg.Go(func() { changes = readStatus(root)[unstaged] })
 	default:
 		args = []string{"diff-tree", "-r", "-p", "-M", "--root", "--no-commit-id", "--diff-merges=first-parent", hash}
 		oldRev, newRev = hash+"^", hash
-		body, _ = runGit(root, "show", "-s", "--format=%B", hash)
-		changes = commitChanges(root, hash)
+		wg.Go(func() { body, _ = runGit(root, "show", "-s", "--format=%B", hash) })
+		wg.Go(func() { changes = commitChanges(root, hash) })
 	}
 	out, _ := runGit(root, args...)
+	wg.Wait()
 	patches, _ := editor.ParsePatch(out)
 	byPath := map[string]editor.FilePatch{}
 	for _, p := range patches {
