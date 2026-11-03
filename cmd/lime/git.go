@@ -33,13 +33,14 @@ func runGit(dir string, args ...string) (string, error) { return gitWith(dir, ""
 
 func readRepo(dir string) gitRepo {
 	r := gitRepo{dir: dir}
-	var out, status string
-	var err error
+	var out, head, counts string
+	var err, headErr, countsErr error
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		out, err = runGit(dir, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir")
 	})
-	wg.Go(func() { status, _ = runGit(dir, "status", "--porcelain=v2", "--branch", "-z", "--untracked-files=no") })
+	wg.Go(func() { head, headErr = runGit(dir, "symbolic-ref", "--quiet", "--short", "HEAD") })
+	wg.Go(func() { counts, countsErr = runGit(dir, "rev-list", "--left-right", "--count", "HEAD...@{upstream}") })
 	wg.Wait()
 	paths := strings.Split(strings.TrimSpace(out), "\n")
 	if err != nil || len(paths) != 3 {
@@ -50,26 +51,14 @@ func readRepo(dir string) gitRepo {
 	if paths[1] != paths[2] {
 		r.tree = filepath.Base(r.root)
 	}
-	var oid string
-	for rec := range strings.SplitSeq(status, "\x00") {
-		header, ok := strings.CutPrefix(rec, "# branch.")
-		if !ok {
-			break
-		}
-		key, val, _ := strings.Cut(header, " ")
-		switch key {
-		case "oid":
-			oid = val
-		case "head":
-			r.branch = val
-		case "ab":
-			_, err = fmt.Sscanf(val, "+%d -%d", &r.ahead, &r.behind)
-			r.upstream = err == nil
-		}
+	if headErr != nil {
+		head, _ = runGit(dir, "rev-parse", "--short", "HEAD")
+		r.detached = true
 	}
-	if r.branch == "(detached)" {
-		// 7 is the shortest abbreviation rev-parse --short gives.
-		r.branch, r.detached = oid[:min(7, len(oid))], true
+	r.branch = strings.TrimSpace(head)
+	if countsErr == nil {
+		_, err = fmt.Sscan(counts, &r.ahead, &r.behind)
+		r.upstream = err == nil
 	}
 	return r
 }

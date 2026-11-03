@@ -54,11 +54,10 @@
       : { H: c.hash, h: short(c.hash), s: subject(c), an: c.name, ae: c.email, at: String(c.time), B: c.body, n: "\n" }[k])
   const option = (args, name) => args.find((a) => a.startsWith(name))?.slice(name.length)
 
-  // status has no upstream to print with --branch: the demo has no remote.
-  const status = (branch) => {
+  const status = () => {
     const h = head().tree, index = repo.index, w = work()
     const all = [...new Set([...h.keys(), ...index.keys(), ...w.keys()])].sort()
-    let out = branch ? `# branch.oid ${head().hash}\0# branch.head ${repo.branch}\0` : ""
+    let out = ""
     for (const p of all) {
       const ht = h.get(p), it = index.get(p), wt = w.get(p)
       if (it === undefined && wt !== undefined) {
@@ -254,9 +253,11 @@
       case "rev-parse":
         if (has(rest, "--show-prefix")) return `${repo.root}\n${dir === repo.root ? "" : dir.slice(repo.root.length + 1) + "/"}\n`
         if (has(rest, "--show-toplevel")) return `${repo.root}\n${repo.root}/.git\n${repo.root}/.git\n`
-        return head().hash + "\n"
+        return (has(rest, "--short") ? short(head().hash) : head().hash) + "\n"
+      case "symbolic-ref":
+        return repo.branch + "\n"
       case "status":
-        return status(has(rest, "--branch"))
+        return status()
       case "add":
       case "reset": {
         const w = work(), h = head().tree
