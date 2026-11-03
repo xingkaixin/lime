@@ -3,3 +3,4 @@
 mygo_windows_*.syso
 /lime
 /cmd/lime/lime
+output/
