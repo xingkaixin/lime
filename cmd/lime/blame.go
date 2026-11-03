@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -167,12 +168,13 @@ func blameFile(path string, saved editor.Snapshot, enc *fileEncoding) (string, [
 		real = r
 	}
 	dir, name := filepath.Dir(real), filepath.Base(real)
-	top, err := runGit(dir, "rev-parse", "--show-toplevel")
-	if err != nil {
-		return "", nil
-	}
+	var top string
+	var topErr error
+	var wg sync.WaitGroup
+	wg.Go(func() { top, topErr = runGit(dir, "rev-parse", "--show-toplevel") })
 	out, err := gitWith(dir, string(raw), "-c", "core.quotePath=false", "blame", "--porcelain", "--contents", "-", "--", name)
-	if err != nil {
+	wg.Wait()
+	if topErr != nil || err != nil {
 		return "", nil
 	}
 	lines := parseBlame(out)

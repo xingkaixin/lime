@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -123,6 +124,9 @@ func (a *app) readHistory() {
 	a.hist.gen++
 	gen, file := a.hist.gen, a.hist.file
 	a.background(func() func() {
+		var gh bool
+		var wg sync.WaitGroup
+		wg.Go(func() { gh = onGitHub(root) })
 		var cs []commit
 		var paths []string
 		if file != "" {
@@ -130,7 +134,7 @@ func (a *app) readHistory() {
 		} else {
 			cs = readCommits(root)
 		}
-		gh := onGitHub(root)
+		wg.Wait()
 		return func() {
 			if a.hist.gen == gen {
 				a.hist.commits, a.hist.paths, a.hist.github = cs, paths, gh
