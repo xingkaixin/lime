@@ -93,15 +93,28 @@ func (a *app) readGit() {
 	if dir == "" {
 		return
 	}
+	refresh := func() {
+		if a.side == gitPanel {
+			a.readHistory()
+		}
+		a.readWorktree()
+	}
+	// The repository rarely moves under a folder, so what it shows is read
+	// at once, and again only if its root turns out to have changed.
+	early := a.git.root != ""
+	if early {
+		refresh()
+	}
 	a.background(func() func() {
 		r := readRepo(dir)
 		return func() {
-			if a.git.dir == dir {
-				a.git = r
-				if a.side == gitPanel {
-					a.readHistory()
-				}
-				a.readWorktree()
+			if a.git.dir != dir {
+				return
+			}
+			moved := r.root != a.git.root
+			a.git = r
+			if !early || moved {
+				refresh()
 			}
 		}
 	})
