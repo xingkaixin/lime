@@ -38,9 +38,10 @@ func TestSublimeInput(t *testing.T) {
 	}
 	tt.Key(ui.Cmd, ui.KeyL)
 	tt.Key(ui.Cmd, ui.KeyK)
+	tt.CodeDown(ui.Cmd, ui.CodeSuperLeft)
 	tt.Key(ui.Cmd, ui.KeyU)
 	if got := st.Buffer.String(); got != "alpha\nALPHA\nbeta\n" {
-		t.Fatalf("Cmd+K Cmd+U: %q", got)
+		t.Fatalf("Cmd+K, Cmd again, Cmd+U: %q", got)
 	}
 	tt.Key(ui.Ctrl|ui.Shift, ui.KeyDown)
 	if n := len(st.Selections()); n != 2 {
