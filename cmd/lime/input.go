@@ -115,7 +115,9 @@ func (a *app) input(e ui.Element, d *doc) {
 	e.HandleInput(func(ev ui.InputEvent) bool {
 		switch ev.Kind {
 		case ui.InputKeyDown:
-			if a.chord {
+			// A modifier pressed alone, as Cmd pressed again for Cmd+K Cmd+U,
+			// comes with no key and is part of the chord's second key.
+			if a.chord && (ev.Key != ui.KeyUnknown || ev.PhysicalKey != ui.KeyUnknown) {
 				a.chord = false
 				return true
 			}
