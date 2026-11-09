@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -109,10 +110,13 @@ func pastSide(st *editor.State, x float32) float32 {
 
 // input takes the input of the editor element e of d, as Sublime Text's
 // mousemap has it, and ends a chord whose second key is not one.
-func (a *app) input(e ui.Element, d *doc) {
+func (a *app) input(e ui.Element, d *doc, services ui.Services) {
 	st := d.st
 	ed := unsafe.Add(unsafe.Pointer(st), editorOffset)
 	e.HandleInput(func(ev ui.InputEvent) bool {
+		if pastes(st, ev) {
+			splitPaste(st, services)
+		}
 		switch ev.Kind {
 		case ui.InputKeyDown:
 			// A modifier pressed alone, as Cmd pressed again for Cmd+K Cmd+U,
@@ -140,6 +144,10 @@ func (a *app) input(e ui.Element, d *doc) {
 			}
 		}
 		ok := editorInput(ed, ev)
+		if ev.Kind == ui.InputPointerDown && ev.Button == 1 {
+			// For the context menu's Paste, after the press settles the selections.
+			splitPaste(st, services)
+		}
 		if ev.Kind == ui.InputPointerMove {
 			d.drag = ev
 			if !d.sliding && a.win != nil && *dragging(st) && pastSide(st, ev.X) != 0 {
@@ -148,6 +156,46 @@ func (a *app) input(e ui.Element, d *doc) {
 		}
 		return ok
 	})
+}
+
+// editorClip is MyGo's lastClip: what an editor last copied, whose pieces
+// a paste of the same text gives the selections one each.
+//
+//go:linkname editorClip github.com/egoist/mygo/ui/editor.lastClip
+var editorClip struct {
+	text   string
+	pieces []string
+	lines  []bool
+}
+
+// pastes reports whether ev is the editor's Paste.
+func pastes(st *editor.State, ev ui.InputEvent) bool {
+	switch ev.Kind {
+	case ui.InputCommand:
+		return ev.Text == "paste" || ev.Text == "pasteAndMatchStyle"
+	case ui.InputKeyDown:
+		return slices.Contains(st.Bindings, bind(ev.Mods, ev.Key, editor.Paste))
+	}
+	return false
+}
+
+// splitPaste has the next paste give each selection a line of the
+// clipboard when their counts match, as Sublime Text does; MyGo's editor
+// splits only what it copied from as many selections.
+func splitPaste(st *editor.State, services ui.Services) {
+	n := len(st.Selections())
+	if n < 2 {
+		return
+	}
+	text := strings.ReplaceAll(services.ReadClipboard(), "\r\n", "\n")
+	if text == editorClip.text && len(editorClip.pieces) == n {
+		return
+	}
+	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
+	if len(lines) != n {
+		return
+	}
+	editorClip.text, editorClip.pieces, editorClip.lines = text, lines, make([]bool, n)
 }
 
 // slide scrolls the editor of d sideways while a drag goes past the left

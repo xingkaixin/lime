@@ -1724,3 +1724,19 @@ func TestCommitRows(t *testing.T) {
 		t.Fatalf("unified:\n got %s\nwant %s", got, want)
 	}
 }
+
+// A paste of as many lines as there are carets gives each caret a line,
+// as Sublime Text's, though one selection copied them.
+func TestPasteLinePerCaret(t *testing.T) {
+	a := newApp("")
+	a.add("", "a\nb\nc\nx\ny\nz\n")
+	tt := ui.NewTester(a.view, 800, 500)
+	st := a.current().st
+	st.Select(0, 6)
+	tt.Key(ui.Cmd, ui.KeyC)
+	st.SetSelections(editor.Selection{Anchor: 7, Head: 7}, editor.Selection{Anchor: 9, Head: 9}, editor.Selection{Anchor: 11, Head: 11})
+	tt.Key(ui.Cmd, ui.KeyV)
+	if got := st.Buffer.String(); got != "a\nb\nc\nxa\nyb\nzc\n" {
+		t.Fatalf("paste: %q", got)
+	}
+}
