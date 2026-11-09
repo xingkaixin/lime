@@ -268,7 +268,7 @@ func (a *app) groupContent(c *ui.Context, g *group, gi int) {
 		if a.focused == (place{g, d}) {
 			e.AutoFocus()
 		}
-		a.input(e, d)
+		a.input(e, d, c.Services())
 		return e
 	})
 }
