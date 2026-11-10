@@ -519,6 +519,17 @@ func (a *app) editorPage(c *ui.Context) {
 					a.l.saveSettings()
 				}
 			})
+			a.settingsRow(c, locales.SettingsTypingMode(), "", func() {
+				options := []string{locales.TypingNormal(), locales.TypingRampage()}
+				choice := options[0]
+				if a.set.rampage() {
+					choice = options[1]
+				}
+				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsTypingMode()).Changed() {
+					a.set.TypingMode = []string{normalTyping, rampageTyping}[slices.Index(options, choice)]
+					a.l.saveSettings()
+				}
+			})
 		})
 	})
 	ui.Column(c).FillWidth().Gap(10).Children(func() {

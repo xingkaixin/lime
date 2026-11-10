@@ -714,6 +714,16 @@ func (msgs Messages) MenuWordWrap() string {
 	return Catalog.Format(msgs.locale, "menuWordWrap", nil)
 }
 
+// MenuRampageMode says "Rampage Mode"
+// in the language the app shows.
+func MenuRampageMode() string { return In(i18n.Locale()).MenuRampageMode() }
+
+// MenuRampageMode says "Rampage Mode"
+// in the language of msgs.
+func (msgs Messages) MenuRampageMode() string {
+	return Catalog.Format(msgs.locale, "menuRampageMode", nil)
+}
+
 // MenuLargerFont says "Larger Font"
 // in the language the app shows.
 func MenuLargerFont() string { return In(i18n.Locale()).MenuLargerFont() }
@@ -1224,6 +1234,26 @@ func (msgs Messages) CursorSmooth() string {
 	return Catalog.Format(msgs.locale, "cursorSmooth", nil)
 }
 
+// TypingNormal says "Normal"
+// in the language the app shows.
+func TypingNormal() string { return In(i18n.Locale()).TypingNormal() }
+
+// TypingNormal says "Normal"
+// in the language of msgs.
+func (msgs Messages) TypingNormal() string {
+	return Catalog.Format(msgs.locale, "typingNormal", nil)
+}
+
+// TypingRampage says "Rampage"
+// in the language the app shows.
+func TypingRampage() string { return In(i18n.Locale()).TypingRampage() }
+
+// TypingRampage says "Rampage"
+// in the language of msgs.
+func (msgs Messages) TypingRampage() string {
+	return Catalog.Format(msgs.locale, "typingRampage", nil)
+}
+
 // CmdNewFile says "File: New File"
 // in the language the app shows.
 func CmdNewFile() string { return In(i18n.Locale()).CmdNewFile() }
@@ -1412,6 +1442,16 @@ func CmdToggleWordWrap() string { return In(i18n.Locale()).CmdToggleWordWrap() }
 // in the language of msgs.
 func (msgs Messages) CmdToggleWordWrap() string {
 	return Catalog.Format(msgs.locale, "cmdToggleWordWrap", nil)
+}
+
+// CmdToggleRampageMode says "Rampage Mode: Toggle"
+// in the language the app shows.
+func CmdToggleRampageMode() string { return In(i18n.Locale()).CmdToggleRampageMode() }
+
+// CmdToggleRampageMode says "Rampage Mode: Toggle"
+// in the language of msgs.
+func (msgs Messages) CmdToggleRampageMode() string {
+	return Catalog.Format(msgs.locale, "cmdToggleRampageMode", nil)
 }
 
 // CmdIncreaseFontSize says "Font: Increase"
@@ -3820,6 +3860,16 @@ func SettingsCursorStyle() string { return In(i18n.Locale()).SettingsCursorStyle
 // in the language of msgs.
 func (msgs Messages) SettingsCursorStyle() string {
 	return Catalog.Format(msgs.locale, "settingsCursorStyle", nil)
+}
+
+// SettingsTypingMode says "Typing Mode"
+// in the language the app shows.
+func SettingsTypingMode() string { return In(i18n.Locale()).SettingsTypingMode() }
+
+// SettingsTypingMode says "Typing Mode"
+// in the language of msgs.
+func (msgs Messages) SettingsTypingMode() string {
+	return Catalog.Format(msgs.locale, "settingsTypingMode", nil)
 }
 
 // SettingsIndentation says "Indentation"

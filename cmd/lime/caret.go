@@ -108,11 +108,17 @@ func (a *app) drawCarets(p *ui.Painter, d *doc) {
 		return
 	}
 	now := p.Now()
-	text := *editorBox(d.st)
-	text.X += *textLeft(d.st) - 2
-	text.W -= *textLeft(d.st) - 2
-	p.Clip(text, 0, func() { s.draw(fx, p, d.st, a.scheme.caret) })
+	p.Clip(textArea(d.st), 0, func() { s.draw(fx, p, d.st, a.scheme.caret) })
 	fx.last = now
+}
+
+// textArea is the editor's box in the window past its gutter, where the
+// carets can be.
+func textArea(st *editor.State) ui.Rect {
+	r := *editorBox(st)
+	r.X += *textLeft(st) - 2
+	r.W -= *textLeft(st) - 2
+	return r
 }
 
 // elapsed is the seconds since the last frame drawn, at most a frame's

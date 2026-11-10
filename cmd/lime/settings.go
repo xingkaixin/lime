@@ -45,6 +45,9 @@ type settings struct {
 	ShowScrollBars bool `json:"show_scroll_bars"`
 	// CursorStyle is the name of a cursorStyle: how the carets look.
 	CursorStyle string `json:"cursor_style"`
+	// TypingMode is "normal", or "rampage" for bursts and trails at the
+	// carets as they type, delete and jump.
+	TypingMode string `json:"typing_mode"`
 	// LinePaddingTop and LinePaddingBottom add DIPs above and below each
 	// line.
 	LinePaddingTop    float32 `json:"line_padding_top"`
@@ -114,6 +117,7 @@ func loadSettings(dir string) (settings, error) {
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
 		Rulers: rulers{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
 		ScrollPastEnd: true, FontOptions: []string{}, InlineBlame: true, CursorStyle: "bar",
+		TypingMode: normalTyping,
 	}
 	var err error
 	if dir != "" {
@@ -174,6 +178,13 @@ func (s *settings) cursorStyle() cursorStyle {
 	}
 	return cursorStyles[0]
 }
+
+const (
+	normalTyping  = "normal"
+	rampageTyping = "rampage"
+)
+
+func (s *settings) rampage() bool { return s.TypingMode == rampageTyping }
 
 // indent is what TranslateTabsToSpaces has indenting insert.
 func (s *settings) indent() editor.IndentStyle { return indentStyle(s.TranslateTabsToSpaces) }
