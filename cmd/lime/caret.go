@@ -83,10 +83,15 @@ var cursorStyles = []cursorStyle{
 type caretFx struct {
 	last time.Time
 	// at is where the carets were drawn, from caretOrigin; seen is where
-	// the editor had them.
-	at, seen []ui.Rect
-	sparks   []spark
+	// the editor had them. Moving, they glide from from since moved.
+	at, seen, from []ui.Rect
+	moved          time.Time
+	sparks         []spark
 }
+
+// glideTime is how long smooth carets take to get where they go, as long
+// as Neovide's.
+const glideTime = 120 * time.Millisecond
 
 type spark struct {
 	x, y, vx, vy float32 // from caretOrigin, and DIPs a second
@@ -130,6 +135,18 @@ func (fx *caretFx) glow(p *ui.Painter, st *editor.State, c ui.Color) {
 // sending them on.
 func (fx *caretFx) spark(p *ui.Painter, st *editor.State, c ui.Color) {
 	o, rs, dt := caretOrigin(st), caretRects(st), fx.elapsed(p)
+	live := fx.sparks[:0]
+	for _, s := range fx.sparks {
+		s.age += dt
+		if s.age < s.life {
+			s.x, s.y = s.x+s.vx*dt, s.y+s.vy*dt
+			s.vy += 20 * dt
+			live = append(live, s)
+		}
+	}
+	fx.sparks = live
+	// New sparks start where the carets are: after a pause, dt is the
+	// pause's, not theirs.
 	moved := !slices.Equal(relative(rs, o), fx.seen)
 	fx.seen = relative(rs, o)
 	if moved && !fx.last.IsZero() {
@@ -145,20 +162,11 @@ func (fx *caretFx) spark(p *ui.Painter, st *editor.State, c ui.Color) {
 			}
 		}
 	}
-	live := fx.sparks[:0]
 	for _, s := range fx.sparks {
-		s.age += dt
-		if s.age >= s.life {
-			continue
-		}
-		s.x, s.y = s.x+s.vx*dt, s.y+s.vy*dt
-		s.vy += 20 * dt
 		k := 1 - s.age/s.life
 		size := 1.5 + 2*k
 		p.Fill(ui.Rect{X: o.X + s.x - size/2, Y: o.Y + s.y - size/2, W: size, H: size}, c.Alpha(k), size/2)
-		live = append(live, s)
 	}
-	fx.sparks = live
 	for _, r := range rs {
 		p.Fill(r, c, 1)
 	}
@@ -168,29 +176,30 @@ func (fx *caretFx) spark(p *ui.Painter, st *editor.State, c ui.Color) {
 }
 
 // smooth draws bars that glide to where the carets go rather than jump,
-// as the content scrolls under them.
+// easing out, while the content scrolls under them at once.
 func (fx *caretFx) smooth(p *ui.Painter, st *editor.State, c ui.Color) {
-	o := caretOrigin(st)
+	o, now := caretOrigin(st), p.Now()
 	to := relative(caretRects(st), o)
-	if len(to) != len(fx.at) || fx.last.IsZero() {
-		fx.at = to
+	switch {
+	case len(to) != len(fx.seen) || fx.last.IsZero():
+		fx.from, fx.moved = to, time.Time{}
+	case !slices.Equal(to, fx.seen):
+		fx.from, fx.moved = fx.at, now
 	}
-	// Each frame closes the gap as an exponential decay of 30 ms.
-	k := 1 - float32(math.Exp(-float64(fx.elapsed(p))/0.03))
-	moving := false
+	fx.seen = to
+	t := 1.0
+	if !fx.moved.IsZero() {
+		t = min(float64(now.Sub(fx.moved))/float64(glideTime), 1)
+	}
+	e := float32(1 - math.Pow(1-t, 3))
+	fx.at = make([]ui.Rect, len(to))
 	for i, r := range to {
-		at := &fx.at[i]
-		at.X += (r.X - at.X) * k
-		at.Y += (r.Y - at.Y) * k
-		at.H = r.H
-		if math.Hypot(float64(r.X-at.X), float64(r.Y-at.Y)) < 0.5 {
-			*at = r
-		} else {
-			moving = true
-		}
+		f := fx.from[i]
+		at := ui.Rect{X: f.X + (r.X-f.X)*e, Y: f.Y + (r.Y-f.Y)*e, W: r.W, H: r.H}
+		fx.at[i] = at
 		p.Fill(ui.Rect{X: o.X + at.X, Y: o.Y + at.Y, W: at.W, H: at.H}, c, 1)
 	}
-	if moving {
+	if t < 1 {
 		p.AnimationFrame()
 	}
 }
