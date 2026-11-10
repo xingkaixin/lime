@@ -61,6 +61,7 @@ type doc struct {
 	asked    editor.CompletionRequest
 	blame    *blaming // nil until it shows
 	caret    caretFx
+	rampage  rampageFx
 }
 
 func (d *doc) name() string {
