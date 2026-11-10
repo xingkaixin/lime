@@ -21,6 +21,8 @@ type scheme struct {
 	tokens      map[editor.TokenKind]editor.TokenStyle
 
 	code *editor.Theme
+	// caretless is code without carets, under carets drawn over the editor.
+	caretless *editor.Theme
 }
 
 var schemes = []*scheme{
@@ -307,4 +309,15 @@ func (s *scheme) editorTheme() *editor.Theme {
 	th.Added, th.Deleted, th.Modified = green, red, orange
 	s.code = th
 	return th
+}
+
+func (s *scheme) caretlessTheme() *editor.Theme {
+	if s.caretless == nil {
+		th := *s.editorTheme()
+		// The editor takes a zero color for its default: this one is clear,
+		// but not zero.
+		th.Cursor = s.caret.Alpha(0)
+		s.caretless = &th
+	}
+	return s.caretless
 }

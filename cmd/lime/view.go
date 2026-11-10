@@ -236,6 +236,9 @@ func (a *app) groupContent(c *ui.Context, g *group, gi int) {
 		return
 	}
 	a.set.display(d.st)
+	if a.set.cursorStyle().draw != nil {
+		d.st.Theme = s.caretlessTheme()
+	}
 	if d == g.blank {
 		d.st.LineNumbers = editor.LineNumbersOff
 	}
@@ -263,6 +266,7 @@ func (a *app) groupContent(c *ui.Context, g *group, gi int) {
 	a.withBlame(c, d, func() ui.Element {
 		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
 		*noScrollBars(d.st) = !a.set.ShowScrollBars
+		e.DrawOver(func(p *ui.Painter, _ ui.Rect) { a.drawCarets(p, d) })
 		// A layout of more groups builds the editor anew, in a split, and
 		// FocusBind asks for the focus only as a.focused changes.
 		if a.focused == (place{g, d}) {

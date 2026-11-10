@@ -60,6 +60,7 @@ type doc struct {
 	scanning bool
 	asked    editor.CompletionRequest
 	blame    *blaming // nil until it shows
+	caret    caretFx
 }
 
 func (d *doc) name() string {
