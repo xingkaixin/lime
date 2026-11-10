@@ -1164,6 +1164,66 @@ func (msgs Messages) LayoutComfortable() string {
 	return Catalog.Format(msgs.locale, "layoutComfortable", nil)
 }
 
+// CursorBar says "Bar"
+// in the language the app shows.
+func CursorBar() string { return In(i18n.Locale()).CursorBar() }
+
+// CursorBar says "Bar"
+// in the language of msgs.
+func (msgs Messages) CursorBar() string {
+	return Catalog.Format(msgs.locale, "cursorBar", nil)
+}
+
+// CursorBlock says "Block"
+// in the language the app shows.
+func CursorBlock() string { return In(i18n.Locale()).CursorBlock() }
+
+// CursorBlock says "Block"
+// in the language of msgs.
+func (msgs Messages) CursorBlock() string {
+	return Catalog.Format(msgs.locale, "cursorBlock", nil)
+}
+
+// CursorUnderline says "Underline"
+// in the language the app shows.
+func CursorUnderline() string { return In(i18n.Locale()).CursorUnderline() }
+
+// CursorUnderline says "Underline"
+// in the language of msgs.
+func (msgs Messages) CursorUnderline() string {
+	return Catalog.Format(msgs.locale, "cursorUnderline", nil)
+}
+
+// CursorGlow says "Glow"
+// in the language the app shows.
+func CursorGlow() string { return In(i18n.Locale()).CursorGlow() }
+
+// CursorGlow says "Glow"
+// in the language of msgs.
+func (msgs Messages) CursorGlow() string {
+	return Catalog.Format(msgs.locale, "cursorGlow", nil)
+}
+
+// CursorSpark says "Spark"
+// in the language the app shows.
+func CursorSpark() string { return In(i18n.Locale()).CursorSpark() }
+
+// CursorSpark says "Spark"
+// in the language of msgs.
+func (msgs Messages) CursorSpark() string {
+	return Catalog.Format(msgs.locale, "cursorSpark", nil)
+}
+
+// CursorSmooth says "Smooth"
+// in the language the app shows.
+func CursorSmooth() string { return In(i18n.Locale()).CursorSmooth() }
+
+// CursorSmooth says "Smooth"
+// in the language of msgs.
+func (msgs Messages) CursorSmooth() string {
+	return Catalog.Format(msgs.locale, "cursorSmooth", nil)
+}
+
 // CmdNewFile says "File: New File"
 // in the language the app shows.
 func CmdNewFile() string { return In(i18n.Locale()).CmdNewFile() }
@@ -1896,6 +1956,16 @@ func CmdLayout(name string) string { return In(i18n.Locale()).CmdLayout(name) }
 // A layout in the command palette.
 func (msgs Messages) CmdLayout(name string) string {
 	return Catalog.Format(msgs.locale, "cmdLayout", map[string]any{"name": name})
+}
+
+// CmdCursorStyle says "Cursor Style: {name}"
+// in the language the app shows.
+func CmdCursorStyle(name string) string { return In(i18n.Locale()).CmdCursorStyle(name) }
+
+// CmdCursorStyle says "Cursor Style: {name}"
+// in the language of msgs.
+func (msgs Messages) CmdCursorStyle(name string) string {
+	return Catalog.Format(msgs.locale, "cmdCursorStyle", map[string]any{"name": name})
 }
 
 // CmdSetSyntaxTo says "Set Syntax: {name}"
@@ -3740,6 +3810,16 @@ func SettingsScrollBars() string { return In(i18n.Locale()).SettingsScrollBars()
 // in the language of msgs.
 func (msgs Messages) SettingsScrollBars() string {
 	return Catalog.Format(msgs.locale, "settingsScrollBars", nil)
+}
+
+// SettingsCursorStyle says "Cursor Style"
+// in the language the app shows.
+func SettingsCursorStyle() string { return In(i18n.Locale()).SettingsCursorStyle() }
+
+// SettingsCursorStyle says "Cursor Style"
+// in the language of msgs.
+func (msgs Messages) SettingsCursorStyle() string {
+	return Catalog.Format(msgs.locale, "settingsCursorStyle", nil)
 }
 
 // SettingsIndentation says "Indentation"

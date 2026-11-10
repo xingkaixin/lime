@@ -43,6 +43,8 @@ type settings struct {
 	LayoutStyle string `json:"layout_style"`
 	// ShowScrollBars draws the text's scroll bars.
 	ShowScrollBars bool `json:"show_scroll_bars"`
+	// CursorStyle is the name of a cursorStyle: how the carets look.
+	CursorStyle string `json:"cursor_style"`
 	// LinePaddingTop and LinePaddingBottom add DIPs above and below each
 	// line.
 	LinePaddingTop    float32 `json:"line_padding_top"`
@@ -111,7 +113,7 @@ func loadSettings(dir string) (settings, error) {
 		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, LayoutStyle: compactLayout, TabSize: 4, AutoComplete: true,
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
 		Rulers: rulers{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
-		ScrollPastEnd: true, FontOptions: []string{}, InlineBlame: true,
+		ScrollPastEnd: true, FontOptions: []string{}, InlineBlame: true, CursorStyle: "bar",
 	}
 	var err error
 	if dir != "" {
@@ -162,6 +164,17 @@ func (s *settings) layoutStyle() layoutStyle {
 	return layoutStyles[0]
 }
 
+// cursorStyle is the style CursorStyle names, bars for a name it doesn't
+// know.
+func (s *settings) cursorStyle() cursorStyle {
+	for _, c := range cursorStyles {
+		if c.name == s.CursorStyle {
+			return c
+		}
+	}
+	return cursorStyles[0]
+}
+
 // indent is what TranslateTabsToSpaces has indenting insert.
 func (s *settings) indent() editor.IndentStyle { return indentStyle(s.TranslateTabsToSpaces) }
 
@@ -177,6 +190,7 @@ func (s *settings) display(st *editor.State) {
 		st.LineNumbers = editor.LineNumbersOff
 	}
 	st.NoActiveLine, st.NoIndentGuides, st.NoScrollPastEnd = !s.HighlightLine, !s.DrawIndentGuides, !bool(s.ScrollPastEnd)
+	st.CursorShape = s.cursorStyle().shape
 }
 
 // rulers is Sublime Text's rulers: columns, or lists of a column and the

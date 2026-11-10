@@ -119,6 +119,12 @@
   "layoutRows3": "Rows: 3",
   "layoutCompact": "Compact",
   "layoutComfortable": "Comfortable",
+  "cursorBar": "Bar",
+  "cursorBlock": "Block",
+  "cursorUnderline": "Underline",
+  "cursorGlow": "Glow",
+  "cursorSpark": "Spark",
+  "cursorSmooth": "Smooth",
 
   "cmdNewFile": "File: New File",
   "cmdOpen": "File: Open…",
@@ -193,6 +199,7 @@
   "cmdPreviousModification": "Goto Previous Modification",
   "cmdRevertHunk": "Revert Diff Hunk",
   "cmdLayout": "Layout: {name}",
+  "cmdCursorStyle": "Cursor Style: {name}",
   "@cmdLayout": {
     "description": "A layout in the command palette.",
     "placeholders": { "name": { "type": "String", "example": "Columns: 2" } }
@@ -565,6 +572,7 @@
   "settingsLineNumbers": "Line Numbers",
   "settingsHighlightLine": "Highlight Current Line",
   "settingsScrollBars": "Scroll Bars",
+  "settingsCursorStyle": "Cursor Style",
   "settingsIndentation": "Indentation",
   "settingsTabSize": "Tab Size",
   "settingsTabSizeDesc": "Columns a tab and a level of indentation take",

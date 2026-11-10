@@ -36,7 +36,7 @@ var shortcutGroups = func() []shortcutGroup {
 		}
 		return items
 	}
-	var layoutItems, endingItems, encodingItems []shortcut
+	var layoutItems, endingItems, encodingItems, cursorItems []shortcut
 	for _, e := range encodings {
 		encodingItems = append(encodingItems,
 			shortcut{e.reopenID(), func(msgs m) string { return msgs.CmdReopenWithEncoding(e.title(msgs)) }},
@@ -50,6 +50,9 @@ var shortcutGroups = func() []shortcutGroup {
 	}
 	for _, ls := range layoutStyles {
 		layoutItems = append(layoutItems, shortcut{ls.id(), func(msgs m) string { return msgs.CmdLayout(ls.label(msgs)) }})
+	}
+	for _, cs := range cursorStyles {
+		cursorItems = append(cursorItems, shortcut{cs.id(), func(msgs m) string { return msgs.CmdCursorStyle(cs.label(msgs)) }})
 	}
 	return []shortcutGroup{
 		{m.MenuFile, append([]shortcut{
@@ -94,14 +97,14 @@ var shortcutGroups = func() []shortcutGroup {
 			s("show_panel find_in_files", m.MenuFindInFiles), s("next_result", m.ShortcutNextResult),
 			s("prev_result", m.ShortcutPrevResult),
 		}},
-		{m.MenuView, []shortcut{
+		{m.MenuView, append([]shortcut{
 			s("toggle_side_bar", m.StatusSideBar), s("toggle_files_panel", m.SideBarFilesPanel), s("toggle_git_panel", m.SideBarGitPanel),
 			s("toggle_word_wrap", m.MenuWordWrap),
 			s("increase_font_size", m.MenuLargerFont), s("decrease_font_size", m.MenuSmallerFont),
 			s("reset_font_size", m.MenuResetFontSize), s("select_color_scheme", m.ShortcutSelectColorScheme),
 			s("select_syntax", m.CmdSetSyntax), s("show_at_center", m.ShortcutScrollToCursor),
 			s("open_markdown_preview", m.CmdOpenPreview), s("open_markdown_preview_to_the_side", m.CmdOpenPreviewToTheSide),
-		}},
+		}, cursorItems...)},
 		{m.MenuIndentation, slices.Concat([]shortcut{
 			s("toggle_setting translate_tabs_to_spaces", m.MenuIndentUsingSpaces),
 		}, numbered(8, func(i int) string { return tabWidth(i + 1) }, m.MenuTabWidth), []shortcut{

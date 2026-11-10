@@ -277,6 +277,13 @@ func makeCommands() []command {
 			a.l.saveSettings()
 		}})
 	}
+	for _, s := range cursorStyles {
+		caption := func(m locales.Messages) string { return m.CmdCursorStyle(s.label(m)) }
+		c = append(c, command{id: s.id(), caption: caption, run: func(a *app) {
+			a.set.CursorStyle = s.name
+			a.l.saveSettings()
+		}})
+	}
 	return slices.Concat(c, indentCommands(), lineEndingCommands(), encodingCommands())
 }
 

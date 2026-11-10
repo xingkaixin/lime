@@ -507,6 +507,18 @@ func (a *app) editorPage(c *ui.Context) {
 					a.l.saveSettings()
 				}
 			})
+			a.settingsRow(c, locales.SettingsCursorStyle(), "", func() {
+				m := locales.In(i18n.Locale())
+				var options []string
+				for _, s := range cursorStyles {
+					options = append(options, s.label(m))
+				}
+				choice := a.set.cursorStyle().label(m)
+				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsCursorStyle()).Changed() {
+					a.set.CursorStyle = cursorStyles[slices.Index(options, choice)].name
+					a.l.saveSettings()
+				}
+			})
 		})
 	})
 	ui.Column(c).FillWidth().Gap(10).Children(func() {
