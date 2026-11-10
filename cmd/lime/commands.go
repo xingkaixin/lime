@@ -148,6 +148,14 @@ func makeCommands() []command {
 			a.set.WordWrap = !a.set.WordWrap
 			a.l.saveSettings()
 		}},
+		{id: "toggle_rampage_mode", caption: locales.Messages.CmdToggleRampageMode, run: func(a *app) {
+			if a.set.rampage() {
+				a.set.TypingMode = normalTyping
+			} else {
+				a.set.TypingMode = rampageTyping
+			}
+			a.l.saveSettings()
+		}},
 		{id: "increase_font_size", caption: locales.Messages.CmdIncreaseFontSize, run: func(a *app) { a.setFontSize(a.set.FontSize + 1) }},
 		{id: "decrease_font_size", caption: locales.Messages.CmdDecreaseFontSize, run: func(a *app) { a.setFontSize(a.set.FontSize - 1) }},
 		{id: "reset_font_size", caption: locales.Messages.CmdResetFontSize, run: func(a *app) { a.setFontSize(defaultFontSize) }},

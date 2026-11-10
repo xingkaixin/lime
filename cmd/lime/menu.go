@@ -165,6 +165,7 @@ func (l *lime) newMenu() *mygo.Menu {
 			{Label: locales.MenuLineEndings(), Submenu: endingItems},
 			mygo.Separator(),
 			l.check(locales.MenuWordWrap(), "toggle_word_wrap", mygo.MenuItemCheckbox),
+			l.check(locales.MenuRampageMode(), "toggle_rampage_mode", mygo.MenuItemCheckbox),
 			mygo.Separator(),
 			l.menuItem(locales.MenuLargerFont(), "increase_font_size"),
 			l.menuItem(locales.MenuSmallerFont(), "decrease_font_size"),
@@ -209,7 +210,7 @@ func (a *app) syncMenu() {
 		tabSize, spaces = a.indentOf(d)
 		ending, reopen = d.lineEnding(), reopenable(d)
 	}
-	state := fmt.Sprint(a.side, a.set.WordWrap, a.layout.name, a.set.LayoutStyle, a.scheme.name, tabSize, spaces, ending, reopen)
+	state := fmt.Sprint(a.side, a.set.WordWrap, a.set.rampage(), a.layout.name, a.set.LayoutStyle, a.scheme.name, tabSize, spaces, ending, reopen)
 	if state == l.menuState {
 		return
 	}
@@ -221,6 +222,7 @@ func (a *app) syncMenu() {
 	}
 	check("toggle_side_bar", a.side != noPanel)
 	check("toggle_word_wrap", a.set.WordWrap)
+	check("toggle_rampage_mode", a.set.rampage())
 	check(a.layout.id(), true)
 	check(a.set.layoutStyle().id(), true)
 	check("scheme "+a.scheme.name, true)
