@@ -1511,6 +1511,15 @@ func TestAmend(t *testing.T) {
 	tt.Frame()
 	tt.Click(locales.ChangesMessage())
 	tt.Type("Draft")
+	// Tests run background work inline, so stop before HEAD's message is loaded.
+	a.changes.amend = true
+	tt.Frame()
+	tt.Key(ui.Cmd, ui.KeyEnter)
+	if out, _ := runGit(dir, "log", "--format=%s"); out != "Add a\n" {
+		t.Fatalf("amended before loading HEAD's message: %q", out)
+	}
+	a.changes.amend = false
+	tt.Frame()
 	tt.Click(locales.ChangesAmend())
 	tt.Frame()
 	if a.changes.message != "Add a" {
@@ -1524,6 +1533,27 @@ func TestAmend(t *testing.T) {
 	}
 	if out, _ := runGit(dir, "show", "HEAD:a.txt"); out != "2\n" || a.changes.amend || a.changes.message != "Draft" {
 		t.Fatalf("HEAD has %q; amend %v, message %q", out, a.changes.amend, a.changes.message)
+	}
+}
+
+func TestAmendKeepsNewDraft(t *testing.T) {
+	w := changes{amend: true, amendGen: 2, message: "New message", draft: "New draft"}
+	w.finishCommit("Old message", "Old draft", 1)
+	if !w.amend || w.message != "New message" || w.draft != "New draft" {
+		t.Fatalf("old commit changed the new Amend form: amend %v, message %q, draft %q", w.amend, w.message, w.draft)
+	}
+}
+
+func TestAmendFinishesBothCommits(t *testing.T) {
+	for _, order := range [][2]string{{"First", "Second"}, {"Second", "First"}} {
+		w := changes{amend: true, amendGen: 1, message: "Second", draft: "Draft"}
+		draft := w.draft
+		for _, msg := range order {
+			w.finishCommit(msg, draft, 1)
+		}
+		if w.message != "Draft" {
+			t.Errorf("after completing %v, message %q, want Draft", order, w.message)
+		}
 	}
 }
 

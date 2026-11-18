@@ -34,10 +34,12 @@ type changes struct {
 	cur     int // the row chosen last, -1 for none
 	rows    []changeRow
 	closed  map[changeKey]bool // the folders closed in the tree
-	message  string // of the commit to make
-	amend    bool   // the commit replaces HEAD
-	amendGen int
-	draft    string // the message typed before amend loaded HEAD's
+	message string             // of the commit to make
+	amend   bool               // the commit replaces HEAD
+	draft   string             // the message typed before amend loaded HEAD's
+
+	amendGen    int
+	amendLoaded bool
 }
 
 // changeKey names a row of the Changes tab: a section's header, of no
@@ -120,7 +122,7 @@ func (a *app) readChanges() {
 	root := a.git.root
 	w := &a.changes
 	if root != w.root {
-		*w = changes{root: root, gen: w.gen, amendGen: w.amendGen, cur: -1}
+		*w = changes{root: root, gen: w.gen, amendGen: w.amendGen + 1, cur: -1}
 	}
 	if root == "" {
 		return
@@ -513,7 +515,7 @@ func (w *changes) commitArgs() (args []string, label string, ready bool) {
 	switch {
 	case w.amend:
 		// Amending may change the message alone.
-		args, ready = []string{"commit", "--amend", "-F", "-"}, true
+		args, ready = []string{"commit", "--amend", "-F", "-"}, w.amendLoaded
 	case !ready:
 		args, label = []string{"commit", "-a", "-F", "-"}, locales.ChangesCommitTracked()
 		ready = slices.ContainsFunc(w.files[unstaged], func(f change) bool { return f.status != '?' })
@@ -526,6 +528,7 @@ func (w *changes) commitArgs() (args []string, label string, ready bool) {
 func (a *app) amendChanged() {
 	w := &a.changes
 	w.amendGen++
+	w.amendLoaded = false
 	if !w.amend {
 		w.message, w.draft = w.draft, ""
 		return
@@ -536,13 +539,17 @@ func (a *app) amendChanged() {
 	a.background(func() func() {
 		body, err := runGit(root, "show", "-s", "--format=%B", "HEAD")
 		return func() {
-			switch {
-			case !w.amend || w.root != root || w.amendGen != gen:
-			case err != nil:
+			if !w.amend || w.root != root || w.amendGen != gen {
+				return
+			}
+			if err != nil {
 				w.amend, w.draft = false, ""
 				msg, _, _ := strings.Cut(err.Error(), "\n")
 				a.notifyError(msg)
-			case w.message == before:
+				return
+			}
+			w.amendLoaded = true
+			if w.message == before {
 				w.message = strings.TrimSpace(body)
 			}
 		}
@@ -592,6 +599,16 @@ func headPushed(root string) bool {
 	return err == nil
 }
 
+func (w *changes) finishCommit(msg, draft string, gen int) {
+	if w.amendGen != gen {
+		return
+	}
+	if w.message == msg {
+		w.message = draft
+	}
+	w.amend, w.amendLoaded, w.draft = false, false, ""
+}
+
 // commitBox is the message of the commit to make and its button. The
 // message clears once the commit is made, unless edited meanwhile, or
 // after amending, is the one typed before.
@@ -604,24 +621,23 @@ func (a *app) commitBox(c *ui.Context) {
 		if !ready {
 			return
 		}
-		msg, root := w.message, w.root
+		msg, draft, root, gen := w.message, w.draft, w.root, w.amendGen
+		amend := w.amend
+		current := func() bool { return w.amendGen == gen && w.amend == amend && a.git.root == root }
 		run := func() {
-			w.amendGen++
-			a.gitRunWith(msg, func() {
-				if w.message == msg {
-					w.message = w.draft
-				}
-				w.amend, w.draft = false, ""
-			}, args...)
+			if !current() {
+				return
+			}
+			a.gitRunWith(msg, func() { w.finishCommit(msg, draft, gen) }, args...)
 		}
-		if !w.amend {
+		if !amend {
 			run()
 			return
 		}
 		a.background(func() func() {
 			pushed := headPushed(root)
 			return func() {
-				if pushed {
+				if pushed && current() {
 					a.confirm(locales.DialogAmendPushed(), locales.DialogPushedDetail(), locales.ChangesCommit(), run)
 					return
 				}
