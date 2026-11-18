@@ -22,6 +22,7 @@ type gitRepo struct {
 	ahead, behind int
 	upstream      bool
 	detached      bool
+	gen           int
 }
 
 // mainTree names the repository's main work tree, as Zed does.
@@ -77,7 +78,7 @@ func (a *app) gitDir() string {
 func (a *app) readGit() {
 	dir := a.gitDir()
 	if dir != a.git.dir {
-		a.git = gitRepo{dir: dir}
+		a.git = gitRepo{dir: dir, gen: a.git.gen + 1}
 	}
 	if dir == "" {
 		return
@@ -94,12 +95,15 @@ func (a *app) readGit() {
 	if early {
 		refresh()
 	}
+	a.git.gen++
+	gen := a.git.gen
 	a.background(func() func() {
 		r := readRepo(dir)
 		return func() {
-			if a.git.dir != dir {
+			if a.git.gen != gen {
 				return
 			}
+			r.gen = gen
 			moved := r.root != a.git.root
 			a.git = r
 			if !early || moved {

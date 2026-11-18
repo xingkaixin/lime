@@ -1709,6 +1709,14 @@ func TestRemote(t *testing.T) {
 	if out, _ := runGit(dir, "log", "-1", "--format=%s"); out != "three\n" || a.git.behind != 0 {
 		t.Fatalf("pulled %q: %+v", out, a.git)
 	}
+
+	git("switch", "-q", "-c", "topic")
+	a.git.upstream = false
+	a.run("git_push")
+	tt.Frame()
+	if a.git.branch != "topic" || !a.git.upstream {
+		t.Fatalf("published topic while branch was stale: %+v", a.git)
+	}
 }
 
 func TestCommitRows(t *testing.T) {

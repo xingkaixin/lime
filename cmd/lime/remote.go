@@ -17,7 +17,7 @@ func (a *app) push() {
 		a.remoteRun(locales.StatusPushing(), "push")
 		return
 	}
-	a.remoteRun(locales.StatusPushing(), "push", "-u", "origin", a.git.branch)
+	a.remoteRun(locales.StatusPushing(), "push", "-u", "origin", "HEAD")
 }
 
 func (a *app) pull()  { a.remoteRun(locales.StatusPulling(), "pull") }
