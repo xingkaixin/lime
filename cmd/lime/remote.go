@@ -10,42 +10,43 @@ import (
 	"lime/locales"
 )
 
-// push pushes the branch to its upstream, or with none, publishes it to
-// origin as its upstream.
-func (a *app) push() {
-	if a.git.upstream || a.git.detached {
-		a.remoteRun(locales.StatusPushing(), "push")
-		return
-	}
-	a.remoteRun(locales.StatusPushing(), "push", "-u", "origin", "HEAD")
-}
-
+func (a *app) push()  { a.remoteRun(locales.StatusPushing(), "push") }
 func (a *app) pull()  { a.remoteRun(locales.StatusPulling(), "pull") }
 func (a *app) fetch() { a.remoteRun(locales.StatusFetching(), "fetch") }
 
 // remoteRun runs git with the remote in the background, one at a time,
 // which the status bar tells of until it ends, and shows what git says
 // of a failure.
-func (a *app) remoteRun(status string, args ...string) {
+func (a *app) remoteRun(status, command string) {
 	if a.remote != "" {
 		return
 	}
 	a.remote = status
 	dir := a.git.root
 	// Only pull writes the index and the work tree.
-	lock := args[0] == "pull"
+	lock := command == "pull"
 	a.background(func() func() {
+		args := []string{command}
+		if command == "push" {
+			if head, err := runGit(dir, "symbolic-ref", "--quiet", "HEAD"); err == nil {
+				branch := strings.TrimPrefix(strings.TrimSpace(head), "refs/heads/")
+				// Pruning the tracking ref can leave the upstream configured.
+				if _, err := runGit(dir, "config", "--get", "branch."+branch+".merge"); err != nil {
+					args = append(args, "-u", "origin", "HEAD")
+				}
+			}
+		}
 		if lock {
 			gitWrites.Lock()
 		}
-		_, err := gitWith(dir, "", args...)
+		_, err := runGit(dir, args...)
 		if lock {
 			gitWrites.Unlock()
 		}
 		return func() {
 			a.remote = ""
 			if err != nil {
-				go mygo.Dialog.Error(locales.DialogGitFailed("git "+args[0]), err.Error())
+				go mygo.Dialog.Error(locales.DialogGitFailed("git "+command), err.Error())
 			}
 			a.refreshFolders()
 			for _, w := range a.l.wins {

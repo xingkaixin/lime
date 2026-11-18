@@ -17,11 +17,8 @@ type gitRepo struct {
 	root   string // the top of its work tree; "" outside a repository
 	tree   string // the work tree's name: main, or a linked one's folder
 	branch string // or the short hash of a detached HEAD
-	// The commits HEAD has that its upstream lacks, and the other way
-	// round, with upstream set when the branch has one.
+	// The commits HEAD has that its upstream lacks, and the other way round.
 	ahead, behind int
-	upstream      bool
-	detached      bool
 	gen           int
 }
 
@@ -54,12 +51,10 @@ func readRepo(dir string) gitRepo {
 	}
 	if headErr != nil {
 		head, _ = runGit(dir, "rev-parse", "--short", "HEAD")
-		r.detached = true
 	}
 	r.branch = strings.TrimSpace(head)
 	if countsErr == nil {
-		_, err = fmt.Sscan(counts, &r.ahead, &r.behind)
-		r.upstream = err == nil
+		fmt.Sscan(counts, &r.ahead, &r.behind)
 	}
 	return r
 }

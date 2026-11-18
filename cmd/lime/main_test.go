@@ -1666,6 +1666,7 @@ func TestBranchName(t *testing.T) {
 // commits to push, and those Fetch finds to pull, which a click on each
 // count takes.
 func TestRemote(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	dir, git := newRepo(t)
 	remote, other := t.TempDir(), t.TempDir()
 	run := func(dir string, args ...string) {
@@ -1683,8 +1684,8 @@ func TestRemote(t *testing.T) {
 	tt := ui.NewTester(a.view, 900, 600)
 	a.run("git_push")
 	tt.Frame()
-	if !a.git.upstream || a.git.ahead != 0 {
-		t.Fatalf("published: %+v", a.git)
+	if upstream, _ := runGit(dir, "rev-parse", "--abbrev-ref", "@{upstream}"); upstream != "origin/main\n" || a.git.ahead != 0 {
+		t.Fatalf("published: upstream %q, git %+v", upstream, a.git)
 	}
 	git("commit", "-q", "--allow-empty", "-m", "two")
 	a.readGit()
@@ -1710,12 +1711,20 @@ func TestRemote(t *testing.T) {
 		t.Fatalf("pulled %q: %+v", out, a.git)
 	}
 
-	git("switch", "-q", "-c", "topic")
-	a.git.upstream = false
+	git("switch", "-q", "--no-track", "-c", "topic")
 	a.run("git_push")
 	tt.Frame()
-	if a.git.branch != "topic" || !a.git.upstream {
-		t.Fatalf("published topic while branch was stale: %+v", a.git)
+	if upstream, _ := runGit(dir, "rev-parse", "--abbrev-ref", "@{upstream}"); upstream != "origin/topic\n" || a.git.branch != "topic" {
+		t.Fatalf("published topic while branch was stale: upstream %q, git %+v", upstream, a.git)
+	}
+
+	fork := t.TempDir()
+	run(fork, "init", "-q", "--bare", "-b", "main")
+	git("remote", "add", "fork", fork)
+	git("config", "branch.topic.remote", "fork")
+	a.run("git_push")
+	if upstream, _ := runGit(dir, "rev-parse", "--abbrev-ref", "@{upstream}"); upstream != "fork/topic\n" {
+		t.Fatalf("after push with a missing tracking ref: upstream %q", upstream)
 	}
 }
 
