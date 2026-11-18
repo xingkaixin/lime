@@ -332,8 +332,9 @@ type app struct {
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
 	prefs   prefs
-	notice  notice
-	others  *tabWords // the other tabs' words, as complete last found them
+	notice                 notice
+	others                 *tabWords // the other tabs' words, as complete last found them
+	reloading, reloadAgain bool
 }
 
 func newLime(dir string) *lime {
@@ -527,6 +528,10 @@ func changedOnDisk(docs []*doc, paths []string, stamps []stamp, encs []*fileEnco
 // disk now, as the window comes to the front or git changes them. A tab
 // with unsaved changes keeps them, which saving writes over the file.
 func (a *app) reloadChanged() {
+	if a.reloading {
+		a.reloadAgain = true
+		return
+	}
 	var docs []*doc
 	var paths []string
 	var stamps []stamp
@@ -540,24 +545,28 @@ func (a *app) reloadChanged() {
 		return
 	}
 	a.readBases(docs...)
+	a.reloading = true
 	fallback := a.set.FallbackEncoding
 	a.background(func() func() {
 		rs := changedOnDisk(docs, paths, stamps, encs, fallback)
-		return func() { a.applyReloads(rs) }
+		return func() {
+			a.applyReloads(rs)
+			a.reloading = false
+			if a.reloadAgain {
+				a.reloadAgain = false
+				a.reloadChanged()
+			}
+		}
 	})
 }
 
 func (a *app) applyReloads(rs []reload) {
 	for _, r := range rs {
 		d := r.d
-		// Saved again, or reloaded by a check before this one.
-		if d.path != r.path || d.disk != r.was {
+		if d.path != r.path || d.disk != r.was || d.dirty() {
 			continue
 		}
 		d.disk = r.disk
-		if d.dirty() {
-			continue
-		}
 		text, ending := splitLines(r.text)
 		d.enc = r.enc
 		d.st.Buffer.Set(text)

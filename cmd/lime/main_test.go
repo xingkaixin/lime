@@ -1101,6 +1101,11 @@ func TestReloadChanged(t *testing.T) {
 	if got := a.docAt(edited).st.Buffer.String(); got != "mine\n" {
 		t.Fatalf("edited tab: %q", got)
 	}
+	a.docAt(edited).st.Buffer.Undo()
+	a.reloadChanged()
+	if d := a.docAt(edited); d.st.Buffer.String() != "two two\n" || d.dirty() {
+		t.Fatalf("undone tab: %q, dirty %v", d.st.Buffer.String(), d.dirty())
+	}
 }
 
 // The side bar shows the branch of a project's repository, whose panel
