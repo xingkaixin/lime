@@ -74,7 +74,7 @@ func (a *app) wordList(d *doc, caret int) *wordList {
 			a.win.Update(func() {
 				d.words, d.scanning = found, false
 				// The completions asked for meanwhile get the words found.
-				if r := d.asked; r.Version == found.version && r.Offset == caret && d.st.Buffer.Version() == r.Version && d.st.Cursor() == r.Offset {
+				if r := d.asked; (r.Explicit || r.Prefix != "") && d == a.current() && d.st.Buffer.Version() == r.Version && d.st.Cursor() == r.Offset {
 					a.complete(d, r)
 				}
 			})
@@ -144,6 +144,9 @@ func (a *app) complete(d *doc, r editor.CompletionRequest) {
 	}
 	d.asked = r
 	own, others := a.wordList(d, r.Offset), a.otherWords(d)
+	if !d.scanning {
+		d.asked = editor.CompletionRequest{}
+	}
 	// The word typed, a word itself, would be chosen first, and Enter
 	// would complete it rather than break the line.
 	if !r.Explicit && (own.has[r.Prefix] || others.has[r.Prefix]) {
