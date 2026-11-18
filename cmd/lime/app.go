@@ -332,8 +332,9 @@ type app struct {
 	bounds  mygo.Rectangle // where the window opens, when restored
 	drag    *tabDrag
 	prefs   prefs
-	notice                 notice
-	others                 *tabWords // the other tabs' words, as complete last found them
+	notice  notice
+	others  *tabWords // the other tabs' words, as complete last found them
+
 	reloading, reloadAgain bool
 }
 
@@ -549,14 +550,7 @@ func (a *app) reloadChanged() {
 	fallback := a.set.FallbackEncoding
 	a.background(func() func() {
 		rs := changedOnDisk(docs, paths, stamps, encs, fallback)
-		return func() {
-			a.applyReloads(rs)
-			a.reloading = false
-			if a.reloadAgain {
-				a.reloadAgain = false
-				a.reloadChanged()
-			}
-		}
+		return func() { a.applyReloads(rs) }
 	})
 }
 
@@ -578,6 +572,11 @@ func (a *app) applyReloads(rs []reload) {
 			d.diffDisk()
 		}
 		a.l.diskChanged(d)
+	}
+	a.reloading = false
+	if a.reloadAgain {
+		a.reloadAgain = false
+		a.reloadChanged()
 	}
 }
 
