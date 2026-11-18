@@ -27,13 +27,15 @@ func (s *settings) diffRev() string {
 func (a *app) readBases(docs ...*doc) {
 	var ds []*doc
 	var paths []string
+	var gens []int
 	for _, d := range docs {
 		// What changes the texts in git may change the commits of lines.
 		if d.blame != nil {
 			d.blame.stale = true
 		}
+		d.baseGen++
 		if d.path != "" && d.saved.Len() <= largeFile {
-			ds, paths = append(ds, d), append(paths, d.path)
+			ds, paths, gens = append(ds, d), append(paths, d.path), append(gens, d.baseGen)
 		}
 	}
 	if len(ds) == 0 {
@@ -45,8 +47,8 @@ func (a *app) readBases(docs ...*doc) {
 		return func() {
 			for i, d := range ds {
 				switch o := objs[i]; {
-				// Saved elsewhere since, or the same text.
-				case d.path != paths[i] || o.id == d.base:
+				// Saved again, or read since, or the same text.
+				case d.path != paths[i] || d.baseGen != gens[i] || o.id == d.base:
 				case o.id == "":
 					d.diffDisk()
 				default:

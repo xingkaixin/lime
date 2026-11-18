@@ -17,11 +17,9 @@ type gitRepo struct {
 	root   string // the top of its work tree; "" outside a repository
 	tree   string // the work tree's name: main, or a linked one's folder
 	branch string // or the short hash of a detached HEAD
-	// The commits HEAD has that its upstream lacks, and the other way
-	// round, with upstream set when the branch has one.
+	// The commits HEAD has that its upstream lacks, and the other way round.
 	ahead, behind int
-	upstream      bool
-	detached      bool
+	gen           int
 }
 
 // mainTree names the repository's main work tree, as Zed does.
@@ -53,12 +51,10 @@ func readRepo(dir string) gitRepo {
 	}
 	if headErr != nil {
 		head, _ = runGit(dir, "rev-parse", "--short", "HEAD")
-		r.detached = true
 	}
 	r.branch = strings.TrimSpace(head)
 	if countsErr == nil {
-		_, err = fmt.Sscan(counts, &r.ahead, &r.behind)
-		r.upstream = err == nil
+		fmt.Sscan(counts, &r.ahead, &r.behind)
 	}
 	return r
 }
@@ -77,7 +73,7 @@ func (a *app) gitDir() string {
 func (a *app) readGit() {
 	dir := a.gitDir()
 	if dir != a.git.dir {
-		a.git = gitRepo{dir: dir}
+		a.git = gitRepo{dir: dir, gen: a.git.gen + 1}
 	}
 	if dir == "" {
 		return
@@ -94,12 +90,15 @@ func (a *app) readGit() {
 	if early {
 		refresh()
 	}
+	a.git.gen++
+	gen := a.git.gen
 	a.background(func() func() {
 		r := readRepo(dir)
 		return func() {
-			if a.git.dir != dir {
+			if a.git.gen != gen {
 				return
 			}
+			r.gen = gen
 			moved := r.root != a.git.root
 			a.git = r
 			if !early || moved {

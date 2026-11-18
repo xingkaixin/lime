@@ -1511,6 +1511,15 @@ func TestAmend(t *testing.T) {
 	tt.Frame()
 	tt.Click(locales.ChangesMessage())
 	tt.Type("Draft")
+	// Tests run background work inline, so stop before HEAD's message is loaded.
+	a.changes.amend = true
+	tt.Frame()
+	tt.Key(ui.Cmd, ui.KeyEnter)
+	if out, _ := runGit(dir, "log", "--format=%s"); out != "Add a\n" {
+		t.Fatalf("amended before loading HEAD's message: %q", out)
+	}
+	a.changes.amend = false
+	tt.Frame()
 	tt.Click(locales.ChangesAmend())
 	tt.Frame()
 	if a.changes.message != "Add a" {
@@ -1524,6 +1533,27 @@ func TestAmend(t *testing.T) {
 	}
 	if out, _ := runGit(dir, "show", "HEAD:a.txt"); out != "2\n" || a.changes.amend || a.changes.message != "Draft" {
 		t.Fatalf("HEAD has %q; amend %v, message %q", out, a.changes.amend, a.changes.message)
+	}
+}
+
+func TestAmendKeepsNewDraft(t *testing.T) {
+	w := changes{amend: true, amendGen: 2, message: "New message", draft: "New draft"}
+	w.finishCommit("Old message", "Old draft", 1)
+	if !w.amend || w.message != "New message" || w.draft != "New draft" {
+		t.Fatalf("old commit changed the new Amend form: amend %v, message %q, draft %q", w.amend, w.message, w.draft)
+	}
+}
+
+func TestAmendFinishesBothCommits(t *testing.T) {
+	for _, order := range [][2]string{{"First", "Second"}, {"Second", "First"}} {
+		w := changes{amend: true, amendGen: 1, message: "Second", draft: "Draft"}
+		draft := w.draft
+		for _, msg := range order {
+			w.finishCommit(msg, draft, 1)
+		}
+		if w.message != "Draft" {
+			t.Errorf("after completing %v, message %q, want Draft", order, w.message)
+		}
 	}
 }
 
@@ -1666,6 +1696,7 @@ func TestBranchName(t *testing.T) {
 // commits to push, and those Fetch finds to pull, which a click on each
 // count takes.
 func TestRemote(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	dir, git := newRepo(t)
 	remote, other := t.TempDir(), t.TempDir()
 	run := func(dir string, args ...string) {
@@ -1683,8 +1714,8 @@ func TestRemote(t *testing.T) {
 	tt := ui.NewTester(a.view, 900, 600)
 	a.run("git_push")
 	tt.Frame()
-	if !a.git.upstream || a.git.ahead != 0 {
-		t.Fatalf("published: %+v", a.git)
+	if upstream, _ := runGit(dir, "rev-parse", "--abbrev-ref", "@{upstream}"); upstream != "origin/main\n" || a.git.ahead != 0 {
+		t.Fatalf("published: upstream %q, git %+v", upstream, a.git)
 	}
 	git("commit", "-q", "--allow-empty", "-m", "two")
 	a.readGit()
@@ -1708,6 +1739,22 @@ func TestRemote(t *testing.T) {
 	tt.Frame()
 	if out, _ := runGit(dir, "log", "-1", "--format=%s"); out != "three\n" || a.git.behind != 0 {
 		t.Fatalf("pulled %q: %+v", out, a.git)
+	}
+
+	git("switch", "-q", "--no-track", "-c", "topic")
+	a.run("git_push")
+	tt.Frame()
+	if upstream, _ := runGit(dir, "rev-parse", "--abbrev-ref", "@{upstream}"); upstream != "origin/topic\n" || a.git.branch != "topic" {
+		t.Fatalf("published topic while branch was stale: upstream %q, git %+v", upstream, a.git)
+	}
+
+	fork := t.TempDir()
+	run(fork, "init", "-q", "--bare", "-b", "main")
+	git("remote", "add", "fork", fork)
+	git("config", "branch.topic.remote", "fork")
+	a.run("git_push")
+	if upstream, _ := runGit(dir, "rev-parse", "--abbrev-ref", "@{upstream}"); upstream != "fork/topic\n" {
+		t.Fatalf("after push with a missing tracking ref: upstream %q", upstream)
 	}
 }
 
