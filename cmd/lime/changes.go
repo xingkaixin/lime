@@ -34,9 +34,10 @@ type changes struct {
 	cur     int // the row chosen last, -1 for none
 	rows    []changeRow
 	closed  map[changeKey]bool // the folders closed in the tree
-	message string             // of the commit to make
-	amend   bool               // the commit replaces HEAD
-	draft   string             // the message typed before amend loaded HEAD's
+	message  string // of the commit to make
+	amend    bool   // the commit replaces HEAD
+	amendGen int
+	draft    string // the message typed before amend loaded HEAD's
 }
 
 // changeKey names a row of the Changes tab: a section's header, of no
@@ -119,7 +120,7 @@ func (a *app) readChanges() {
 	root := a.git.root
 	w := &a.changes
 	if root != w.root {
-		*w = changes{root: root, gen: w.gen, cur: -1}
+		*w = changes{root: root, gen: w.gen, amendGen: w.amendGen, cur: -1}
 	}
 	if root == "" {
 		return
@@ -524,22 +525,24 @@ func (w *changes) commitArgs() (args []string, label string, ready bool) {
 // which comes back as amend is off again.
 func (a *app) amendChanged() {
 	w := &a.changes
+	w.amendGen++
 	if !w.amend {
 		w.message, w.draft = w.draft, ""
 		return
 	}
-	w.draft = w.message
-	root := w.root
+	before := w.message
+	w.draft = before
+	root, gen := w.root, w.amendGen
 	a.background(func() func() {
 		body, err := runGit(root, "show", "-s", "--format=%B", "HEAD")
 		return func() {
 			switch {
-			case !w.amend || w.root != root:
+			case !w.amend || w.root != root || w.amendGen != gen:
 			case err != nil:
 				w.amend, w.draft = false, ""
 				msg, _, _ := strings.Cut(err.Error(), "\n")
 				a.notifyError(msg)
-			default:
+			case w.message == before:
 				w.message = strings.TrimSpace(body)
 			}
 		}
@@ -603,6 +606,7 @@ func (a *app) commitBox(c *ui.Context) {
 		}
 		msg, root := w.message, w.root
 		run := func() {
+			w.amendGen++
 			a.gitRunWith(msg, func() {
 				if w.message == msg {
 					w.message = w.draft
