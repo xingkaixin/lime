@@ -31,7 +31,8 @@ type doc struct {
 	disk    stamp           // the file as saved was found on disk
 	// base is the id of the file's text in git that the gutter marks the
 	// changes against; "" while it marks them against the text on disk.
-	base string
+	base    string
+	baseGen int
 	// checked is the version modified was found for: dirty compares the
 	// text with saved once a version.
 	checked  uint64
