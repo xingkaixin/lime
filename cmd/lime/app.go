@@ -500,6 +500,7 @@ func stampOf(path string) stamp {
 // reload is a tab's file as another app or git left it.
 type reload struct {
 	d         *doc
+	path      string
 	was, disk stamp
 	text      string
 	enc       *fileEncoding
@@ -507,16 +508,16 @@ type reload struct {
 
 // changedOnDisk reads the files of the window's tabs that changed since
 // they were opened or saved. It blocks, so call it off the main thread.
-func changedOnDisk(docs []*doc, stamps []stamp, encs []*fileEncoding, fallback string) []reload {
+func changedOnDisk(docs []*doc, paths []string, stamps []stamp, encs []*fileEncoding, fallback string) []reload {
 	var rs []reload
 	for i, d := range docs {
-		now := stampOf(d.path)
+		now := stampOf(paths[i])
 		if now == stamps[i] || now == (stamp{}) {
 			continue
 		}
-		if raw, err := readText(d.path); err == nil {
+		if raw, err := readText(paths[i]); err == nil {
 			text, enc := reopenText(raw, encs[i], fallback)
-			rs = append(rs, reload{d, stamps[i], now, text, enc})
+			rs = append(rs, reload{d, paths[i], stamps[i], now, text, enc})
 		}
 	}
 	return rs
@@ -527,11 +528,12 @@ func changedOnDisk(docs []*doc, stamps []stamp, encs []*fileEncoding, fallback s
 // with unsaved changes keeps them, which saving writes over the file.
 func (a *app) reloadChanged() {
 	var docs []*doc
+	var paths []string
 	var stamps []stamp
 	var encs []*fileEncoding
 	for _, d := range a.allDocs() {
 		if d.path != "" && d.kind == textDoc && d.cmp == nil {
-			docs, stamps, encs = append(docs, d), append(stamps, d.disk), append(encs, d.encoding())
+			docs, paths, stamps, encs = append(docs, d), append(paths, d.path), append(stamps, d.disk), append(encs, d.encoding())
 		}
 	}
 	if len(docs) == 0 {
@@ -540,7 +542,7 @@ func (a *app) reloadChanged() {
 	a.readBases(docs...)
 	fallback := a.set.FallbackEncoding
 	a.background(func() func() {
-		rs := changedOnDisk(docs, stamps, encs, fallback)
+		rs := changedOnDisk(docs, paths, stamps, encs, fallback)
 		return func() { a.applyReloads(rs) }
 	})
 }
@@ -549,7 +551,7 @@ func (a *app) applyReloads(rs []reload) {
 	for _, r := range rs {
 		d := r.d
 		// Saved again, or reloaded by a check before this one.
-		if d.disk != r.was {
+		if d.path != r.path || d.disk != r.was {
 			continue
 		}
 		d.disk = r.disk
