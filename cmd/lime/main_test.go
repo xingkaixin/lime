@@ -488,6 +488,13 @@ func TestRenameFolder(t *testing.T) {
 	a := newApp("")
 	a.addFolder(dir)
 	a.open([]string{main})
+	d := a.current()
+	updated := "package main\n\nfunc main() {}\n"
+	if err := os.WriteFile(main, []byte(updated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.reloading = true
+	rs := changedOnDisk([]*doc{d}, []string{main}, []stamp{d.disk}, []*fileEncoding{d.encoding()}, a.set.FallbackEncoding)
 	*a.proj.isOpen(filepath.Dir(main), false) = true
 	tt := ui.NewTester(a.view, 800, 500)
 	if err := tt.RightClick("src"); err != nil {
@@ -503,11 +510,15 @@ func TestRenameFolder(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(lib, "main.go")); err != nil {
 		t.Fatal(err)
 	}
-	if d := a.current(); d.path != filepath.Join(lib, "main.go") {
+	if d.path != filepath.Join(lib, "main.go") {
 		t.Fatalf("the tab shows %s", d.path)
 	}
 	if !*a.proj.isOpen(lib, false) {
 		t.Fatal("lib shows closed")
+	}
+	a.applyReloads(rs)
+	if got := d.st.Buffer.String(); got != updated || d.dirty() {
+		t.Fatalf("renamed tab: %q, dirty %v", got, d.dirty())
 	}
 }
 
@@ -1100,6 +1111,11 @@ func TestReloadChanged(t *testing.T) {
 	}
 	if got := a.docAt(edited).st.Buffer.String(); got != "mine\n" {
 		t.Fatalf("edited tab: %q", got)
+	}
+	a.docAt(edited).st.Buffer.Undo()
+	a.reloadChanged()
+	if d := a.docAt(edited); d.st.Buffer.String() != "two two\n" || d.dirty() {
+		t.Fatalf("undone tab: %q, dirty %v", d.st.Buffer.String(), d.dirty())
 	}
 }
 

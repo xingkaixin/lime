@@ -444,6 +444,9 @@ func (a *app) renamed(from, to string) {
 		if p := moved(d.path, from, to); p != d.path {
 			d.path = p
 			d.st.Buffer.SetLanguage(editor.LanguageFor(p))
+			if a.reloading {
+				a.reloadAgain = true
+			}
 		}
 	}
 	open := make(map[string]*bool, len(a.proj.open))
