@@ -60,6 +60,9 @@ All code is `package main` in `cmd/lime`. Keep it one package.
 ## Rules
 
 - Sublime Text is the reference for behavior, command ids and per-platform keys.
+  When Lime’s established behavior differs from Sublime Text, explain what
+  the user would experience in each case, recommend one option and give the
+  reason, then ask which behavior to keep before changing it.
 - A new command touches `makeCommands`, its key in `appKeys` or the editor
   keymaps, `shortcutGroups` (or the Shortcuts page won't list it), and
   `newMenu` if it has a menu item.
