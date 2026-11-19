@@ -5,13 +5,17 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
 )
@@ -53,13 +57,7 @@ func main() {
 	l.themeSource = themeSource(l.set.Appearance)
 	mygo.Theme.SetSource(l.themeSource)
 	mygo.App.SetLocale(l.set.locale())
-	var paths []string
-	for _, arg := range os.Args[1:] {
-		if !strings.HasPrefix(arg, "-") {
-			paths = append(paths, arg)
-		}
-	}
-	l.last.open(paths)
+	l.last.openCLI(os.Args[1:])
 	for _, a := range l.wins {
 		if a.docCount() == 0 {
 			a.newFile()
@@ -109,4 +107,109 @@ func main() {
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+type openArg struct {
+	path      string
+	line, col int
+}
+
+func parseCLIArgs(args []string) []openArg {
+	var out []openArg
+	literal := false
+	for _, arg := range args {
+		if !literal {
+			if arg == "--" {
+				literal = true
+				continue
+			}
+			if strings.HasPrefix(arg, "-") {
+				continue
+			}
+		}
+		out = append(out, parseOpenArg(arg))
+	}
+	return out
+}
+
+func parseOpenArg(arg string) openArg {
+	if _, err := os.Stat(arg); err == nil {
+		return openArg{path: arg}
+	}
+	b1, n1, ok := splitTrailingInt(arg)
+	if !ok {
+		return openArg{path: arg}
+	}
+	if b2, n2, ok := splitTrailingInt(b1); ok {
+		if _, err := os.Stat(b1); err == nil {
+			return openArg{path: b1, line: n1}
+		}
+		return openArg{path: b2, line: n2, col: n1}
+	}
+	return openArg{path: b1, line: n1}
+}
+
+func splitTrailingInt(s string) (string, int, bool) {
+	i := strings.LastIndexByte(s, ':')
+	if i <= 0 || i == len(s)-1 {
+		return "", 0, false
+	}
+	tail := s[i+1:]
+	for j := range len(tail) {
+		if tail[j] < '0' || tail[j] > '9' {
+			return "", 0, false
+		}
+	}
+	n, err := strconv.Atoi(tail)
+	if err != nil || n <= 0 {
+		return "", 0, false
+	}
+	return s[:i], n, true
+}
+
+func (a *app) openCLI(args []string) {
+	for _, arg := range parseCLIArgs(args) {
+		p, _ := filepath.Abs(arg.path)
+		if d := a.docAt(p); d != nil {
+			a.show(d)
+			goToPos(d, arg.line, arg.col)
+			continue
+		}
+		if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
+			d := a.add(p, "")
+			goToPos(d, arg.line, arg.col)
+			continue
+		}
+		a.open([]string{p})
+		if arg.line > 0 {
+			if d := a.docAt(p); d != nil {
+				goToPos(d, arg.line, arg.col)
+			}
+		}
+	}
+}
+
+func goToPos(d *doc, line, col int) {
+	if d == nil || d.kind != textDoc || line <= 0 {
+		return
+	}
+	buf := d.st.Buffer
+	l := min(line, buf.LineCount()) - 1
+	byteCol := 0
+	if col > 1 {
+		s := buf.Line(l)
+		rem := col - 1
+		for i := range s {
+			if rem == 0 {
+				byteCol = i
+				rem = -1
+				break
+			}
+			rem--
+		}
+		if rem >= 0 {
+			byteCol = len(s)
+		}
+	}
+	d.st.GoTo(editor.Pos{Line: l, Col: byteCol})
 }
