@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"syscall/js"
 )
@@ -21,4 +22,11 @@ func gitWith(dir, input string, args ...string) (string, error) {
 		return "", errors.New(msg.String())
 	}
 	return r.Get("out").String(), nil
+}
+
+func gitWithContext(ctx context.Context, dir, input string, args ...string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	return gitWith(dir, input, args...)
 }

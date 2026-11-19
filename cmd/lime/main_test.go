@@ -1695,7 +1695,7 @@ func TestDiscard(t *testing.T) {
 	if got := a.docAt(file).st.Buffer.String(); got != strings.Join(lines, "\n")+"\n" {
 		t.Fatalf("after Discard Hunk: %q", got)
 	}
-	a.discardFiles([]change{{status: 'M', path: "a b.txt"}})
+	a.discardFiles(dir, []change{{status: 'M', path: "a b.txt"}})
 	tt.Frame()
 	lines[9] = "10"
 	if got := a.docAt(file).st.Buffer.String(); got != strings.Join(lines, "\n")+"\n" {

@@ -161,11 +161,11 @@
     return out
   }
 
-  const patch = (from, to) => {
+  const patch = (from, to, exclude = []) => {
     let out = ""
     for (const p of [...new Set([...from.keys(), ...to.keys()])].sort()) {
       const a = from.get(p), b = to.get(p)
-      if (a === b) continue
+      if (a === b || exclude.includes(":(top,exclude,literal)" + p)) continue
       out += `diff --git a/${p} b/${p}\n`
       if (a === undefined) out += "new file mode 100644\n"
       if (b === undefined) out += "deleted file mode 100644\n"
@@ -194,16 +194,20 @@
 
   // catFile reads rev:path, where a path of ./ is dir's, as git -C dir
   // reads it.
-  const catFile = (dir, input) => {
+  const catFile = (dir, input, sizes) => {
     const here = dir === repo.root ? "" : dir.slice(repo.root.length + 1) + "/"
     let out = ""
-    for (const spec of input.split("\n").filter(Boolean)) {
+    for (const spec of input.split(sizes ? "\0" : "\n").filter(Boolean)) {
       const at = spec.indexOf(":")
       let path = spec.slice(at + 1), text
       if (path.startsWith("./")) path = here + path.slice(2)
       try {
         text = treeOf(spec.slice(0, at)).get(path)
       } catch {}
+      if (sizes) {
+        out += (text === undefined ? `${spec} missing` : bytes(text)) + "\0"
+        continue
+      }
       out += text === undefined ? `${spec} missing\n` : `${oid(text)} blob ${bytes(text)}\n${text}\n`
     }
     return out
@@ -286,9 +290,9 @@
         return has(rest, "-p") ? patch(parentTree(c), c.tree) : nameStatus(parentTree(c), c.tree)
       }
       case "diff":
-        return has(rest, "--cached") ? patch(head().tree, repo.index) : patch(repo.index, tracked())
+        return has(rest, "--cached") ? patch(head().tree, repo.index) : patch(repo.index, tracked(), rest)
       case "cat-file":
-        return catFile(dir, input)
+        return catFile(dir, input, has(rest, "--batch-check=%(objectsize)"))
       case "apply":
         // apply edits the index alone: Discard Hunk, for the work tree, fails.
         if (!has(rest, "--cached")) throw new Error("error: the demo applies patches to the index only")

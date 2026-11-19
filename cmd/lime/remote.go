@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"lime/locales"
 )
+
+var remoteTimeout = 60 * time.Second
 
 func (a *app) push()  { a.remoteRun(locales.StatusPushing(), "push") }
 func (a *app) pull()  { a.remoteRun(locales.StatusPulling(), "pull") }
@@ -26,22 +30,20 @@ func (a *app) remoteRun(status, command string) {
 	// Only pull writes the index and the work tree.
 	lock := command == "pull"
 	a.background(func() func() {
+		ctx, cancel := context.WithTimeout(context.Background(), remoteTimeout)
+		defer cancel()
 		args := []string{command}
 		if command == "push" {
-			if head, err := runGit(dir, "symbolic-ref", "--quiet", "HEAD"); err == nil {
-				branch := strings.TrimPrefix(strings.TrimSpace(head), "refs/heads/")
-				// Pruning the tracking ref can leave the upstream configured.
-				if _, err := runGit(dir, "config", "--get", "branch."+branch+".merge"); err != nil {
-					args = append(args, "-u", "origin", "HEAD")
-				}
-			}
+			args = []string{"-c", "push.autoSetupRemote=true", "push"}
 		}
+		var err error
 		if lock {
-			gitWrites.Lock()
-		}
-		_, err := runGit(dir, args...)
-		if lock {
-			gitWrites.Unlock()
+			mu := repoLock(dir)
+			mu.Lock()
+			_, err = gitWithContext(ctx, dir, "", args...)
+			mu.Unlock()
+		} else {
+			_, err = gitWithContext(ctx, dir, "", args...)
 		}
 		return func() {
 			a.remote = ""

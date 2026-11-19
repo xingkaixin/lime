@@ -18,9 +18,6 @@ func (a *app) sideBar(c *ui.Context) {
 	ch := a.shell(c)
 	cur := a.current()
 	ui.Column(c).Fill().Background(ch.bg).ContextMenu(a.projectMenu).Children(func() {
-		if a.gitDir() != a.git.dir {
-			a.readGit()
-		}
 		a.sideBarTitle(c)
 		switch {
 		case a.side == gitPanel && a.git.root == "":

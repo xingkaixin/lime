@@ -70,6 +70,9 @@ func (a *app) avatar(c *ui.Context, email string, size float32) {
 	})
 }
 
+// avatarSlots bounds concurrent avatar fetches and decodes.
+var avatarSlots = make(chan struct{}, 4)
+
 // avatar returns the picture of email once loaded, nil until then or
 // where there is none, loading it for the window a. On the main thread,
 // which alone touches the map.
@@ -87,7 +90,12 @@ func (l *lime) avatar(a *app, email string) *ui.Bitmap {
 	}
 	dir := l.dir
 	go func() {
+		avatarSlots <- struct{}{}
+		defer func() { <-avatarSlots }()
 		bm := loadAvatar(dir, email)
+		if bm == nil {
+			return
+		}
 		a.win.Update(func() {
 			l.avatars[email] = bm
 			l.redraw()

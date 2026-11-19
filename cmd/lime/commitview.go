@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -127,7 +129,7 @@ func (a *app) showCommitIn(root string, cm commit) *commitView {
 // loadCommit reads cv's message and files, again for the work tree's,
 // whose files stay folded as they were.
 func (a *app) loadCommit(cv *commitView) {
-	root, hash := cv.root, cv.hash
+	root, hash, fallback := cv.root, cv.hash, a.set.FallbackEncoding
 	cv.gen++
 	gen := cv.gen
 	a.background(func() func() {
@@ -136,7 +138,7 @@ func (a *app) loadCommit(cv *commitView) {
 		if hash != stagedChanges && hash != unstagedChanges && runtime.GOOS != "js" {
 			wg.Go(func() { github, _ = githubRepo(root) })
 		}
-		body, files := readCommit(root, hash)
+		body, files := readCommit(root, hash, fallback)
 		wg.Wait()
 		return func() {
 			if cv.gen != gen {
@@ -158,9 +160,9 @@ func (a *app) loadCommit(cv *commitView) {
 
 // readCommit reads the message of hash and the files it changes, with
 // their hunks and texts. It blocks, so call it off the main thread.
-func readCommit(root, hash string) (string, []*commitFile) {
+func readCommit(root, hash, fallback string) (string, []*commitFile) {
 	var body string
-	var changes []change
+	var changes, conflicts []change
 	// Porcelain, unlike diff-tree, reads the user's diff settings, but
 	// not textconv: the hunks apply back to the bytes, to stage or discard.
 	diff := []string{"diff", "-M", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/"}
@@ -174,15 +176,29 @@ func readCommit(root, hash string) (string, []*commitFile) {
 		wg.Go(func() { changes = readStatus(root)[staged] })
 	case unstagedChanges:
 		args, oldRev, newRev = diff, "", ""
-		wg.Go(func() { changes = readStatus(root)[unstaged] })
+		status := readStatus(root)
+		changes, conflicts = status[unstaged], status[conflicted]
 	default:
 		args = []string{"diff-tree", "-r", "-p", "-M", "--root", "--no-commit-id", "--diff-merges=first-parent", hash}
 		oldRev, newRev = hash+"^", hash
 		wg.Go(func() { body, _ = runGit(root, "show", "-s", "--format=%B", hash) })
 		wg.Go(func() { changes = commitChanges(root, hash) })
 	}
-	out, _ := runGit(root, args...)
 	wg.Wait()
+	var oversized map[string]bool
+	if hash == unstagedChanges {
+		oversized = largeWorktreeChanges(root, changes)
+		for _, ch := range conflicts {
+			oversized[ch.path] = true
+		}
+		if len(oversized) > 0 {
+			args = append(args, "--")
+			for path := range oversized {
+				args = append(args, ":(top,exclude,literal)"+path)
+			}
+		}
+	}
+	out, _ := runGit(root, args...)
 	patches, _ := editor.ParsePatch(out)
 	byPath := map[string]editor.FilePatch{}
 	for _, p := range patches {
@@ -198,13 +214,25 @@ func readCommit(root, hash string) (string, []*commitFile) {
 		p, ok := byPath[ch.path]
 		f := &commitFile{change: ch, hunks: p.Hunks, binary: p.Binary, folded: p.Binary}
 		files = append(files, f)
+		if oversized[ch.path] {
+			f.folded = true
+			f.hunks = nil
+			continue
+		}
 		// The work tree's untracked files are in no diff.
 		if !ok && ch.status == '?' {
-			text, _ := readText(filepath.Join(root, filepath.FromSlash(ch.path)))
-			f.binary, f.folded = binary(text), binary(text)
-			if !f.binary {
-				f.new = splitText(text, ch.path)
-				f.hunks = addedHunk(f.new.lines)
+			raw, oversized := readBoundedText(filepath.Join(root, filepath.FromSlash(ch.path)), largeFile)
+			if oversized {
+				f.folded = true
+			} else if !hasUTF16BOM(raw) && binary(raw) {
+				f.binary, f.folded = true, true
+			} else {
+				text, _ := openText(raw, fallback)
+				f.binary, f.folded = binary(text), binary(text)
+				if !f.binary {
+					f.new = splitText(text, ch.path)
+					f.hunks = addedHunk(f.new.lines)
+				}
 			}
 		}
 		if f.binary || !ok {
@@ -218,7 +246,7 @@ func readCommit(root, hash string) (string, []*commitFile) {
 	}
 	texts := catFiles(root, specs)
 	for _, f := range files {
-		if _, ok := byPath[f.path]; !ok || f.binary {
+		if _, ok := byPath[f.path]; !ok || f.binary || oversized[f.path] {
 			continue
 		}
 		oldText, newText := texts[0], texts[1]
@@ -227,9 +255,17 @@ func readCommit(root, hash string) (string, []*commitFile) {
 		if hash == unstagedChanges {
 			newText = ""
 			if f.status != 'D' {
-				newText, _ = readText(filepath.Join(root, filepath.FromSlash(f.path)))
+				raw, oversized := readBoundedText(filepath.Join(root, filepath.FromSlash(f.path)), largeFile)
+				if oversized {
+					f.folded, f.hunks = true, nil
+					continue
+				}
+				newText, _ = openText(raw, fallback)
 			}
+		} else {
+			newText, _ = openText(newText, fallback)
 		}
+		oldText, _ = openText(oldText, fallback)
 		f.old, f.new = splitText(oldText, f.path), splitText(newText, f.path)
 	}
 	for _, f := range files {
@@ -245,6 +281,88 @@ func readCommit(root, hash string) (string, []*commitFile) {
 		}
 	}
 	return strings.TrimSpace(body), files
+}
+
+// A patch can contain the entire old or new file, so check both before asking Git for it.
+func largeWorktreeChanges(root string, changes []change) map[string]bool {
+	large := map[string]bool{}
+	var specs strings.Builder
+	var tracked []change
+	for _, ch := range changes {
+		if fi, err := os.Stat(filepath.Join(root, filepath.FromSlash(ch.path))); err == nil && fi.Size() > largeFile {
+			large[ch.path] = true
+		}
+		if ch.status == '?' {
+			continue
+		}
+		old := ch.oldPath
+		if old == "" {
+			old = ch.path
+		}
+		specs.WriteString(":" + old)
+		specs.WriteByte(0)
+		tracked = append(tracked, ch)
+	}
+	if len(tracked) > 0 {
+		out, err := gitWith(root, specs.String(), "cat-file", "-Z", "--batch-check=%(objectsize)")
+		sizes := strings.Split(out, "\x00")
+		for i, ch := range tracked {
+			var size string
+			if err != nil {
+				// Git before 2.42 lacks the NUL-delimited batch output.
+				old := ch.oldPath
+				if old == "" {
+					old = ch.path
+				}
+				out, _ := runGit(root, "cat-file", "-s", ":"+old)
+				size = strings.TrimSpace(out)
+			} else if i < len(sizes) {
+				size = sizes[i]
+			}
+			if n, _ := strconv.ParseInt(size, 10, 64); n > largeFile {
+				large[ch.path] = true
+			}
+		}
+	}
+	for _, ch := range changes {
+		if large[ch.path] && ch.oldPath != "" {
+			if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(ch.oldPath))); os.IsNotExist(err) {
+				large[ch.oldPath] = true
+			}
+		}
+	}
+	return large
+}
+
+// readBoundedText reads up to limit bytes of path as a string. It reports
+// oversized when the file exceeds limit bytes, without reading past it.
+func readBoundedText(path string, limit int64) (string, bool) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", false
+	}
+	defer f.Close()
+	var b strings.Builder
+	if fi, err := f.Stat(); err == nil {
+		if fi.Size() > limit {
+			return "", true
+		}
+		if fi.Size() > 0 {
+			b.Grow(int(fi.Size()))
+		}
+	}
+	n, err := io.Copy(&b, io.LimitReader(f, limit+1))
+	if err != nil {
+		return "", false
+	}
+	if n > limit {
+		return "", true
+	}
+	return b.String(), false
+}
+
+func hasUTF16BOM(s string) bool {
+	return strings.HasPrefix(s, "\xff\xfe") || strings.HasPrefix(s, "\xfe\xff")
 }
 
 // addedHunk is the hunk of a file added with lines.
@@ -665,10 +783,10 @@ func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
 			button(locales.ButtonDiscard(), func() {
 				h := f.hunks[i]
 				a.confirm(locales.DialogDiscardHunk(filepath.Base(f.path)), locales.DialogDiscardLost(), locales.ButtonDiscard(),
-					func() { a.discardHunk(f.path, h) })
+					func() { a.discardHunkIn(cv.root, f.path, h) })
 			})
 		}
-		button(label, func() { a.stageHunk(f.path, f.hunks[i], unstage) })
+		button(label, func() { a.stageHunkIn(cv.root, f.path, f.hunks[i], unstage) })
 	})
 }
 
@@ -676,17 +794,25 @@ func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
 // Its start on the index's side is where it is there, as its tab diffs
 // the index with HEAD or with the work tree, so it applies alone.
 func (a *app) stageHunk(p string, h editor.PatchHunk, unstage bool) {
+	a.stageHunkIn(a.git.root, p, h, unstage)
+}
+
+func (a *app) stageHunkIn(root, p string, h editor.PatchHunk, unstage bool) {
 	args := []string{"apply", "--cached", "--recount"}
 	if unstage {
 		args = append(args, "--reverse")
 	}
-	a.gitRunWith(hunkPatch(p, h), nil, append(args, "-")...)
+	a.gitRunIn(root, hunkPatch(p, h), nil, append(args, "-")...)
 }
 
 // discardHunk takes h, of the unstaged changes of the file at p, out of
 // the work tree.
 func (a *app) discardHunk(p string, h editor.PatchHunk) {
-	a.gitRunWith(hunkPatch(p, h), nil, "apply", "--recount", "--reverse", "-")
+	a.discardHunkIn(a.git.root, p, h)
+}
+
+func (a *app) discardHunkIn(root, p string, h editor.PatchHunk) {
+	a.gitRunIn(root, hunkPatch(p, h), nil, "apply", "--recount", "--reverse", "-")
 }
 
 func hunkPatch(p string, h editor.PatchHunk) string {

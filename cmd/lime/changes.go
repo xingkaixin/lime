@@ -26,20 +26,24 @@ const (
 // changes is the side bar's Changes tab: the work tree's changes, read
 // for root, by section.
 type changes struct {
-	root    string
-	files   [3][]change
-	gen     int // counts the readings, for the last to win
-	list    ui.ListState
-	sel     ui.Selection[changeKey]
-	cur     int // the row chosen last, -1 for none
-	rows    []changeRow
-	closed  map[changeKey]bool // the folders closed in the tree
-	message string             // of the commit to make
-	amend   bool               // the commit replaces HEAD
-	draft   string             // the message typed before amend loaded HEAD's
+	root     string
+	files    [3][]change
+	gen      int // counts the readings, for the last to win
+	list     ui.ListState
+	sel      ui.Selection[changeKey]
+	cur      int // the row chosen last, -1 for none
+	rows     []changeRow
+	rowsGen  int // dataGen reflected in rows; 0 means unbuilt
+	dataGen  int // bumped whenever files or closed changes
+	rowsTree bool
+	closed   map[changeKey]bool // the folders closed in the tree
+	message  string             // of the commit to make
+	amend    bool               // the commit replaces HEAD
+	draft    string             // the message typed before amend loaded HEAD's
 
 	amendGen    int
 	amendLoaded bool
+	committing  bool
 }
 
 // changeKey names a row of the Changes tab: a section's header, of no
@@ -87,7 +91,11 @@ func readStatus(root string) [3][]change {
 				files[staged] = append(files[staged], in)
 			}
 			if y := line[3]; y != '.' {
-				files[unstaged] = append(files[unstaged], change{status: statusKind(y), path: ch.path})
+				work := change{status: statusKind(y), path: ch.path}
+				if y == 'R' || y == 'C' {
+					work.oldPath = ch.oldPath
+				}
+				files[unstaged] = append(files[unstaged], work)
 			}
 		}
 	}
@@ -134,6 +142,7 @@ func (a *app) readChanges() {
 		return func() {
 			if w.gen == gen {
 				w.files = files
+				w.dataGen++
 			}
 		}
 	})
@@ -150,6 +159,14 @@ func (a *app) readWorktree() {
 			a.loadCommit(cv)
 		}
 	}
+}
+
+// ensureRows rebuilds w.rows only when files, closed folders, or tree mode changed.
+func (w *changes) ensureRows(tree bool) {
+	if w.rowsGen != 0 && w.rowsGen == w.dataGen && w.rowsTree == tree {
+		return
+	}
+	w.layRows(tree)
 }
 
 // layRows lays the Changes tab out: each section with its files under
@@ -190,6 +207,10 @@ func (w *changes) layRows(tree bool) {
 			w.addRow(changeRow{key: changeKey{sec, files[i].path}, file: &files[i], depth: len(dirs)})
 		}
 	}
+	if w.dataGen == 0 {
+		w.dataGen = 1
+	}
+	w.rowsGen, w.rowsTree = w.dataGen, tree
 }
 
 // addRow adds r unless a folder it is in is closed.
@@ -281,7 +302,11 @@ func (w *changes) toggle(k changeKey, open bool) {
 	if w.closed == nil {
 		w.closed = map[changeKey]bool{}
 	}
+	if w.closed[k] == !open {
+		return
+	}
 	w.closed[k] = !open
+	w.dataGen++
 }
 
 // stageChosen stages the files chosen, or unstages them as the row
@@ -321,16 +346,24 @@ func (a *app) changeMenu(m *ui.Menu) {
 // confirm asks before what can't be undone, and runs yes if the user
 // goes ahead.
 func (a *app) confirm(message, detail, button string, yes func()) {
+	a.confirmOr(message, detail, button, yes, nil)
+}
+
+func (a *app) confirmOr(message, detail, button string, yes, no func()) {
 	go func() {
-		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
-			Parent:  a.win,
-			Type:    mygo.MessageWarning,
-			Message: message,
-			Detail:  detail,
-			Buttons: []string{button, locales.ButtonCancel()},
+		res, err := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:             a.win,
+			Type:               mygo.MessageWarning,
+			Message:            message,
+			Detail:             detail,
+			Buttons:            []string{button, locales.ButtonCancel()},
+			CancelButton:       1,
+			DestructiveButtons: []int{0},
 		})
-		if res.Button == 0 {
+		if err == nil && res.Button == 0 {
 			a.win.Update(yes)
+		} else if no != nil {
+			a.win.Update(no)
 		}
 	}()
 }
@@ -348,14 +381,14 @@ func (a *app) confirmDiscard(files []change) {
 	if slices.ContainsFunc(files, trashed) {
 		detail = append(detail, locales.DialogDiscardUntracked())
 	}
-	a.confirm(locales.DialogDiscardFiles(len(files)), strings.Join(detail, " "), locales.ButtonDiscard(), func() { a.discardFiles(files) })
+	root := a.changes.root
+	a.confirm(locales.DialogDiscardFiles(len(files)), strings.Join(detail, " "), locales.ButtonDiscard(), func() { a.discardFiles(root, files) })
 }
 
 // discardFiles discards the changes of files not staged: a tracked file
 // takes the index's text again, and a new one moves to the Trash, whence
 // it can come back.
-func (a *app) discardFiles(files []change) {
-	root := a.git.root
+func (a *app) discardFiles(root string, files []change) {
 	var tracked, added strings.Builder
 	var trash []string
 	for _, f := range files {
@@ -375,9 +408,10 @@ func (a *app) discardFiles(files []change) {
 		// A file added with intent to add leaves the index first: restore
 		// would empty it.
 		if unadd != "" {
-			gitWrites.Lock()
+			mu := repoLock(root)
+			mu.Lock()
 			_, err = gitWith(root, unadd, "--literal-pathspecs", "rm", "--cached", "-q", "--pathspec-from-file=-", "--pathspec-file-nul")
-			gitWrites.Unlock()
+			mu.Unlock()
 		}
 		for i := 0; err == nil && i < len(trash); i++ {
 			if err = mygo.Shell.TrashItem(trash[i]); err != nil {
@@ -393,7 +427,7 @@ func (a *app) discardFiles(files []change) {
 				a.notifyError(msg)
 			}
 			if paths != "" {
-				a.gitRunWith(paths, nil, "--literal-pathspecs", "restore", "--pathspec-from-file=-", "--pathspec-file-nul")
+				a.gitRunIn(root, paths, nil, "--literal-pathspecs", "restore", "--pathspec-from-file=-", "--pathspec-file-nul")
 				return
 			}
 			a.refreshFolders()
@@ -473,7 +507,7 @@ func (a *app) changesView(c *ui.Context) {
 
 func (a *app) changesList(c *ui.Context) {
 	w := &a.changes
-	w.layRows(a.set.GitTreeView)
+	w.ensureRows(a.set.GitTreeView)
 	if len(w.rows) == 0 {
 		ui.Column(c).Grow(1).FillWidth().Padding(16).Center().Children(func() {
 			ui.Text(c, locales.ChangesNone()).FontSize(12).TextColor(a.shell(c).muted).TextAlign(ui.Center)
@@ -520,7 +554,7 @@ func (w *changes) commitArgs() (args []string, label string, ready bool) {
 		args, label = []string{"commit", "-a", "-F", "-"}, locales.ChangesCommitTracked()
 		ready = slices.ContainsFunc(w.files[unstaged], func(f change) bool { return f.status != '?' })
 	}
-	return args, label, ready && strings.TrimSpace(w.message) != ""
+	return args, label, ready && !w.committing && strings.TrimSpace(w.message) != ""
 }
 
 // amendChanged loads HEAD's message to amend it, keeping the one typed,
@@ -582,7 +616,7 @@ func (a *app) uncommit() {
 			subject, _, _ := strings.Cut(body, "\n")
 			a.confirm(locales.DialogUncommit(subject), detail, locales.ButtonUncommit(), func() {
 				w := &a.changes
-				a.gitRunWith("", func() {
+				a.gitRunIn(root, "", func() {
 					if w.root == root && w.message == "" {
 						w.message = body
 					}
@@ -624,11 +658,23 @@ func (a *app) commitBox(c *ui.Context) {
 		msg, draft, root, gen := w.message, w.draft, w.root, w.amendGen
 		amend := w.amend
 		current := func() bool { return w.amendGen == gen && w.amend == amend && a.git.root == root }
+		clearCommitting := func() {
+			if w.root == root {
+				w.committing = false
+			}
+		}
+		w.committing = true
 		run := func() {
 			if !current() {
+				clearCommitting()
 				return
 			}
-			a.gitRunWith(msg, func() { w.finishCommit(msg, draft, gen) }, args...)
+			a.gitRunFinish(root, msg, func(err error) {
+				clearCommitting()
+				if err == nil {
+					w.finishCommit(msg, draft, gen)
+				}
+			}, args...)
 		}
 		if !amend {
 			run()
@@ -637,8 +683,12 @@ func (a *app) commitBox(c *ui.Context) {
 		a.background(func() func() {
 			pushed := headPushed(root)
 			return func() {
-				if pushed && current() {
-					a.confirm(locales.DialogAmendPushed(), locales.DialogPushedDetail(), locales.ChangesCommit(), run)
+				if !current() {
+					clearCommitting()
+					return
+				}
+				if pushed {
+					a.confirmOr(locales.DialogAmendPushed(), locales.DialogPushedDetail(), locales.ChangesCommit(), run, clearCommitting)
 					return
 				}
 				run()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
@@ -59,11 +60,29 @@ func readRepo(dir string) gitRepo {
 	return r
 }
 
-// gitDir is the folder whose repository the side bar shows: the
-// project's, while it has one folder.
+// gitDir is the folder whose repository the side bar shows: the project's
+// folder, or when a project has several, the one holding the active file,
+// falling back to the first.
 func (a *app) gitDir() string {
-	if len(a.proj.folders) != 1 {
+	if d := a.current(); d != nil && d.commit != nil {
+		return d.commit.root
+	}
+	switch len(a.proj.folders) {
+	case 0:
 		return ""
+	case 1:
+		return a.proj.folders[0]
+	}
+	if d := a.current(); d != nil && d.path != "" {
+		best := ""
+		for _, f := range a.proj.folders {
+			if within(d.path, f) && len(f) > len(best) {
+				best = f
+			}
+		}
+		if best != "" {
+			return best
+		}
 	}
 	return a.proj.folders[0]
 }
@@ -125,30 +144,68 @@ func (a *app) background(work func() func()) {
 // and the branch as it left them, or what it said of a failure.
 func (a *app) gitRun(args ...string) { a.gitRunWith("", nil, args...) }
 
-// gitWrites lets one git that gitRun runs write at a time: two at once,
-// as check boxes clicked quickly start, would meet on index.lock.
-var gitWrites sync.Mutex
+// repoLocks lets one git write run at a time per repository root: two at
+// once, as check boxes clicked quickly start, would meet on index.lock,
+// while writes in different repositories do not block one another.
+var (
+	repoLocksMu sync.Mutex
+	repoLocks   = map[string]*sync.Mutex{}
+)
+
+func repoLock(dir string) *sync.Mutex {
+	key := filepath.Clean(dir)
+	repoLocksMu.Lock()
+	defer repoLocksMu.Unlock()
+	mu := repoLocks[key]
+	if mu == nil {
+		mu = &sync.Mutex{}
+		repoLocks[key] = mu
+	}
+	return mu
+}
 
 // gitRunWith runs git as gitRun does, with input on its standard input,
 // and done after it succeeds.
 func (a *app) gitRunWith(input string, done func(), args ...string) {
-	dir := a.git.root
+	a.gitRunIn(a.git.root, input, done, args...)
+}
+
+// gitRunIn runs git in dir, with input on its standard input, and done
+// after it succeeds.
+func (a *app) gitRunIn(dir, input string, done func(), args ...string) {
+	a.gitRunFinish(dir, input, func(err error) {
+		if err == nil && done != nil {
+			done()
+		}
+	}, args...)
+}
+
+func (a *app) gitRunFinish(dir, input string, finish func(error), args ...string) {
 	a.background(func() func() {
-		gitWrites.Lock()
+		mu := repoLock(dir)
+		mu.Lock()
 		_, err := gitWith(dir, input, args...)
-		gitWrites.Unlock()
+		mu.Unlock()
 		return func() {
 			if err != nil {
 				msg, _, _ := strings.Cut(err.Error(), "\n")
 				a.notifyError(msg)
-			} else if done != nil {
-				done()
+			}
+			if finish != nil {
+				finish(err)
 			}
 			a.refreshFolders()
 			for _, w := range a.l.wins {
 				w.reloadChanged()
 			}
 			a.readGit()
+			if dir != "" && dir != a.git.root {
+				for _, d := range a.allDocs() {
+					if cv := d.commit; cv != nil && cv.worktree() && cv.root == dir {
+						a.loadCommit(cv)
+					}
+				}
+			}
 		}
 	})
 }
@@ -233,7 +290,7 @@ func (a *app) showBranches() {
 		return func() {
 			var items []item
 			for _, name := range b.local {
-				it := item{label: name, pick: func() { a.gitRun("switch", name) }}
+				it := item{label: name, pick: func() { a.gitRunIn(root, "", nil, "switch", name) }}
 				switch tree, ok := b.elsewhere[name]; {
 				case name == cur:
 					it.hint, it.pick = locales.GitCurrent(), nil
@@ -245,12 +302,12 @@ func (a *app) showBranches() {
 			for _, name := range b.remote {
 				items = append(items, item{label: name, detail: locales.GitRemoteBranch(), pick: func() {
 					// The ref in full, which no tag of the same name shadows.
-					a.gitRun("switch", "--track", "refs/remotes/"+name)
+					a.gitRunIn(root, "", nil, "switch", "--track", "refs/remotes/"+name)
 				}})
 			}
 			for _, s := range ss {
 				items = append(items, item{label: s.subject, detail: s.ref, hint: locales.GitStash(), pick: func() {
-					a.gitRun("stash", "apply", s.ref)
+					a.gitRunIn(root, "", nil, "stash", "apply", s.ref)
 				}})
 			}
 			a.openPanel(&panel{placeholder: locales.GitBranchPlaceholder(), list: func(q string) []item { return ranked(items, byLabel(q)) }})
@@ -280,19 +337,20 @@ func realGit(caption func(locales.Messages) string) func(locales.Messages) strin
 
 // promptCreateBranch names a branch to make at HEAD and switch to.
 func (a *app) promptCreateBranch() {
+	root := a.git.root
 	a.openPanel(&panel{prompt: locales.PromptBranchName(), submit: func(name string) {
 		if name = strings.TrimSpace(name); name != "" {
-			a.gitRun("switch", "-c", name)
+			a.gitRunIn(root, "", nil, "switch", "-c", name)
 		}
 	}})
 }
 
 // promptRenameBranch renames the branch checked out.
 func (a *app) promptRenameBranch() {
-	old := a.git.branch
+	root, old := a.git.root, a.git.branch
 	a.openPanel(&panel{prompt: locales.PromptNewName(), query: old, submit: func(name string) {
 		if name = strings.TrimSpace(name); name != "" && name != old {
-			a.gitRun("branch", "-m", "--", name)
+			a.gitRunIn(root, "", nil, "branch", "-m", "--", name)
 		}
 	}})
 }
@@ -307,7 +365,7 @@ func (a *app) showDeleteBranch() {
 			var items []item
 			for _, name := range b.local {
 				it := item{label: name, pick: func() {
-					a.confirm(locales.DialogDelete(name), "", locales.ButtonDelete(), func() { a.deleteBranch(name, false) })
+					a.confirm(locales.DialogDelete(name), "", locales.ButtonDelete(), func() { a.deleteBranch(root, name, false) })
 				}}
 				switch tree, ok := b.elsewhere[name]; {
 				case name == cur:
@@ -324,16 +382,17 @@ func (a *app) showDeleteBranch() {
 
 // deleteBranch deletes the branch name. Unless force, git refuses one
 // not merged, which the user may then delete anyway.
-func (a *app) deleteBranch(name string, force bool) {
-	dir, flag := a.git.root, "-d"
+func (a *app) deleteBranch(root, name string, force bool) {
+	dir, flag := root, "-d"
 	if force {
 		flag = "-D"
 	}
 	a.background(func() func() {
-		gitWrites.Lock()
+		mu := repoLock(dir)
+		mu.Lock()
 		// The advice names -D, which tells a branch not merged.
 		out, err := gitWith(dir, "", "-c", "advice.forceDeleteBranch=true", "branch", flag, "--", name)
-		gitWrites.Unlock()
+		mu.Unlock()
 		return func() {
 			switch {
 			case err == nil:
@@ -341,7 +400,7 @@ func (a *app) deleteBranch(name string, force bool) {
 			// git advises -D, in any language, only for a branch not merged.
 			case !force && strings.Contains(err.Error(), "branch -D"):
 				a.confirm(locales.DialogBranchNotMerged(name), locales.DialogBranchCommitsLost(), locales.ButtonDelete(),
-					func() { a.deleteBranch(name, true) })
+					func() { a.deleteBranch(root, name, true) })
 			default:
 				msg, _, _ := strings.Cut(err.Error(), "\n")
 				a.notifyError(msg)
@@ -373,5 +432,15 @@ func (a *app) switchWorktree(path string) {
 	a.proj.unwatch()
 	a.proj = project{gen: a.proj.gen + 1, jump: true}
 	a.addFolder(path)
+	if d := a.current(); d != nil && d.commit != nil && d.commit.root != path {
+		next := slices.IndexFunc(a.mru, func(d *doc) bool {
+			return d.commit != nil && d.commit.root == path || d.path != "" && within(d.path, path)
+		})
+		if next >= 0 {
+			a.show(a.mru[next])
+		} else {
+			a.newFile()
+		}
+	}
 	a.readGit()
 }
