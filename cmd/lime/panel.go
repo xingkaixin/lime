@@ -1,11 +1,14 @@
 package main
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
@@ -151,53 +154,361 @@ func lower(b byte) byte {
 	return b
 }
 
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
+}
+
+func isBoundaryByte(s string, i int) bool {
+	if i == 0 {
+		return true
+	}
+	p := s[i-1]
+	if p == '/' || p == '\\' || p == '_' || p == '-' || p == '.' || p == ' ' {
+		return true
+	}
+	return s[i] >= 'A' && s[i] <= 'Z' && !(p >= 'A' && p <= 'Z')
+}
+
+func isBoundaryRune(sr []rune, i int) bool {
+	if i == 0 {
+		return true
+	}
+	p := sr[i-1]
+	if p == '/' || p == '\\' || p == '_' || p == '-' || p == '.' || p == ' ' {
+		return true
+	}
+	return unicode.IsUpper(sr[i]) && !unicode.IsUpper(p)
+}
+
+const (
+	fuzzyNegInf    = -1 << 29
+	fuzzyDPLimit   = 65536
+	nameMatchBonus = 1_000_000
+)
+
 // fuzzy scores s for the letters of q in order, as Sublime Text matches
 // them: more for runs and for the starts of words. Spaces in q match
 // anything.
 func fuzzy(q, s string) (int, bool) {
-	score, last := 0, -2
-	i := 0
-	for j := 0; j < len(q); j++ {
-		if q[j] == ' ' {
+	var qStack [64]byte
+	qb := qStack[:0]
+	for i := 0; i < len(q); i++ {
+		c := q[i]
+		if c >= utf8.RuneSelf {
+			return fuzzyRunes(q, s)
+		}
+		if c == ' ' {
 			continue
 		}
-		for i < len(s) && lower(s[i]) != lower(q[j]) {
-			i++
+		qb = append(qb, lower(c))
+	}
+	m := len(qb)
+	if m == 0 {
+		if !isASCII(s) {
+			return -utf8.RuneCountInString(s), true
 		}
-		if i == len(s) {
-			return 0, false
+		return -len(s), true
+	}
+	n := len(s)
+	lo, qi := -1, 0
+	for i := 0; i < n; i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf {
+			return fuzzyRunes(q, s)
+		}
+		if qi < m && lower(c) == qb[qi] {
+			if qi == 0 {
+				lo = i
+			}
+			qi++
+		}
+	}
+	if qi < m {
+		return 0, false
+	}
+	hi := n - 1
+	qi = m - 1
+	for i := n - 1; i >= lo; i-- {
+		if lower(s[i]) == qb[qi] {
+			if qi == m-1 {
+				hi = i
+			}
+			qi--
+			if qi < 0 {
+				break
+			}
+		}
+	}
+	w := hi - lo + 1
+	if m*w > fuzzyDPLimit {
+		return fuzzyGreedyBytes(qb, s), true
+	}
+	var dStack, mStack [256]int
+	var bStack [256]int8
+	var d, best []int
+	var bonus []int8
+	if w <= len(dStack) {
+		d, best, bonus = dStack[:w], mStack[:w], bStack[:w]
+	} else {
+		d, best, bonus = make([]int, w), make([]int, w), make([]int8, w)
+	}
+	for k := 0; k < w; k++ {
+		if isBoundaryByte(s, lo+k) {
+			bonus[k] = 3
+		} else {
+			bonus[k] = 0
+		}
+	}
+	curM := fuzzyNegInf
+	q0 := qb[0]
+	for k := 0; k < w; k++ {
+		v := fuzzyNegInf
+		if lower(s[lo+k]) == q0 {
+			v = 1 + int(bonus[k])
+		}
+		if v > curM {
+			curM = v
+		}
+		d[k], best[k] = v, curM
+	}
+	for j := 1; j < m; j++ {
+		qj := qb[j]
+		diagD, diagM := fuzzyNegInf, fuzzyNegInf
+		curM = fuzzyNegInf
+		for k := 0; k < w; k++ {
+			oldD, oldM := d[k], best[k]
+			nextD := fuzzyNegInf
+			if lower(s[lo+k]) == qj {
+				if diagM > fuzzyNegInf {
+					nextD = diagM + 1 + int(bonus[k])
+				}
+				if diagD > fuzzyNegInf {
+					if c := diagD + 5; c > nextD {
+						nextD = c
+					}
+				}
+			}
+			if nextD > curM {
+				curM = nextD
+			}
+			d[k], best[k] = nextD, curM
+			diagD, diagM = oldD, oldM
+		}
+	}
+	return best[w-1]*100 - n, true
+}
+
+func fuzzyGreedyBytes(qb []byte, s string) int {
+	score, last, i := 0, -2, 0
+	for _, qc := range qb {
+		for lower(s[i]) != qc {
+			i++
 		}
 		score++
 		switch {
 		case i == last+1:
 			score += 4
-		case i == 0 || strings.IndexByte("/\\_-. ", s[i-1]) >= 0 || s[i] >= 'A' && s[i] <= 'Z' && !(s[i-1] >= 'A' && s[i-1] <= 'Z'):
+		case isBoundaryByte(s, i):
 			score += 3
 		}
 		last = i
 		i++
 	}
-	return score*100 - len(s), true
+	return score*100 - len(s)
+}
+
+func fuzzyRunes(q, s string) (int, bool) {
+	var qr []rune
+	for _, r := range q {
+		if r == ' ' {
+			continue
+		}
+		qr = append(qr, unicode.ToLower(r))
+	}
+	sr := []rune(s)
+	m, n := len(qr), len(sr)
+	if m == 0 {
+		return -n, true
+	}
+	sl := make([]rune, n)
+	lo, qi := -1, 0
+	for i, r := range sr {
+		lr := unicode.ToLower(r)
+		sl[i] = lr
+		if qi < m && lr == qr[qi] {
+			if qi == 0 {
+				lo = i
+			}
+			qi++
+		}
+	}
+	if qi < m {
+		return 0, false
+	}
+	hi := n - 1
+	qi = m - 1
+	for i := n - 1; i >= lo; i-- {
+		if sl[i] == qr[qi] {
+			if qi == m-1 {
+				hi = i
+			}
+			qi--
+			if qi < 0 {
+				break
+			}
+		}
+	}
+	w := hi - lo + 1
+	if m*w > fuzzyDPLimit {
+		return fuzzyGreedyRunes(qr, sr, sl), true
+	}
+	d, best := make([]int, w), make([]int, w)
+	bonus := make([]int8, w)
+	for k := 0; k < w; k++ {
+		if isBoundaryRune(sr, lo+k) {
+			bonus[k] = 3
+		}
+	}
+	curM := fuzzyNegInf
+	q0 := qr[0]
+	for k := 0; k < w; k++ {
+		v := fuzzyNegInf
+		if sl[lo+k] == q0 {
+			v = 1 + int(bonus[k])
+		}
+		if v > curM {
+			curM = v
+		}
+		d[k], best[k] = v, curM
+	}
+	for j := 1; j < m; j++ {
+		qj := qr[j]
+		diagD, diagM := fuzzyNegInf, fuzzyNegInf
+		curM = fuzzyNegInf
+		for k := 0; k < w; k++ {
+			oldD, oldM := d[k], best[k]
+			nextD := fuzzyNegInf
+			if sl[lo+k] == qj {
+				if diagM > fuzzyNegInf {
+					nextD = diagM + 1 + int(bonus[k])
+				}
+				if diagD > fuzzyNegInf {
+					if c := diagD + 5; c > nextD {
+						nextD = c
+					}
+				}
+			}
+			if nextD > curM {
+				curM = nextD
+			}
+			d[k], best[k] = nextD, curM
+			diagD, diagM = oldD, oldM
+		}
+	}
+	return best[w-1]*100 - n, true
+}
+
+func fuzzyGreedyRunes(qr, sr, sl []rune) int {
+	score, last, i := 0, -2, 0
+	for _, qc := range qr {
+		for sl[i] != qc {
+			i++
+		}
+		score++
+		switch {
+		case i == last+1:
+			score += 4
+		case isBoundaryRune(sr, i):
+			score += 3
+		}
+		last = i
+		i++
+	}
+	return score*100 - len(sr)
+}
+
+type rankedHit struct {
+	idx   int
+	score int
+}
+
+// worseHit reports whether a ranks lower than b in stable descending score order.
+func worseHit(a, b rankedHit) bool {
+	return a.score < b.score || a.score == b.score && a.idx > b.idx
+}
+
+func siftDownHit(h []rankedHit, i int) {
+	n := len(h)
+	for {
+		l := 2*i + 1
+		if l >= n {
+			return
+		}
+		smallest := l
+		if r := l + 1; r < n && worseHit(h[r], h[l]) {
+			smallest = r
+		}
+		if !worseHit(h[smallest], h[i]) {
+			return
+		}
+		h[i], h[smallest] = h[smallest], h[i]
+		i = smallest
+	}
+}
+
+// rankTop keeps at most limit items matching score, best first, preserving
+// original order on ties.
+func rankTop[T any](items []T, limit int, score func(*T) (int, bool)) []T {
+	if limit <= 0 || len(items) == 0 {
+		return nil
+	}
+	var top []rankedHit
+	heapified := false
+	for i := range items {
+		s, ok := score(&items[i])
+		if !ok {
+			continue
+		}
+		if len(top) < limit {
+			if top == nil {
+				top = make([]rankedHit, 0, min(len(items), limit))
+			}
+			top = append(top, rankedHit{idx: i, score: s})
+			continue
+		}
+		if !heapified {
+			for k := len(top)/2 - 1; k >= 0; k-- {
+				siftDownHit(top, k)
+			}
+			heapified = true
+		}
+		// Since i > top[0].idx always holds, only a strictly higher score beats top[0].
+		if s > top[0].score {
+			top[0] = rankedHit{idx: i, score: s}
+			siftDownHit(top, 0)
+		}
+	}
+	slices.SortFunc(top, func(x, y rankedHit) int {
+		if c := cmp.Compare(y.score, x.score); c != 0 {
+			return c
+		}
+		return cmp.Compare(x.idx, y.idx)
+	})
+	out := make([]T, len(top))
+	for i, h := range top {
+		out[i] = items[h.idx]
+	}
+	return out
 }
 
 // ranked keeps the items score matches, best first.
 func ranked(items []item, score func(it *item) (int, bool)) []item {
-	type hit struct {
-		it    item
-		score int
-	}
-	var hits []hit
-	for i := range items {
-		if s, ok := score(&items[i]); ok {
-			hits = append(hits, hit{items[i], s})
-		}
-	}
-	slices.SortStableFunc(hits, func(x, y hit) int { return y.score - x.score })
-	out := make([]item, 0, min(len(hits), maxShown))
-	for _, h := range hits[:min(len(hits), maxShown)] {
-		out = append(out, h.it)
-	}
-	return out
+	return rankTop(items, maxShown, score)
 }
 
 func byLabel(q string) func(it *item) (int, bool) {
@@ -213,28 +524,112 @@ func byLabel(q string) func(it *item) (int, bool) {
 	}
 }
 
-// showGoto opens Goto Anything with query, as ":" for Goto Line or "@"
-// for Goto Symbol: the open files and the project's, with ":line" or
-// "@symbol" after a name or alone.
-func (a *app) showGoto(query string) {
-	a.indexFolders()
-	var syms symbolFile
-	a.openPanel(&panel{query: query, list: func(q string) []item { return a.gotoList(q, &syms) }})
+type gotoFile struct {
+	tab    *doc
+	path   string
+	label  string
+	detail string
 }
 
-func (a *app) gotoList(query string, syms *symbolFile) []item {
-	if at := strings.LastIndexByte(query, '@'); at >= 0 {
-		return a.symbolList(query[:at], query[at+1:], syms)
+type gotoCache struct {
+	valid    bool
+	gen      int
+	filesLen int
+	filesPtr *string
+	entries  []gotoFile
+}
+
+func (c *gotoCache) list(a *app) []gotoFile {
+	var ptr *string
+	if len(a.proj.files) > 0 {
+		ptr = &a.proj.files[0]
 	}
-	name, line := query, 0
-	colon := strings.LastIndexByte(query, ':')
-	if colon >= 0 {
-		n, err := strconv.Atoi(query[colon+1:])
-		if err == nil || colon == len(query)-1 {
-			name, line = query[:colon], n
+	if c.valid && c.gen == a.proj.gen && c.filesLen == len(a.proj.files) && c.filesPtr == ptr {
+		return c.entries
+	}
+	entries := make([]gotoFile, 0, len(a.mru)+len(a.proj.files))
+	seen := make(map[string]bool, len(a.mru))
+	for _, d := range a.mru {
+		detail := d.path
+		if d.path != "" {
+			seen[d.path] = true
+			detail = a.proj.rel(d.path)
+		}
+		entries = append(entries, gotoFile{tab: d, label: d.name(), detail: detail})
+	}
+	for _, p := range a.proj.files {
+		if seen[p] {
+			continue
+		}
+		entries = append(entries, gotoFile{path: p, label: filepath.Base(p), detail: a.proj.rel(p)})
+	}
+	c.valid = true
+	c.gen = a.proj.gen
+	c.filesLen = len(a.proj.files)
+	c.filesPtr = ptr
+	c.entries = entries
+	return entries
+}
+
+func parseGotoInt(s string) (int, bool) {
+	if s == "" {
+		return 0, false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return 0, false
 		}
 	}
-	if colon >= 0 && name == "" {
+	n, err := strconv.Atoi(s)
+	return n, err == nil
+}
+
+// parseGotoLoc splits optional :line or :line:col suffixes from a Goto Anything
+// query while leaving filenames with non-numeric colons intact.
+func parseGotoLoc(query string) (name string, line, col int, hasColon bool) {
+	last := strings.LastIndexByte(query, ':')
+	if last < 0 {
+		return query, 0, 0, false
+	}
+	head, tail := query[:last], query[last+1:]
+	if tail == "" {
+		if prev := strings.LastIndexByte(head, ':'); prev >= 0 {
+			if n, ok := parseGotoInt(head[prev+1:]); ok {
+				return head[:prev], n, 0, true
+			}
+		}
+		return head, 0, 0, true
+	}
+	n, ok := parseGotoInt(tail)
+	if !ok {
+		return query, 0, 0, false
+	}
+	if prev := strings.LastIndexByte(head, ':'); prev >= 0 {
+		if l, ok := parseGotoInt(head[prev+1:]); ok {
+			return head[:prev], l, n, true
+		}
+	}
+	return head, n, 0, true
+}
+
+// showGoto opens Goto Anything with query, as ":" for Goto Line or "@"
+// for Goto Symbol: the open files and the project's, with ":line[:col]"
+// or "@symbol" after a name or alone.
+func (a *app) showGoto(query string) {
+	if len(a.proj.files) == 0 && len(a.proj.folders) > 0 {
+		a.indexFolders()
+	}
+	var syms symbolFile
+	var files gotoCache
+	a.openPanel(&panel{query: query, list: func(q string) []item { return a.gotoList(q, &syms, &files) }})
+}
+
+func (a *app) gotoList(query string, syms *symbolFile, cache *gotoCache) []item {
+	if at := strings.LastIndexByte(query, '@'); at >= 0 {
+		return a.symbolList(query[:at], query[at+1:], syms, cache)
+	}
+	name, line, col, hasColon := parseGotoLoc(query)
+	if hasColon && name == "" {
 		d := a.current()
 		if d == nil {
 			return nil
@@ -242,41 +637,41 @@ func (a *app) gotoList(query string, syms *symbolFile) []item {
 		it := item{label: locales.PanelTypeLine(), detail: d.name()}
 		if line > 0 {
 			it.label = locales.PanelGoToLine(line)
-			it.pick = func() { goToLine(d, line) }
+			it.pick = func() { goToLine(d, line, col) }
 		}
 		return []item{it}
 	}
-	return ranked(a.fileItems(line), byName(name))
-}
-
-// fileItems lists the open files, by when they were last used, then the
-// project's, which go to line when it is set.
-func (a *app) fileItems(line int) []item {
-	var items []item
-	seen := make(map[string]bool)
-	for _, d := range a.mru {
-		detail := d.path
-		if d.path != "" {
-			seen[d.path] = true
-			detail = a.proj.rel(d.path)
-		}
-		items = append(items, item{label: d.name(), detail: detail, tab: d, pick: func() {
-			a.show(d)
-			goToLine(d, line)
-		}})
+	entries := cache.list(a)
+	var top []gotoFile
+	if name == "" {
+		top = entries[:min(len(entries), maxShown)]
+	} else {
+		top = rankTop(entries, maxShown, func(f *gotoFile) (int, bool) {
+			return scoreByName(name, f.label, f.detail)
+		})
 	}
-	for _, p := range a.proj.files {
-		if seen[p] {
-			continue
-		}
-		items = append(items, item{label: filepath.Base(p), detail: a.proj.rel(p), path: p, pick: func() {
-			a.open([]string{p})
-			if d := a.docAt(p); d != nil {
-				goToLine(d, line)
-			}
-		}})
+	items := make([]item, len(top))
+	for i, f := range top {
+		items[i] = a.gotoItem(f, line, col)
 	}
 	return items
+}
+
+func (a *app) gotoItem(f gotoFile, line, col int) item {
+	if f.tab != nil {
+		d := f.tab
+		return item{label: f.label, detail: f.detail, tab: d, pick: func() {
+			a.show(d)
+			goToLine(d, line, col)
+		}}
+	}
+	p := f.path
+	return item{label: f.label, detail: f.detail, path: p, pick: func() {
+		a.open([]string{p})
+		if d := a.docAt(p); d != nil {
+			goToLine(d, line, col)
+		}
+	}}
 }
 
 // symbolFile is the file Goto Symbol last listed the symbols of, kept
@@ -284,41 +679,72 @@ func (a *app) fileItems(line int) []item {
 type symbolFile struct {
 	d       *doc
 	path    string
-	version uint64
 	buf     *editor.Buffer
 	syms    []symbol
+	gen     int
+	loading bool
 }
 
 // symbolList lists for Goto Symbol the symbols of the current tab, or of
 // the file Goto Anything lists first for name. The current tab's show as
 // they are selected.
-func (a *app) symbolList(name, query string, f *symbolFile) []item {
+func (a *app) symbolList(name, query string, f *symbolFile, cache *gotoCache) []item {
 	cur := a.current()
 	d, path := cur, ""
 	if name != "" {
-		files := ranked(a.fileItems(0), byName(name))
-		if len(files) == 0 {
+		top := rankTop(cache.list(a), 1, func(g *gotoFile) (int, bool) {
+			return scoreByName(name, g.label, g.detail)
+		})
+		if len(top) == 0 {
 			return nil
 		}
-		d, path = files[0].tab, files[0].path
+		d, path = top[0].tab, top[0].path
 	}
 	if d != nil && !d.plain() {
 		return nil
 	}
-	if f.d != d || f.path != path || d != nil && f.version != d.st.Buffer.Version() {
-		*f = symbolFile{d: d, path: path}
-		if d != nil {
-			f.version, f.buf = d.st.Buffer.Version(), d.st.Buffer
-		} else if path != "" {
-			f.buf = readSymbols(path)
+	var buf *editor.Buffer
+	var syms []symbol
+	if d != nil {
+		if f.d != d || f.path != "" || f.loading {
+			f.gen++
+			f.d, f.path, f.buf, f.syms, f.loading = d, "", nil, nil, false
 		}
-		if f.buf != nil {
-			f.syms = symbols(f.buf.Language(), f.buf.String())
+		buf = d.st.Buffer
+		syms = a.docSymbols(d)
+	} else if path != "" {
+		if f.d != nil || f.path != path {
+			f.gen++
+			gen, p := f.gen, a.panel
+			f.d, f.path, f.buf, f.syms, f.loading = nil, path, nil, nil, true
+			a.background(func() func() {
+				loaded := readSymbols(path)
+				var found []symbol
+				if loaded != nil {
+					found = symbols(loaded.Language(), loaded.String())
+				}
+				return func() {
+					if f.gen != gen || f.path != path {
+						return
+					}
+					f.buf, f.syms, f.loading = loaded, found, false
+					if a.panel == p && p != nil {
+						p.stale = true
+					}
+				}
+			})
 		}
+		if f.loading || f.buf == nil {
+			return nil
+		}
+		buf, syms = f.buf, f.syms
 	}
-	items := make([]item, 0, len(f.syms))
-	for _, s := range f.syms {
-		pos, n := f.buf.Pos(s.at), len(s.name)
+	if buf == nil {
+		return nil
+	}
+	items := make([]item, 0, len(syms))
+	for _, s := range syms {
+		pos, n := buf.Pos(s.at), len(s.name)
 		it := item{label: strings.Repeat("  ", max(s.level-1, 0)) + s.name, pick: func() {
 			o := d
 			if o == nil {
@@ -367,26 +793,39 @@ func selectSymbol(d *doc, p editor.Pos, n int) {
 	d.st.Select(at, at+n)
 }
 
+func scoreByName(name, label, detail string) (int, bool) {
+	if name == "" {
+		return 0, true
+	}
+	// A match in the name outranks one across the path without inverting negative scores.
+	if s, ok := fuzzy(name, label); ok {
+		return s + nameMatchBonus, true
+	}
+	return fuzzy(name, detail)
+}
+
 // byName scores files for name, matched in their names, or else across
 // their paths, the details.
 func byName(name string) func(it *item) (int, bool) {
 	return func(it *item) (int, bool) {
-		if name == "" {
-			return 0, true
-		}
-		// A match in the name counts for more than one across the path.
-		s, ok := fuzzy(name, it.label)
-		if ok {
-			return s * 2, true
-		}
-		return fuzzy(name, it.detail)
+		return scoreByName(name, it.label, it.detail)
 	}
 }
 
-func goToLine(d *doc, line int) {
-	if line > 0 {
-		d.st.GoTo(editor.Pos{Line: min(line, d.st.Buffer.LineCount()) - 1})
+func goToLine(d *doc, line, col int) {
+	if line <= 0 {
+		return
 	}
+	ln := min(line, d.st.Buffer.LineCount()) - 1
+	byteCol := 0
+	if col > 1 {
+		s := d.st.Buffer.Line(ln)
+		for rem := col - 1; rem > 0 && byteCol < len(s); rem-- {
+			_, n := utf8.DecodeRuneInString(s[byteCol:])
+			byteCol += n
+		}
+	}
+	d.st.GoTo(editor.Pos{Line: ln, Col: byteCol})
 }
 
 func (a *app) showCommandPalette() {
