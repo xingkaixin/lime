@@ -154,6 +154,26 @@ func (msgs Messages) ButtonUncommit() string {
 	return Catalog.Format(msgs.locale, "buttonUncommit", nil)
 }
 
+// ButtonOverwrite says "Overwrite"
+// in the language the app shows.
+func ButtonOverwrite() string { return In(i18n.Locale()).ButtonOverwrite() }
+
+// ButtonOverwrite says "Overwrite"
+// in the language of msgs.
+func (msgs Messages) ButtonOverwrite() string {
+	return Catalog.Format(msgs.locale, "buttonOverwrite", nil)
+}
+
+// ButtonReload says "Reload"
+// in the language the app shows.
+func ButtonReload() string { return In(i18n.Locale()).ButtonReload() }
+
+// ButtonReload says "Reload"
+// in the language of msgs.
+func (msgs Messages) ButtonReload() string {
+	return Catalog.Format(msgs.locale, "buttonReload", nil)
+}
+
 // MenuFile says "File"
 // in the language the app shows.
 func MenuFile() string { return In(i18n.Locale()).MenuFile() }
@@ -2498,6 +2518,26 @@ func DialogSaveWindowChanges(count int) string {
 // in the language of msgs.
 func (msgs Messages) DialogSaveWindowChanges(count int) string {
 	return Catalog.Format(msgs.locale, "dialogSaveWindowChanges", map[string]any{"count": count})
+}
+
+// DialogChangedOnDisk says "{name} has changed on disk."
+// in the language the app shows.
+func DialogChangedOnDisk(name string) string { return In(i18n.Locale()).DialogChangedOnDisk(name) }
+
+// DialogChangedOnDisk says "{name} has changed on disk."
+// in the language of msgs.
+func (msgs Messages) DialogChangedOnDisk(name string) string {
+	return Catalog.Format(msgs.locale, "dialogChangedOnDisk", map[string]any{"name": name})
+}
+
+// DialogChangedOnDiskDetail says "Saving overwrites the changes on disk."
+// in the language the app shows.
+func DialogChangedOnDiskDetail() string { return In(i18n.Locale()).DialogChangedOnDiskDetail() }
+
+// DialogChangedOnDiskDetail says "Saving overwrites the changes on disk."
+// in the language of msgs.
+func (msgs Messages) DialogChangedOnDiskDetail() string {
+	return Catalog.Format(msgs.locale, "dialogChangedOnDiskDetail", nil)
 }
 
 // DialogDelete says "Delete {name}?"

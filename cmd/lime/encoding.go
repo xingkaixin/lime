@@ -168,8 +168,7 @@ func encodingCommands() []command {
 			command{id: e.saveID(), caption: func(m locales.Messages) string { return m.CmdSaveWithEncoding(e.title(m)) },
 				run: withSource(func(a *app, d *doc) {
 					if d.path == "" {
-						d.enc = e
-						a.saveAs(d)
+						a.saveAsIn(d, e)
 						return
 					}
 					a.writeIn(d, d.path, e)
