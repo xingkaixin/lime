@@ -162,7 +162,7 @@ func (a *app) loadCommit(cv *commitView) {
 // their hunks and texts. It blocks, so call it off the main thread.
 func readCommit(root, hash, fallback string) (string, []*commitFile) {
 	var body string
-	var changes []change
+	var changes, conflicts []change
 	// Porcelain, unlike diff-tree, reads the user's diff settings, but
 	// not textconv: the hunks apply back to the bytes, to stage or discard.
 	diff := []string{"diff", "-M", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/"}
@@ -176,7 +176,8 @@ func readCommit(root, hash, fallback string) (string, []*commitFile) {
 		wg.Go(func() { changes = readStatus(root)[staged] })
 	case unstagedChanges:
 		args, oldRev, newRev = diff, "", ""
-		wg.Go(func() { changes = readStatus(root)[unstaged] })
+		status := readStatus(root)
+		changes, conflicts = status[unstaged], status[conflicted]
 	default:
 		args = []string{"diff-tree", "-r", "-p", "-M", "--root", "--no-commit-id", "--diff-merges=first-parent", hash}
 		oldRev, newRev = hash+"^", hash
@@ -187,6 +188,9 @@ func readCommit(root, hash, fallback string) (string, []*commitFile) {
 	var oversized map[string]bool
 	if hash == unstagedChanges {
 		oversized = largeWorktreeChanges(root, changes)
+		for _, ch := range conflicts {
+			oversized[ch.path] = true
+		}
 		if len(oversized) > 0 {
 			args = append(args, "--")
 			for path := range oversized {
@@ -283,7 +287,7 @@ func readCommit(root, hash, fallback string) (string, []*commitFile) {
 func largeWorktreeChanges(root string, changes []change) map[string]bool {
 	large := map[string]bool{}
 	var specs strings.Builder
-	var paths []string
+	var tracked []change
 	for _, ch := range changes {
 		if fi, err := os.Stat(filepath.Join(root, filepath.FromSlash(ch.path))); err == nil && fi.Size() > largeFile {
 			large[ch.path] = true
@@ -297,18 +301,26 @@ func largeWorktreeChanges(root string, changes []change) map[string]bool {
 		}
 		specs.WriteString(":" + old)
 		specs.WriteByte(0)
-		paths = append(paths, ch.path)
+		tracked = append(tracked, ch)
 	}
-	if len(paths) > 0 {
+	if len(tracked) > 0 {
 		out, err := gitWith(root, specs.String(), "cat-file", "-Z", "--batch-check=%(objectsize)")
 		sizes := strings.Split(out, "\x00")
-		for i, path := range paths {
-			if err != nil || i >= len(sizes) {
-				large[path] = true
-				continue
+		for i, ch := range tracked {
+			var size string
+			if err != nil {
+				// Git before 2.42 lacks the NUL-delimited batch output.
+				old := ch.oldPath
+				if old == "" {
+					old = ch.path
+				}
+				out, _ := runGit(root, "cat-file", "-s", ":"+old)
+				size = strings.TrimSpace(out)
+			} else if i < len(sizes) {
+				size = sizes[i]
 			}
-			if n, _ := strconv.ParseInt(sizes[i], 10, 64); n > largeFile {
-				large[path] = true
+			if n, _ := strconv.ParseInt(size, 10, 64); n > largeFile {
+				large[ch.path] = true
 			}
 		}
 	}

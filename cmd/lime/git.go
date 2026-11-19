@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
@@ -431,5 +432,15 @@ func (a *app) switchWorktree(path string) {
 	a.proj.unwatch()
 	a.proj = project{gen: a.proj.gen + 1, jump: true}
 	a.addFolder(path)
+	if d := a.current(); d != nil && d.commit != nil && d.commit.root != path {
+		next := slices.IndexFunc(a.mru, func(d *doc) bool {
+			return d.commit != nil && d.commit.root == path || d.path != "" && within(d.path, path)
+		})
+		if next >= 0 {
+			a.show(a.mru[next])
+		} else {
+			a.newFile()
+		}
+	}
 	a.readGit()
 }

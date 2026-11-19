@@ -91,7 +91,11 @@ func readStatus(root string) [3][]change {
 				files[staged] = append(files[staged], in)
 			}
 			if y := line[3]; y != '.' {
-				files[unstaged] = append(files[unstaged], change{status: statusKind(y), path: ch.path})
+				work := change{status: statusKind(y), path: ch.path}
+				if y == 'R' || y == 'C' {
+					work.oldPath = ch.oldPath
+				}
+				files[unstaged] = append(files[unstaged], work)
 			}
 		}
 	}
