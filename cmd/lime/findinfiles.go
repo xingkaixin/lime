@@ -10,8 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"regexp/syntax"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo"
@@ -112,21 +114,123 @@ func (a *app) closeFindInFiles() {
 // matcher finds the query of the find panels, with their options.
 type matcher struct {
 	re               *regexp.Regexp
+	reAt1            *regexp.Regexp // verifies a slice-start match at pos > 0 when re uses ^, \A, \b or \B
+	lit              string
+	lower, upper     string
+	litRunes         []rune
+	firstFolds       []string
+	asciiLit         bool
+	caseSens         bool
 	wholeWord, regex bool
 }
 
 func newMatcher(query string, regex, caseSens, wholeWord bool) (*matcher, error) {
 	if !regex {
-		query = regexp.QuoteMeta(query)
+		m := &matcher{
+			lit:       query,
+			caseSens:  caseSens,
+			wholeWord: wholeWord,
+		}
+		if !caseSens && query != "" {
+			m.asciiLit = ascii(query)
+			if m.asciiLit {
+				lb, ub := make([]byte, len(query)), make([]byte, len(query))
+				for i := range len(query) {
+					c := query[i]
+					switch {
+					case c >= 'A' && c <= 'Z':
+						lb[i], ub[i] = c+'a'-'A', c
+					case c >= 'a' && c <= 'z':
+						lb[i], ub[i] = c, c-'a'+'A'
+					default:
+						lb[i], ub[i] = c, c
+					}
+				}
+				m.lower, m.upper = string(lb), string(ub)
+			}
+			m.litRunes = []rune(query)
+			m.firstFolds = fifRuneFolds(m.litRunes[0])
+		}
+		return m, nil
 	}
+	expr := query
 	if !caseSens {
-		query = "(?i)" + query
+		expr = "(?i)" + expr
 	}
-	re, err := regexp.Compile("(?m)" + query)
+	expr = "(?m)" + expr
+	re, err := regexp.Compile(expr)
 	if err != nil {
 		return nil, err
 	}
-	return &matcher{re, wholeWord, regex}, nil
+	var reAt1 *regexp.Regexp
+	if parsed, err := syntax.Parse(expr, syntax.Perl); err == nil && fifHasStartCtx(parsed) {
+		reAt1 = regexp.MustCompile(`\A[\s\S](?:` + expr + `)`)
+	}
+	return &matcher{re: re, reAt1: reAt1, caseSens: caseSens, wholeWord: wholeWord, regex: true}, nil
+}
+
+func fifHasStartCtx(re *syntax.Regexp) bool {
+	switch re.Op {
+	case syntax.OpBeginLine, syntax.OpBeginText, syntax.OpWordBoundary, syntax.OpNoWordBoundary:
+		return true
+	}
+	for _, sub := range re.Sub {
+		if fifHasStartCtx(sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func fifRuneFolds(r rune) []string {
+	if r >= 'A' && r <= 'Z' {
+		r += 'a' - 'A'
+	}
+	var asciiFolds, otherFolds []string
+	for f := r; ; {
+		s := string(f)
+		if len(s) == 1 {
+			asciiFolds = append(asciiFolds, s)
+		} else {
+			otherFolds = append(otherFolds, s)
+		}
+		f = unicode.SimpleFold(f)
+		if f == r {
+			break
+		}
+	}
+	return append(asciiFolds, otherFolds...)
+}
+
+func fifEqualFoldRune(a, b rune) bool {
+	if a == b {
+		return true
+	}
+	if b < a {
+		a, b = b, a
+	}
+	if b < utf8.RuneSelf {
+		return 'A' <= a && a <= 'Z' && b == a+'a'-'A'
+	}
+	r := unicode.SimpleFold(a)
+	for r != a && r < b {
+		r = unicode.SimpleFold(r)
+	}
+	return r == b
+}
+
+func fifMatchFold(text string, pos int, runes []rune) (int, bool) {
+	for _, want := range runes {
+		if pos >= len(text) {
+			return 0, false
+		}
+		got, w := utf8.DecodeRuneInString(text[pos:])
+		if !fifEqualFoldRune(got, want) {
+			return 0, false
+		}
+		pos += w
+	}
+	return pos, true
 }
 
 // replace replaces the matches in b with with, as one step of undo, and
@@ -135,20 +239,68 @@ func newMatcher(query string, regex, caseSens, wholeWord bool) (*matcher, error)
 func (m *matcher) replace(b *editor.Buffer, with string) int {
 	text := b.String()
 	var edits []editor.Edit
-	for _, sub := range m.re.FindAllStringSubmatchIndex(text, -1) {
-		if sub[0] == sub[1] || m.wholeWord && !wholeWordAt(text, sub[0], sub[1]) {
-			continue
+	if !m.regex {
+		for _, sub := range m.find(text, math.MaxInt) {
+			edits = append(edits, editor.Edit{Start: sub[0], End: sub[1], Text: with})
 		}
-		r := with
-		if m.regex {
-			r = string(m.re.ExpandString(nil, with, text, sub))
-		}
-		edits = append(edits, editor.Edit{Start: sub[0], End: sub[1], Text: r})
+	} else {
+		m.findSubmatches(text, func(sub []int) {
+			r := string(m.re.ExpandString(nil, with, text, sub))
+			edits = append(edits, editor.Edit{Start: sub[0], End: sub[1], Text: r})
+		})
 	}
 	if len(edits) > 0 {
 		b.Edit(edits...)
 	}
 	return len(edits)
+}
+
+func (m *matcher) findSubmatches(text string, fn func([]int)) {
+	for pos := 0; pos <= len(text); {
+		sub := m.re.FindStringSubmatchIndex(text[pos:])
+		if sub == nil {
+			break
+		}
+		if sub[0] == 0 && pos > 0 && m.reAt1 != nil {
+			_, prevW := utf8.DecodeLastRuneInString(text[:pos])
+			at1 := m.reAt1.FindStringSubmatchIndex(text[pos-prevW:])
+			if at1 == nil {
+				if pos >= len(text) {
+					break
+				}
+				_, w := utf8.DecodeRuneInString(text[pos:])
+				pos += w
+				continue
+			}
+			at1[0] = prevW
+			shift := pos - prevW
+			for i, v := range at1 {
+				if v >= 0 {
+					at1[i] = v + shift
+				}
+			}
+			sub = at1
+		} else {
+			for i, v := range sub {
+				if v >= 0 {
+					sub[i] = v + pos
+				}
+			}
+		}
+		a, b := sub[0], sub[1]
+		if a == b {
+			if a >= len(text) {
+				break
+			}
+			_, w := utf8.DecodeRuneInString(text[a:])
+			pos = a + w
+			continue
+		}
+		if !m.wholeWord || wholeWordAt(text, a, b) {
+			fn(sub)
+		}
+		pos = b
+	}
 }
 
 // lineHit is a line of a file with matches: their bytes in it, the first
@@ -161,22 +313,168 @@ type lineHit struct {
 
 // find returns the matches of m in text, at most limit of them.
 func (m *matcher) find(text string, limit int) [][]int {
-	// The regular expression finds matches that whole words or emptiness
-	// leave out: as many again, until enough are kept.
-	for n := limit; ; n *= 2 {
-		all := m.re.FindAllStringIndex(text, n)
-		var kept [][]int
-		for _, s := range all {
-			if s[0] != s[1] && (!m.wholeWord || wholeWordAt(text, s[0], s[1])) {
-				if kept = append(kept, s); len(kept) == limit {
-					break
+	if limit <= 0 {
+		return nil
+	}
+	if !m.regex {
+		if m.caseSens {
+			return m.findLiteral(text, limit)
+		}
+		return m.findLiteralFold(text, limit)
+	}
+	return m.findRegex(text, limit)
+}
+
+func (m *matcher) findLiteral(text string, limit int) [][]int {
+	if m.lit == "" {
+		return nil
+	}
+	var kept [][]int
+	n := len(m.lit)
+	for pos := 0; pos+n <= len(text) && len(kept) < limit; {
+		i := strings.Index(text[pos:], m.lit)
+		if i < 0 {
+			break
+		}
+		a := pos + i
+		b := a + n
+		if !m.wholeWord || wholeWordAt(text, a, b) {
+			kept = append(kept, []int{a, b})
+		}
+		pos = b
+	}
+	return kept
+}
+
+func (m *matcher) nextFirstFold(s string) (int, int) {
+	switch len(m.firstFolds) {
+	case 1:
+		f := m.firstFolds[0]
+		if len(f) == 1 {
+			return strings.IndexByte(s, f[0]), 1
+		}
+		return strings.Index(s, f), len(f)
+	case 2:
+		if len(m.firstFolds[0]) == 1 && len(m.firstFolds[1]) == 1 {
+			c0, c1 := m.firstFolds[0][0], m.firstFolds[1][0]
+			i := strings.IndexByte(s, c0)
+			if i < 0 {
+				return strings.IndexByte(s, c1), 1
+			}
+			if i > 0 {
+				if j := strings.IndexByte(s[:i], c1); j >= 0 {
+					return j, 1
 				}
 			}
-		}
-		if len(kept) == limit || len(all) < n {
-			return kept
+			return i, 1
 		}
 	}
+	best, bestW := -1, 0
+	for _, f := range m.firstFolds {
+		end := len(s)
+		if best >= 0 {
+			end = min(len(s), best+len(f)-1)
+		}
+		var j int
+		if len(f) == 1 {
+			j = strings.IndexByte(s[:end], f[0])
+		} else {
+			j = strings.Index(s[:end], f)
+		}
+		if j >= 0 && (best < 0 || j < best) {
+			best, bestW = j, len(f)
+			if best == 0 {
+				break
+			}
+		}
+	}
+	return best, bestW
+}
+
+func (m *matcher) findLiteralFold(text string, limit int) [][]int {
+	if m.lit == "" {
+		return nil
+	}
+	var kept [][]int
+	n := len(m.lit)
+	for pos := 0; pos < len(text) && len(kept) < limit; {
+		i, firstW := m.nextFirstFold(text[pos:])
+		if i < 0 {
+			break
+		}
+		a := pos + i
+		var b int
+		var ok bool
+		if m.asciiLit && firstW == 1 {
+			if a+n <= len(text) {
+				matched := true
+				nonASCII := false
+				for k := 1; k < n; k++ {
+					c := text[a+k]
+					if c != m.lower[k] && c != m.upper[k] {
+						if c >= utf8.RuneSelf {
+							nonASCII = true
+						}
+						matched = false
+						break
+					}
+				}
+				if matched {
+					b, ok = a+n, true
+				} else if nonASCII {
+					b, ok = fifMatchFold(text, a+firstW, m.litRunes[1:])
+				}
+			}
+		} else {
+			b, ok = fifMatchFold(text, a+firstW, m.litRunes[1:])
+		}
+		if !ok {
+			pos = a + firstW
+			continue
+		}
+		if !m.wholeWord || wholeWordAt(text, a, b) {
+			kept = append(kept, []int{a, b})
+		}
+		pos = b
+	}
+	return kept
+}
+
+func (m *matcher) findRegex(text string, limit int) [][]int {
+	var kept [][]int
+	for pos := 0; pos <= len(text) && len(kept) < limit; {
+		loc := m.re.FindStringIndex(text[pos:])
+		if loc == nil {
+			break
+		}
+		a, b := pos+loc[0], pos+loc[1]
+		if loc[0] == 0 && pos > 0 && m.reAt1 != nil {
+			_, prevW := utf8.DecodeLastRuneInString(text[:pos])
+			sub := m.reAt1.FindStringIndex(text[pos-prevW:])
+			if sub == nil {
+				if pos >= len(text) {
+					break
+				}
+				_, w := utf8.DecodeRuneInString(text[pos:])
+				pos += w
+				continue
+			}
+			a, b = pos, pos+sub[1]-prevW
+		}
+		if a == b {
+			if a >= len(text) {
+				break
+			}
+			_, w := utf8.DecodeRuneInString(text[a:])
+			pos = a + w
+			continue
+		}
+		if !m.wholeWord || wholeWordAt(text, a, b) {
+			kept = append(kept, []int{a, b})
+		}
+		pos = b
+	}
+	return kept
 }
 
 // lines finds the lines of text with matches, at most limit matches,

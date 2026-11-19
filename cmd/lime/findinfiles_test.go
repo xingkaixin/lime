@@ -4,6 +4,8 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -149,5 +151,81 @@ func TestReplaceInLinkedFile(t *testing.T) {
 	a.replaceFound(m, "bar", res)
 	if got := d.st.Buffer.String(); a.docCount() != 1 || got != "bar\nunsaved bar\n" {
 		t.Fatalf("%d tabs, AGENTS.md %q; want one tab with both replaced", a.docCount(), got)
+	}
+}
+
+func TestMatcherLiteralParity(t *testing.T) {
+	texts := []string{
+		"alpha Alpha ALPHA _alpha alpha_ alpha1 (alpha)\n",
+		"aaa aab aaab aaaa\n",
+		"foo\nbar FOO\nBAR foo\nbar\n",
+		"Café café CAFÉ Kelvin kelvin ſong song 中文 中文\n",
+		"ask asK stack ſtick\n",
+		"x_a a a_x\n",
+	}
+	queries := []string{
+		"alpha", "Alpha", "aa", "aab", "foo\nbar", "café", "CAFÉ", "k", "kelvin", "ask", "s", "stack", "中文", "a",
+	}
+	for _, caseSens := range []bool{false, true} {
+		for _, wholeWord := range []bool{false, true} {
+			for _, q := range queries {
+				lit, err := newMatcher(q, false, caseSens, wholeWord)
+				if err != nil {
+					t.Fatalf("newMatcher(%q) literal: %v", q, err)
+				}
+				re, err := newMatcher(regexp.QuoteMeta(q), true, caseSens, wholeWord)
+				if err != nil {
+					t.Fatalf("newMatcher(%q) regex: %v", q, err)
+				}
+				for _, text := range texts {
+					for _, limit := range []int{1, 2, 100} {
+						got := lit.find(text, limit)
+						want := re.find(text, limit)
+						if !reflect.DeepEqual(got, want) {
+							t.Fatalf("q=%q case=%v word=%v limit=%d text=%q:\n got  %v\n want %v",
+								q, caseSens, wholeWord, limit, text, got, want)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestMatcherRegexZeroWidthAndAnchors(t *testing.T) {
+	cases := []struct {
+		query string
+		text  string
+	}{
+		{"^", "abc\ndef\n中文\n"},
+		{"$", "abc\ndef\n"},
+		{"a*", "bbbaabbb中文"},
+		{".*", "abc\ndef\n\nghi"},
+		{"^foo", "foofoo\nfoo\nbarfoo\n"},
+		{"a|^b", "ab\nb\nab"},
+		{"^|a", "aa\na"},
+		{`a|\bfoo`, "afoo foo barfoo"},
+		{"^", strings.Repeat("x", 50000)},
+		{"a*", strings.Repeat("b", 50000)},
+	}
+	for _, tc := range cases {
+		m, err := newMatcher(tc.query, true, true, false)
+		if err != nil {
+			t.Fatalf("newMatcher(%q): %v", tc.query, err)
+		}
+		got := m.find(tc.text, 100)
+		ref := regexp.MustCompile("(?m)" + tc.query)
+		var want [][]int
+		for _, s := range ref.FindAllStringIndex(tc.text, -1) {
+			if s[0] != s[1] {
+				want = append(want, s)
+				if len(want) == 100 {
+					break
+				}
+			}
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("query=%q text=%q:\n got  %v\n want %v", tc.query, tc.text[:min(len(tc.text), 40)], got, want)
+		}
 	}
 }
