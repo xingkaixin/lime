@@ -1,6 +1,8 @@
 package main
 
 import (
+	"go/scanner"
+	"go/token"
 	"strconv"
 	"strings"
 	"unicode"
@@ -36,9 +38,12 @@ func symbols(l *editor.Language, text string) []symbol {
 	if l == nil || l.Tokenizer == nil {
 		return nil
 	}
+	isGo := l.Name == "Go"
 	var syms []symbol
 	var toks []editor.Token
 	var state uint64
+	var goText []byte
+	groupEnd := 0
 	at := 0
 	for line := range strings.SplitSeq(text, "\n") {
 		toks, state = l.Tokenizer.Tokenize(line, state, toks[:0])
@@ -48,9 +53,22 @@ func symbols(l *editor.Language, text string) []symbol {
 		}
 		start, prev := 0, editor.TokenText
 		for _, t := range toks {
-			switch word := line[start:t.End]; {
+			word := line[start:t.End]
+			if at+start < groupEnd {
+				start = t.End
+				continue
+			}
+			switch {
 			case t.Kind == editor.TokenKeyword && definers[word]:
-				if name, i := definedAfter(line, t.End, l.WordChars); name != "" {
+				if isGo && (word == "type" || word == "const") && strings.HasPrefix(line[skipSpace(line, t.End):], "(") {
+					if goText == nil {
+						goText = []byte(text)
+					}
+					open := at + skipSpace(line, t.End)
+					var grouped []symbol
+					grouped, groupEnd = goGroupSymbols(goText[open:], open, word == "const")
+					syms = append(syms, grouped...)
+				} else if name, i := definedAfter(line, t.End, l.WordChars); name != "" {
 					syms = append(syms, symbol{name, at + i, 0})
 				}
 			case t.Kind == editor.TokenFunction && (prev == editor.TokenType || prev == editor.TokenVariable):
@@ -64,6 +82,50 @@ func symbols(l *editor.Language, text string) []symbol {
 		at += len(line) + 1
 	}
 	return syms
+}
+
+// The Go scanner inserts semicolons, so a continued expression cannot start a declaration.
+func goGroupSymbols(src []byte, offset int, constants bool) ([]symbol, int) {
+	var scan scanner.Scanner
+	file := token.NewFileSet().AddFile("", -1, len(src))
+	scan.Init(file, src, func(token.Position, string) {}, 0)
+	scan.Scan()
+	parens, nested := 0, 0
+	expectName, afterName := true, false
+	var out []symbol
+	for {
+		pos, t, word := scan.Scan()
+		at := offset + file.Offset(pos)
+		switch t {
+		case token.EOF:
+			return out, at
+		case token.RPAREN:
+			if parens == 0 {
+				return out, at + 1
+			}
+			parens--
+		case token.LPAREN:
+			parens++
+		case token.RBRACE, token.RBRACK:
+			nested = max(0, nested-1)
+		case token.LBRACE, token.LBRACK:
+			nested++
+		case token.IDENT:
+			if parens == 0 && nested == 0 && expectName {
+				if word != "_" {
+					out = append(out, symbol{word, at, 0})
+				}
+				expectName, afterName = false, constants
+				continue
+			}
+		case token.SEMICOLON, token.COMMA:
+			if parens == 0 && nested == 0 && (t == token.SEMICOLON || afterName) {
+				expectName, afterName = true, false
+				continue
+			}
+		}
+		expectName, afterName = false, false
+	}
 }
 
 // heading is the symbol of line when it is a Markdown heading of #s.
@@ -147,6 +209,21 @@ func wordAt(text string, i int, chars string) string {
 	return text[start:wordEnd(text, i, chars)]
 }
 
+type symCacheEntry struct {
+	version uint64
+	lang    *editor.Language
+	syms    []symbol
+}
+
+func cachedSymbols(d *doc) []symbol {
+	b := d.st.Buffer
+	ver, lang := b.Version(), b.Language()
+	if d.symbols.version != ver || d.symbols.lang != lang {
+		d.symbols = symCacheEntry{version: ver, lang: lang, syms: symbols(lang, b.String())}
+	}
+	return d.symbols.syms
+}
+
 // definition is where a symbol is defined.
 type definition struct {
 	d  *doc
@@ -195,7 +272,7 @@ func (a *app) gotoDefinition(d *doc, off int) {
 
 func definitionsIn(d *doc, name string) []definition {
 	var defs []definition
-	for _, s := range symbols(d.st.Buffer.Language(), d.st.Buffer.String()) {
+	for _, s := range cachedSymbols(d) {
 		if s.name == name && s.level == 0 {
 			defs = append(defs, definition{d, s.at})
 		}

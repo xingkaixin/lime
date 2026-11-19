@@ -57,6 +57,7 @@ type doc struct {
 	md      *mdPreview  // a mdDoc's
 	// words are the text's words as wordList last found them, while
 	// scanning finds them again; asked is the completions last asked for.
+	symbols  symCacheEntry
 	words    *wordList
 	scanning bool
 	asked    editor.CompletionRequest
