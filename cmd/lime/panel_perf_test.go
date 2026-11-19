@@ -192,6 +192,8 @@ const (
 	Second, Third = 2, 3
 	_ = iota
 	Fourth string = "a(b)c"
+	Flags = First |
+		Second
 	Fifth = (
 		10 + 20
 	)
@@ -201,18 +203,18 @@ func helper() {}
 `
 	a := newApp("")
 	d := a.add("/p/grouped.go", src)
-	syms := a.docSymbols(d)
+	syms := cachedSymbols(d)
 	var names []string
 	for _, s := range syms {
 		names = append(names, s.name)
 	}
-	want := []string{"Alpha", "Beta", "Gamma", "First", "Second", "Third", "Fourth", "Fifth", "helper"}
+	want := []string{"Alpha", "Beta", "Gamma", "First", "Second", "Third", "Fourth", "Flags", "Fifth", "helper"}
 	if !slices.Equal(names, want) {
 		t.Fatalf("Go grouped symbols = %v, want %v", names, want)
 	}
 
 	// Cache hit returns the same cached slice without rescanning.
-	syms2 := a.docSymbols(d)
+	syms2 := cachedSymbols(d)
 	if len(syms2) != len(syms) || (len(syms) > 0 && &syms2[0] != &syms[0]) {
 		t.Fatal("docSymbols did not reuse cached symbol slice for unchanged doc")
 	}
@@ -220,18 +222,11 @@ func helper() {}
 	// Editing invalidates the cache.
 	end := d.st.Buffer.Len()
 	d.st.Buffer.Edit(editor.Edit{Start: end, End: end, Text: "\nfunc added() {}\n"})
-	syms3 := a.docSymbols(d)
+	syms3 := cachedSymbols(d)
 	if !slices.ContainsFunc(syms3, func(s symbol) bool { return s.name == "added" }) {
 		t.Fatalf("docSymbols did not invalidate cache after edit: %v", syms3)
 	}
 
-	// Closing the doc prunes it from docSymCache on next query.
-	other := a.add("/p/other.go", "package p\nfunc keep() {}\n")
-	a.take(d)
-	_ = a.docSymbols(other)
-	if _, leaked := docSymCache[d]; leaked {
-		t.Fatal("closed doc remained in docSymCache after prune")
-	}
 }
 
 func TestCompletionWordListCacheAndCaretExclusion(t *testing.T) {
@@ -247,7 +242,7 @@ func TestCompletionWordListCacheAndCaretExclusion(t *testing.T) {
 	if w1 != w2 {
 		t.Fatal("wordList rescanned buffer when only caret moved")
 	}
-	if w1.counts["alpha"] != 2 || w1.counts["beta"] != 1 {
+	if w1.counts[w1.index["alpha"]] != 2 || w1.counts[w1.index["beta"]] != 1 {
 		t.Fatalf("unexpected word counts: %v", w1.counts)
 	}
 

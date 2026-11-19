@@ -37,6 +37,7 @@ type panel struct {
 	cancel      func() // on Escape or a press outside
 	shown       []item
 	listed      string
+	loading     bool
 	stale       bool // the items changed: list them again
 	sel         int
 	start       int // the row selected first
@@ -126,6 +127,9 @@ func (a *app) scrollBack() {
 
 func (a *app) pickPanel() {
 	p := a.panel
+	if p.loading {
+		return
+	}
 	a.panel = nil
 	a.unpeek(p)
 	switch {
@@ -616,12 +620,17 @@ func parseGotoLoc(query string) (name string, line, col int, hasColon bool) {
 // for Goto Symbol: the open files and the project's, with ":line[:col]"
 // or "@symbol" after a name or alone.
 func (a *app) showGoto(query string) {
-	if len(a.proj.files) == 0 && len(a.proj.folders) > 0 {
+	if len(a.proj.folders) > 0 {
 		a.indexFolders()
 	}
 	var syms symbolFile
 	var files gotoCache
-	a.openPanel(&panel{query: query, list: func(q string) []item { return a.gotoList(q, &syms, &files) }})
+	p := &panel{query: query}
+	p.list = func(q string) []item {
+		p.loading = false
+		return a.gotoList(q, &syms, &files)
+	}
+	a.openPanel(p)
 }
 
 func (a *app) gotoList(query string, syms *symbolFile, cache *gotoCache) []item {
@@ -711,7 +720,7 @@ func (a *app) symbolList(name, query string, f *symbolFile, cache *gotoCache) []
 			f.d, f.path, f.buf, f.syms, f.loading = d, "", nil, nil, false
 		}
 		buf = d.st.Buffer
-		syms = a.docSymbols(d)
+		syms = cachedSymbols(d)
 	} else if path != "" {
 		if f.d != nil || f.path != path {
 			f.gen++
@@ -733,6 +742,9 @@ func (a *app) symbolList(name, query string, f *symbolFile, cache *gotoCache) []
 					}
 				}
 			})
+		}
+		if f.loading && a.panel != nil {
+			a.panel.loading = true
 		}
 		if f.loading || f.buf == nil {
 			return nil

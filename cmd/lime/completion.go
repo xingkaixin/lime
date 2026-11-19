@@ -25,11 +25,16 @@ type wordList struct {
 	version uint64
 	chars   string
 	words   []string
-	counts  map[string]int
+	index   map[string]int
+	counts  []int
 }
 
 func (w *wordList) has(word, exclude string) bool {
-	c := w.counts[word]
+	i, ok := w.index[word]
+	if !ok {
+		return false
+	}
+	c := w.counts[i]
 	if exclude != "" && word == exclude {
 		return c > 1
 	}
@@ -39,7 +44,7 @@ func (w *wordList) has(word, exclude string) bool {
 var noWords wordList
 
 func scanWords(s editor.Snapshot, chars string) *wordList {
-	w := &wordList{version: s.Version(), chars: chars, counts: make(map[string]int)}
+	w := &wordList{version: s.Version(), chars: chars, index: make(map[string]int)}
 	if s.Len() > completeSizeLimit {
 		return w
 	}
@@ -55,12 +60,13 @@ func scanWords(s editor.Snapshot, chars string) *wordList {
 		// typing would otherwise complete, take Enter from a new line.
 		if e > i+n && !unicode.IsDigit(r) {
 			word := text[i:e]
-			if c := w.counts[word]; c > 0 {
-				w.counts[word] = c + 1
+			if idx, ok := w.index[word]; ok {
+				w.counts[idx]++
 			} else {
 				word = strings.Clone(word)
+				w.index[word] = len(w.words)
 				w.words = append(w.words, word)
-				w.counts[word] = 1
+				w.counts = append(w.counts, 1)
 			}
 		}
 		i = e

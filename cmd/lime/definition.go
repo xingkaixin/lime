@@ -42,6 +42,7 @@ func symbols(l *editor.Language, text string) []symbol {
 	var state uint64
 	var goGroup string
 	var groupParen, groupBrace int
+	var expectName, afterConstName bool
 	at := 0
 	for line := range strings.SplitSeq(text, "\n") {
 		toks, state = l.Tokenizer.Tokenize(line, state, toks[:0])
@@ -51,10 +52,13 @@ func symbols(l *editor.Language, text string) []symbol {
 		}
 		start, prev := 0, editor.TokenText
 		pendingGroup := ""
-		expectName := goGroup != "" && groupParen == 1 && groupBrace == 0
-		afterConstName := false
+		var last string
+		var lastKind editor.TokenKind
 		for _, t := range toks {
 			word := line[start:t.End]
+			if t.Kind != editor.TokenText && t.Kind != editor.TokenComment {
+				last, lastKind = word, t.Kind
+			}
 			if goGroup != "" {
 				switch t.Kind {
 				case editor.TokenText, editor.TokenComment:
@@ -164,6 +168,17 @@ func symbols(l *editor.Language, text string) []symbol {
 			}
 			start = t.End
 		}
+		if goGroup != "" && groupParen == 1 && groupBrace == 0 && last != "" {
+			// Go inserts a semicolon after an identifier, literal or closing delimiter.
+			switch lastKind {
+			case editor.TokenVariable, editor.TokenProperty, editor.TokenConstant, editor.TokenType, editor.TokenNumber, editor.TokenString, editor.TokenFunction:
+				expectName, afterConstName = true, false
+			case editor.TokenPunctuation:
+				if strings.ContainsRune(")]}", rune(last[len(last)-1])) {
+					expectName, afterConstName = true, false
+				}
+			}
+		}
 		at += len(line) + 1
 	}
 	return syms
@@ -256,45 +271,13 @@ type symCacheEntry struct {
 	syms    []symbol
 }
 
-var docSymCache = make(map[*doc]symCacheEntry)
-
-func (a *app) pruneSymCache() {
-	if len(docSymCache) == 0 {
-		return
-	}
-	live := make(map[*doc]bool)
-	if a.l != nil && len(a.l.wins) > 0 {
-		for _, w := range a.l.wins {
-			for _, d := range w.allDocs() {
-				live[d] = true
-			}
-		}
-	} else {
-		for _, d := range a.allDocs() {
-			live[d] = true
-		}
-	}
-	for d := range docSymCache {
-		if !live[d] {
-			delete(docSymCache, d)
-		}
-	}
-}
-
 func cachedSymbols(d *doc) []symbol {
 	b := d.st.Buffer
 	ver, lang := b.Version(), b.Language()
-	if e, ok := docSymCache[d]; ok && e.version == ver && e.lang == lang {
-		return e.syms
+	if d.symbols.version != ver || d.symbols.lang != lang {
+		d.symbols = symCacheEntry{version: ver, lang: lang, syms: symbols(lang, b.String())}
 	}
-	syms := symbols(lang, b.String())
-	docSymCache[d] = symCacheEntry{version: ver, lang: lang, syms: syms}
-	return syms
-}
-
-func (a *app) docSymbols(d *doc) []symbol {
-	a.pruneSymCache()
-	return cachedSymbols(d)
+	return d.symbols.syms
 }
 
 // definition is where a symbol is defined.
@@ -316,7 +299,6 @@ func (a *app) gotoDefinition(d *doc, off int) {
 	if name == "" {
 		return
 	}
-	a.pruneSymCache()
 	defs := definitionsIn(d, name)
 	if len(defs) == 0 {
 		for _, o := range a.allDocs() {
