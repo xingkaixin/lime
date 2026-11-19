@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"slices"
@@ -45,6 +46,24 @@ func (a *app) view(c *ui.Context) {
 	ch := a.shell(c)
 	if c.Vibrancy() {
 		c.Root().Background(ui.Transparent)
+	}
+	if a.chord {
+		c.Root().ObserveInput(func(ev ui.InputEvent) {
+			if !a.chord {
+				return
+			}
+			switch ev.Kind {
+			case ui.InputPointerDown:
+				a.chord = false
+			case ui.InputKeyDown:
+				if ev.Key == ui.KeyUnknown && ev.PhysicalKey == ui.KeyUnknown {
+					return
+				}
+				if !a.isChordKey(ev.Mods, ev.Key) {
+					a.chordKeyUp = cmp.Or(ev.Key, ev.PhysicalKey)
+				}
+			}
+		})
 	}
 	root := ui.Column(c).Fill().Background(ch.bg)
 	if files := root.DroppedFiles(); files != nil {
@@ -428,7 +447,24 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, dir string, active, fo
 	case hovered:
 		bg = ch.hover
 	}
-	row.Background(bg).Label(d.name()).Tooltip(d.path).OnClick(func() { a.show(d) }).ContextMenu(func(m *ui.Menu) { a.tabMenu(m, g, d) })
+	row.Bind(&d.tabHandle).Background(bg).Label(d.name()).Tooltip(d.path).OnClick(func() { a.show(d) }).
+		ContextMenu(func(m *ui.Menu) { a.tabMenu(c, m, g, d) }).
+		HandleInput(func(ev ui.InputEvent) bool {
+			if ev.Button != 2 {
+				return false
+			}
+			switch ev.Kind {
+			case ui.InputPointerDown:
+				return true
+			case ui.InputPointerUp:
+				bounds := d.tabHandle.Bounds(c)
+				if !ev.Canceled && ev.X >= 0 && ev.Y >= 0 && ev.X < bounds.W && ev.Y < bounds.H {
+					a.closeDoc(d)
+				}
+				return true
+			}
+			return false
+		})
 	row.Children(func() {
 		a.tabIcon(c, d, fg)
 		tabTitle(c, d, dir, fg)
@@ -474,13 +510,14 @@ func (a *app) tabIcon(c *ui.Context, d *doc, fg ui.Color) {
 func (a *app) statusBar(c *ui.Context) {
 	ch := a.shell(c)
 	d := a.current()
-	var left string
+	var left, sel string
 	if d != nil && d.img != nil {
 		w, h := d.img.Size()
 		left = fmt.Sprintf("%d × %d", w, h)
 	} else if d != nil && d.kind == textDoc {
 		st := d.st
-		if n := len(st.Selections()); n > 1 {
+		sels := st.Selections()
+		if n := len(sels); n > 1 {
 			left = locales.StatusSelections(n)
 		} else {
 			pos := st.CursorPos()
@@ -488,10 +525,17 @@ func (a *app) statusBar(c *ui.Context) {
 			col := utf8.RuneCountInString(line[:min(pos.Col, len(line))]) + 1
 			left = locales.StatusPosition(pos.Line+1, col)
 		}
+		sel = selectionStatus(st, sels)
 	}
 	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6).Gap(8).AlignItems(ui.Center).Background(ch.bg).Children(func() {
 		a.panelButtons(c)
 		ui.Text(c, left).FontSize(12).TextColor(ch.muted).SingleLine().Shrink(0)
+		if sel != "" {
+			ui.Text(c, sel).FontSize(12).TextColor(ch.muted).SingleLine().Shrink(0)
+		}
+		if a.chord {
+			ui.Text(c, shortcutText(ui.Cmd, ui.KeyK)+"…").FontSize(12).TextColor(a.scheme.accent).SingleLine().Shrink(0)
+		}
 		if a.remote != "" {
 			ui.Text(c, a.remote).FontSize(12).TextColor(ch.muted).SingleLine().Shrink(0)
 		}
@@ -590,11 +634,72 @@ func (a *app) statusMenu(c *ui.Context, text, label string, menu func(m *ui.Menu
 	return btn
 }
 
+func selectionStatus(st *editor.State, sels []editor.Selection) string {
+	var chars, lines int
+	snap := st.Buffer.Snapshot()
+	lastLine := -1
+	for _, s := range sels {
+		a, z := min(s.Anchor, s.Head), max(s.Anchor, s.Head)
+		if a == z {
+			continue
+		}
+		snap.Chunks(a, z, func(chunk string) bool {
+			chars += utf8.RuneCountInString(chunk)
+			return true
+		})
+		from, to := snap.LineOf(a), snap.LineOf(z)
+		if to > from && z == snap.LineStart(to) {
+			to--
+		}
+		if from <= lastLine {
+			from = lastLine + 1
+		}
+		if from <= to {
+			lines += to - from + 1
+			lastLine = to
+		}
+	}
+	if chars == 0 {
+		return ""
+	}
+	if lines > 1 {
+		return locales.StatusSelectedLines(lines, chars)
+	}
+	return locales.StatusSelectedChars(chars)
+}
+
+func (a *app) isChordKey(mods ui.Modifiers, key ui.Key) bool {
+	for _, k := range a.l.keys.window {
+		if k.chord && k.mods == mods && k.key == key {
+			return true
+		}
+	}
+	return false
+}
+
 // shortcuts binds the window's keys: tabs, groups, panels, and the
 // chords after Cmd+K, which go before the editor's.
 func (a *app) shortcuts(c *ui.Context) {
 	keys := a.l.keys.window
+	if a.chordKeyUp != ui.KeyUnknown {
+		a.chord = false
+		// Focus changes can rebuild and reroute the same press before key-up.
+		if c.KeyDown(a.chordKeyUp) {
+			return
+		}
+		a.chordKeyUp = ui.KeyUnknown
+	}
 	if a.chord {
+		if !c.Root().FocusWithin() {
+			mods := c.Modifiers()
+			for _, k := range c.KeysDown() {
+				if k != ui.KeyK && !a.isChordKey(mods, k) && !(mods == 0 && k == ui.KeyEscape) {
+					a.chord, a.chordKeyUp = false, k
+					c.Invalidate()
+					return
+				}
+			}
+		}
 		for _, k := range keys {
 			if k.chord {
 				c.OnShortcut(k.mods, k.key, func() {
@@ -603,6 +708,8 @@ func (a *app) shortcuts(c *ui.Context) {
 				})
 			}
 		}
+		c.OnShortcut(0, ui.KeyEscape, func() { a.chord = false })
+		c.OnShortcut(0, ui.KeyK, func() { a.chord = false })
 		return
 	}
 	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.chord = true })

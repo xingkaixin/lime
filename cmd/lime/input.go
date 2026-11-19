@@ -69,12 +69,30 @@ var editorOffset = func() uintptr {
 	return f.Offset
 }()
 
-// editorField reaches the field of MyGo's editor at the path names, from
-// State, failing at start rather than misreading memory when an upgrade
-// moves or retypes it.
-func editorField[T any](names ...string) func(*editor.State) *T {
-	t, off := reflect.TypeFor[editor.State](), uintptr(0)
-	for _, n := range append([]string{"ed"}, names...) {
+var diffEdsOffset, diffEdSize = func() (uintptr, uintptr) {
+	f, ok := reflect.TypeFor[editor.DiffState]().FieldByName("eds")
+	if !ok || f.Type.Kind() != reflect.Array || f.Type.Len() != 2 {
+		panic("editor.DiffState has no eds [2]editor field")
+	}
+	ed, _ := reflect.TypeFor[editor.State]().FieldByName("ed")
+	if f.Type.Elem() != ed.Type {
+		panic("editor.DiffState.eds retyped")
+	}
+	return f.Offset, f.Type.Elem().Size()
+}()
+
+func diffActiveEditor(d *editor.DiffState) unsafe.Pointer {
+	return unsafe.Add(unsafe.Pointer(d), diffEdsOffset+uintptr(d.ActiveSide())*diffEdSize)
+}
+
+// editorFieldAt reaches a field at names inside MyGo's unexported editor struct.
+func editorFieldAt[T any](names ...string) func(unsafe.Pointer) *T {
+	ed, ok := reflect.TypeFor[editor.State]().FieldByName("ed")
+	if !ok {
+		panic("editor.State has no ed field")
+	}
+	t, off := ed.Type, uintptr(0)
+	for _, n := range names {
 		f, ok := t.FieldByName(n)
 		if !ok {
 			panic("MyGo's editor has no " + n)
@@ -84,7 +102,15 @@ func editorField[T any](names ...string) func(*editor.State) *T {
 	if t != reflect.TypeFor[T]() {
 		panic("MyGo's editor retyped " + t.String())
 	}
-	return func(st *editor.State) *T { return (*T)(unsafe.Add(unsafe.Pointer(st), off)) }
+	return func(ed unsafe.Pointer) *T { return (*T)(unsafe.Add(ed, off)) }
+}
+
+// editorField reaches the field of MyGo's editor at the path names, from
+// State, failing at start rather than misreading memory when an upgrade
+// moves or retypes it.
+func editorField[T any](names ...string) func(*editor.State) *T {
+	at := editorFieldAt[T](names...)
+	return func(st *editor.State) *T { return at(unsafe.Add(unsafe.Pointer(st), editorOffset)) }
 }
 
 var (
@@ -94,6 +120,12 @@ var (
 	// State has no switch for the scroll bars, and View sets the editor's
 	// options from State: set it after View.
 	noScrollBars = editorField[bool]("o", "noScrollbar")
+
+	findQueryAt     = editorFieldAt[string]("find", "query")
+	findCaseSensAt  = editorFieldAt[bool]("find", "caseSens")
+	findWholeWordAt = editorFieldAt[bool]("find", "wholeWord")
+	findRegexAt     = editorFieldAt[bool]("find", "regex")
+	findStaleAt     = editorFieldAt[bool]("find", "stale")
 )
 
 // pastSide is how far x, in the editor, is left (< 0) or right (> 0) of
@@ -168,6 +200,21 @@ var editorClip struct {
 	lines  []bool
 }
 
+func init() {
+	// Verify our local linkname mirror keeps the exact field layout MyGo's
+	// editor.clipboard expects (TestEditorClipLayout verifies the live link).
+	t := reflect.TypeOf(editorClip)
+	want := []reflect.Type{reflect.TypeFor[string](), reflect.TypeFor[[]string](), reflect.TypeFor[[]bool]()}
+	if t.NumField() != len(want) {
+		panic("editorClip field count mismatch")
+	}
+	for i, wt := range want {
+		if t.Field(i).Type != wt {
+			panic("editorClip field type mismatch")
+		}
+	}
+}
+
 // pastes reports whether ev is the editor's Paste.
 func pastes(st *editor.State, ev ui.InputEvent) bool {
 	switch ev.Kind {
@@ -206,11 +253,28 @@ func (a *app) slide(d *doc, ed unsafe.Pointer) {
 	d.sliding = true
 	win := a.win
 	go func() {
-		for more := true; more; {
-			time.Sleep(time.Second / 60)
+		ticker := time.NewTicker(time.Second / 60)
+		defer ticker.Stop()
+		for {
+			<-ticker.C
+			if win == nil || win.IsDestroyed() {
+				return
+			}
 			ch := make(chan bool, 1)
 			win.Update(func() { ch <- a.slideStep(d, ed) })
-			more = <-ch
+			timeout := time.NewTimer(500 * time.Millisecond)
+			select {
+			case more := <-ch:
+				timeout.Stop()
+				if !more {
+					return
+				}
+			case <-timeout.C:
+				if !win.IsDestroyed() {
+					win.Update(func() { d.sliding = false })
+				}
+				return
+			}
 		}
 	}()
 }

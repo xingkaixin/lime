@@ -61,8 +61,10 @@ var shortcutGroups = func() []shortcutGroup {
 		{m.MenuFile, append([]shortcut{
 			s("new_file", m.MenuNewFile), s("new_window", m.MenuNewWindow), s("prompt_open", m.MenuOpen),
 			s("prompt_open_folder", m.MenuOpenFolder), s("reopen_last_file", m.MenuReopenClosedFile),
+			s("revert", m.MenuRevertFile),
 			s("save", m.MenuSave), s("prompt_save_as", m.MenuSaveAs), s("save_all", m.MenuSaveAll),
 			s("close", m.MenuCloseFile), s("close_window", m.MenuCloseWindow), s("show_settings", m.MenuSettings),
+			s("copy_path", m.MenuCopyPath), s("reveal_in_side_bar", m.MenuRevealInSideBar), s("reveal_in_finder", m.MenuRevealInFinder),
 			s("compare_with", m.CmdCompareWith), s("compare_with_clipboard", m.CmdCompareWithClipboard),
 			s("diff_changes", m.CmdShowUnsavedChanges),
 		}, encodingItems...)},
@@ -125,6 +127,7 @@ var shortcutGroups = func() []shortcutGroup {
 			s("jump_back", m.CmdJumpBack), s("jump_forward", m.CmdJumpForward),
 		}},
 		{m.ShortcutGroupTabs, slices.Concat([]shortcut{
+			s("close_other_tabs", m.MenuCloseOtherTabs),
 			s("next_view", m.ShortcutNextTab), s("prev_view", m.ShortcutPrevTab),
 			s("next_view_in_stack", m.ShortcutNextTabInStack), s("prev_view_in_stack", m.ShortcutPrevTabInStack),
 		}, numbered(8, selectTab, m.ShortcutSelectTab), []shortcut{s("select_last_tab", m.ShortcutSelectLastTab)})},
@@ -543,14 +546,15 @@ func (a *app) addKey(id string, k appKey, from []string) {
 
 func (a *app) confirmResetKeys() {
 	go func() {
-		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
-			Parent:       a.win,
-			Type:         mygo.MessageQuestion,
-			Message:      locales.SettingsShortcutsResetAllConfirm(),
-			Buttons:      []string{locales.SettingsShortcutsResetAll(), locales.ButtonCancel()},
-			CancelButton: 1,
+		res, err := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:             a.win,
+			Type:               mygo.MessageQuestion,
+			Message:            locales.SettingsShortcutsResetAllConfirm(),
+			Buttons:            []string{locales.SettingsShortcutsResetAll(), locales.ButtonCancel()},
+			DestructiveButtons: []int{0},
+			CancelButton:       1,
 		})
-		if res.Button == 0 {
+		if err == nil && res.Button == 0 {
 			a.win.Update(func() { a.l.resetKeys() })
 		}
 	}()

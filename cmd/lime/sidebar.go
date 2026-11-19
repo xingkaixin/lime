@@ -323,6 +323,10 @@ func (a *app) treeRow(c *ui.Context, path string, depth int, ic rowIcon, selecte
 	row := ui.Row(c.Key(path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Radius(t.Radius).
 		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected).Transition(motion)
+	if a.revealPath == path {
+		row.ScrollIntoView()
+		a.revealPath = ""
+	}
 	tint, text := ic.tint(a.scheme.chrome().muted), t.Text
 	if selected {
 		tint, text = t.AccentText, t.AccentText

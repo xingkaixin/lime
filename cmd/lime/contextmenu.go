@@ -16,10 +16,13 @@ import (
 // a file, of a folder, and of the side bar around them.
 
 // tabMenu is the menu of the tab of d in g.
-func (a *app) tabMenu(m *ui.Menu, g *group, d *doc) {
+func (a *app) tabMenu(c *ui.Context, m *ui.Menu, g *group, d *doc) {
 	all := func(*doc) bool { return true }
 	if m.Item(locales.MenuCloseTab()).Chosen() {
 		a.closeDoc(d)
+	}
+	if m.Item(locales.MenuCloseOtherTabs()).Disabled(len(g.docs) <= 1).Chosen() {
+		a.closeOtherTabs(g, d)
 	}
 	i := slices.Index(g.docs, d)
 	if m.Item(locales.MenuCloseTabsToLeft()).Disabled(i == 0).Chosen() {
@@ -52,6 +55,16 @@ func (a *app) tabMenu(m *ui.Menu, g *group, d *doc) {
 		if m.Item(locales.MenuOpenPreviewToTheSide()).Chosen() {
 			a.openPreview(d, true)
 		}
+	}
+	m.Separator()
+	if m.Item(locales.MenuCopyPath()).Disabled(d.path == "").Chosen() {
+		c.Services().WriteClipboard(d.path)
+	}
+	if m.Item(locales.MenuRevealInSideBar()).Disabled(d.path == "" || !a.proj.holds(d.path)).Chosen() {
+		a.revealInSideBar(d.path)
+	}
+	if m.Item(locales.MenuRevealInFinder()).Disabled(d.path == "").Chosen() {
+		mygo.Shell.ShowItemInFolder(d.path)
 	}
 	m.Separator()
 	if m.Item(locales.MenuFileHistory()).Disabled(!a.tracked(d.path)).Chosen() {

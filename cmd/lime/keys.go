@@ -73,7 +73,6 @@ func macEditorKeys() []editor.Binding {
 		bind(cmd, ui.KeyEnter, editor.NewlineBelow), bind(cmd|sh, ui.KeyEnter, editor.NewlineAbove),
 		bind(0, ui.KeyF12, editor.GoToDefinition), bind(cmd|alt, ui.KeyDown, editor.GoToDefinition),
 		bind(ctrl, ui.KeySpace, editor.ShowCompletions),
-		bind(cmd, ui.KeyG, editor.FindNext), bind(cmd|sh, ui.KeyG, editor.FindPrevious),
 		bind(ctrl, ui.KeyPeriod, editor.NextHunk), bind(ctrl, ui.KeyComma, editor.PreviousHunk),
 		bind(ctrl|cmd, ui.KeyUp, editor.MoveLinesUp), bind(ctrl|cmd, ui.KeyDown, editor.MoveLinesDown),
 		bind(ctrl, ui.KeyBackspace, editor.DeleteSubwordLeft), bind(ctrl, ui.KeyDelete, editor.DeleteSubwordRight),
@@ -127,7 +126,6 @@ func pcEditorKeys(windows bool) []editor.Binding {
 		bind(ctrl|sh, ui.KeySpace, editor.SelectLarger), bind(ctrl|sh, ui.KeyA, editor.SelectLarger),
 		bind(ctrl|sh, ui.KeyM, editor.SelectLarger), bind(ctrl, ui.KeyM, editor.MoveToBracket),
 		bind(0, ui.KeyF12, editor.GoToDefinition), bind(ctrl, ui.KeySpace, editor.ShowCompletions),
-		bind(0, ui.KeyF3, editor.FindNext), bind(sh, ui.KeyF3, editor.FindPrevious),
 		bind(ctrl, ui.KeyPeriod, editor.NextHunk), bind(ctrl, ui.KeyComma, editor.PreviousHunk),
 		bind(ctrl|sh, ui.KeyUp, editor.MoveLinesUp), bind(ctrl|sh, ui.KeyDown, editor.MoveLinesDown),
 		bind(ctrl, ui.KeyBackspace, editor.DeleteWordLeft), bind(ctrl, ui.KeyDelete, editor.DeleteWordRight),
@@ -237,12 +235,14 @@ var appKeys = func() []appKey {
 	}
 	keys = append(keys, k(jump, ui.KeyMinus, "jump_back"), k(jump|sh, ui.KeyMinus, "jump_forward"))
 	if mac {
-		keys = append(keys, k(cmd|alt, ui.KeyF, "show_panel replace"), k(ctrl|cmd, ui.KeyG, "find_all_under"), k(cmd, ui.KeyT, "show_goto"), k(cmd|alt, ui.KeyS, "save_all"),
+		keys = append(keys, k(cmd|alt, ui.KeyF, "show_panel replace"), k(cmd, ui.KeyG, "find_next"), k(cmd|sh, ui.KeyG, "find_prev"),
+			k(ctrl|cmd, ui.KeyG, "find_all_under"), k(cmd, ui.KeyT, "show_goto"), k(cmd|alt, ui.KeyS, "save_all"),
 			k(cmd|sh, ui.KeyBracketLeft, "prev_view"), k(cmd|sh, ui.KeyBracketRight, "next_view"),
 			k(cmd|alt, ui.KeyLeft, "prev_view"), k(cmd|alt, ui.KeyRight, "next_view"),
 			k(ctrl|cmd, ui.KeyP, "prompt_select_workspace"))
 	} else {
-		keys = append(keys, k(ctrl, ui.KeyH, "show_panel replace"), k(alt, ui.KeyF3, "find_all_under"), k(ctrl, ui.KeyF4, "close"),
+		keys = append(keys, k(ctrl, ui.KeyH, "show_panel replace"), k(0, ui.KeyF3, "find_next"), k(sh, ui.KeyF3, "find_prev"),
+			k(alt, ui.KeyF3, "find_all_under"), k(ctrl, ui.KeyF4, "close"),
 			k(ctrl|alt, ui.KeyP, "prompt_select_workspace"))
 	}
 	return keys

@@ -12,6 +12,7 @@
   "buttonReplace": "Replace",
   "buttonKeepBoth": "Keep Both",
   "buttonDiscard": "Discard",
+  "buttonRevert": "Revert",
   "buttonUncommit": "Uncommit",
   "buttonOverwrite": "Overwrite",
   "buttonReload": "Reload",
@@ -25,6 +26,7 @@
   "menuReopenClosedFile": "Reopen Closed File",
   "menuClearItems": "Clear Items",
   "menuReopenWithEncoding": "Reopen with Encoding",
+  "menuRevertFile": "Revert File",
   "menuSaveWithEncoding": "Save with Encoding",
   "menuSave": "Save",
   "menuSaveAs": "Save As…",
@@ -96,6 +98,7 @@
   "menuRename": "Rename…",
   "menuDeleteFile": "Delete File",
   "menuRevealInFinder": "Reveal in Finder",
+  "menuRevealInSideBar": "Reveal in Side Bar",
   "menuCopyPath": "Copy Path",
   "menuFileHistory": "File History",
   "menuCopyPermalink": "Copy Permalink",
@@ -105,6 +108,7 @@
   "menuFindInFolder": "Find in Folder…",
   "menuRemoveFolder": "Remove Folder from Project",
   "menuCloseTab": "Close Tab",
+  "menuCloseOtherTabs": "Close Other Tabs",
   "menuCloseTabsToLeft": "Close Tabs to the Left",
   "menuCloseTabsToRight": "Close Tabs to the Right",
   "menuCloseUnmodifiedTabs": "Close Unmodified Tabs",
@@ -140,7 +144,12 @@
   "cmdSave": "File: Save",
   "cmdSaveAs": "File: Save As…",
   "cmdSaveAll": "File: Save All",
+  "cmdRevertFile": "File: Revert File",
   "cmdClose": "File: Close",
+  "cmdCloseOtherTabs": "File: Close Other Tabs",
+  "cmdCopyPath": "File: Copy Path",
+  "cmdRevealInSideBar": "Reveal in Side Bar",
+  "cmdRevealInFinder": "Reveal in Finder",
   "cmdNewWindow": "Window: New Window",
   "cmdCloseWindow": "Window: Close",
   "cmdGotoAnything": "Goto Anything",
@@ -318,6 +327,10 @@
   "@dialogSaveChanges": {
     "placeholders": { "name": { "type": "String", "example": "main.go" } }
   },
+  "dialogRevertFile": "Revert {name} to the version on disk?",
+  "@dialogRevertFile": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
   "dialogSaveWindowChanges": "{count, plural, one {Save changes to # file before closing the window?} other {Save changes to # files before closing the window?}}",
   "@dialogSaveWindowChanges": {
     "placeholders": { "count": { "type": "int", "example": "3" } }
@@ -481,6 +494,17 @@
     "placeholders": {
       "line": { "type": "int", "example": "12" },
       "column": { "type": "int", "example": "5" }
+    }
+  },
+  "statusSelectedChars": "{count, plural, one {# character selected} other {# characters selected}}",
+  "@statusSelectedChars": {
+    "placeholders": { "count": { "type": "int", "example": "5" } }
+  },
+  "statusSelectedLines": "{lines, plural, one {# line} other {# lines}}, {chars, plural, one {# character} other {# characters}} selected",
+  "@statusSelectedLines": {
+    "placeholders": {
+      "lines": { "type": "int", "example": "3" },
+      "chars": { "type": "int", "example": "25" }
     }
   },
   "statusSyntax": "Syntax: {name}",

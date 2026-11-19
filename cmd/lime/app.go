@@ -24,13 +24,14 @@ import (
 
 // doc is a file open in a tab.
 type doc struct {
-	path    string // "" while untitled
-	st      *editor.State
-	columns bool            // a column drag remapped from another press is going on
-	drag    ui.InputEvent   // the pointer's last move over the editor
-	sliding bool            // a drag past the text's side is scrolling it (slide)
-	saved   editor.Snapshot // the text on disk
-	disk    stamp           // the file as saved was found on disk
+	tabHandle ui.Handle
+	path      string // "" while untitled
+	st        *editor.State
+	columns   bool            // a column drag remapped from another press is going on
+	drag      ui.InputEvent   // the pointer's last move over the editor
+	sliding   bool            // a drag past the text's side is scrolling it (slide)
+	saved     editor.Snapshot // the text on disk
+	disk      stamp           // the file as saved was found on disk
 	// base is the id of the file's text in git that the gutter marks the
 	// changes against; "" while it marks them against the text on disk.
 	base    string
@@ -310,37 +311,39 @@ type app struct {
 	win *mygo.Window
 	set *settings // the windows' own, l.set
 
-	groups  []*group
-	layout  layout
-	cols    []float32 // where the dividers between the groups are, as SplitPercent has them
-	rows    []float32
-	focus   int   // the focused group
-	focused place // bound with FocusBind
-	mru     []*doc
-	cycle   []*doc // mru as Ctrl+Tab began, while Ctrl is held
-	cycleAt int
-	closed  []string
-	chord   bool // Cmd+K was pressed, waiting for the chord's second key
-	title   string
-	scheme  *scheme
-	panel   *panel
-	scroll  *peek // what a closed panel scrolls back to (scrollBack)
-	jumps   jumps
-	find    finding
-	fif     findInFiles
-	proj    project
-	marks   gitMarks // what git says of the side bar's files
-	git     gitRepo
-	hist    history
-	changes changes
-	gitTab  int            // the git panel's: changesTab or historyTab
-	remote  string         // what the git with the remote running does, as Pushing…
-	side    sidePanel      // what the side bar shows
-	bounds  mygo.Rectangle // where the window opens, when restored
-	drag    *tabDrag
-	prefs   prefs
-	notice  notice
-	others  *tabWords // the other tabs' words, as complete last found them
+	groups     []*group
+	layout     layout
+	cols       []float32 // where the dividers between the groups are, as SplitPercent has them
+	rows       []float32
+	focus      int   // the focused group
+	focused    place // bound with FocusBind
+	mru        []*doc
+	cycle      []*doc // mru as Ctrl+Tab began, while Ctrl is held
+	cycleAt    int
+	closed     []string
+	chordKeyUp ui.Key
+	revealPath string
+	chord      bool // Cmd+K was pressed, waiting for the chord's second key
+	title      string
+	scheme     *scheme
+	panel      *panel
+	scroll     *peek // what a closed panel scrolls back to (scrollBack)
+	jumps      jumps
+	find       finding
+	fif        findInFiles
+	proj       project
+	marks      gitMarks // what git says of the side bar's files
+	git        gitRepo
+	hist       history
+	changes    changes
+	gitTab     int            // the git panel's: changesTab or historyTab
+	remote     string         // what the git with the remote running does, as Pushing…
+	side       sidePanel      // what the side bar shows
+	bounds     mygo.Rectangle // where the window opens, when restored
+	drag       *tabDrag
+	prefs      prefs
+	notice     notice
+	others     *tabWords // the other tabs' words, as complete last found them
 
 	reloading, reloadAgain bool
 	closingPrompt          bool
@@ -1402,6 +1405,9 @@ func (l *lime) closed(a *app) {
 		l.last = nil
 		if len(l.wins) > 0 {
 			l.last = l.wins[len(l.wins)-1]
+			l.last.syncMenu()
+		} else {
+			l.pauseMenu(false)
 		}
 	}
 }
