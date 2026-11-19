@@ -108,6 +108,8 @@ func (l *lime) newMenu() *mygo.Menu {
 	} else {
 		fileSettings = []*mygo.MenuItem{mygo.Separator(), settingsItem}
 	}
+	revertItem := l.menuItem(locales.MenuRevertFile(), "revert")
+	revertItem.ID = "revert"
 	return mygo.NewMenu([]*mygo.MenuItem{
 		appMenu,
 		{Label: locales.MenuFile(), Submenu: append([]*mygo.MenuItem{
@@ -117,6 +119,7 @@ func (l *lime) newMenu() *mygo.Menu {
 			l.menuItem(locales.MenuOpenFolder(), "prompt_open_folder"),
 			l.recentMenu(),
 			{Label: locales.MenuReopenWithEncoding(), Submenu: reopenItems},
+			revertItem,
 			mygo.Separator(),
 			l.menuItem(locales.MenuSave(), "save"),
 			{Label: locales.MenuSaveWithEncoding(), Submenu: saveItems},
@@ -205,12 +208,12 @@ func (a *app) syncMenu() {
 	if l.menu == nil || l.last != a {
 		return
 	}
-	tabSize, spaces, ending, reopen := a.set.TabSize, a.set.indent() != editor.IndentTabs, "\n", false
+	tabSize, spaces, ending, reopen, revert := a.set.TabSize, a.set.indent() != editor.IndentTabs, "\n", false, false
 	if d := a.current(); d != nil && d.kind == textDoc {
 		tabSize, spaces = a.indentOf(d)
-		ending, reopen = d.lineEnding(), reopenable(d)
+		ending, reopen, revert = d.lineEnding(), reopenable(d), d.path != ""
 	}
-	state := fmt.Sprint(a.side, a.set.WordWrap, a.set.rampage(), a.layout.name, a.set.LayoutStyle, a.scheme.name, tabSize, spaces, ending, reopen)
+	state := fmt.Sprint(a.side, a.set.WordWrap, a.set.rampage(), a.layout.name, a.set.LayoutStyle, a.scheme.name, tabSize, spaces, ending, reopen, revert)
 	if state == l.menuState {
 		return
 	}
@@ -229,6 +232,9 @@ func (a *app) syncMenu() {
 	check("toggle_setting translate_tabs_to_spaces", spaces)
 	check(tabWidth(tabSize), true)
 	check(lineEndings[slices.IndexFunc(lineEndings, func(e lineEnding) bool { return e.text == ending })].id(), true)
+	if it := l.menu.ItemByID("revert"); it != nil {
+		it.SetEnabled(revert)
+	}
 	for _, e := range encodings {
 		if it := l.menu.ItemByID(e.reopenID()); it != nil {
 			it.SetEnabled(reopen)

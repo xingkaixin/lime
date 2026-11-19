@@ -144,6 +144,16 @@ func (msgs Messages) ButtonDiscard() string {
 	return Catalog.Format(msgs.locale, "buttonDiscard", nil)
 }
 
+// ButtonRevert says "Revert"
+// in the language the app shows.
+func ButtonRevert() string { return In(i18n.Locale()).ButtonRevert() }
+
+// ButtonRevert says "Revert"
+// in the language of msgs.
+func (msgs Messages) ButtonRevert() string {
+	return Catalog.Format(msgs.locale, "buttonRevert", nil)
+}
+
 // ButtonUncommit says "Uncommit"
 // in the language the app shows.
 func ButtonUncommit() string { return In(i18n.Locale()).ButtonUncommit() }
@@ -262,6 +272,16 @@ func MenuReopenWithEncoding() string { return In(i18n.Locale()).MenuReopenWithEn
 // in the language of msgs.
 func (msgs Messages) MenuReopenWithEncoding() string {
 	return Catalog.Format(msgs.locale, "menuReopenWithEncoding", nil)
+}
+
+// MenuRevertFile says "Revert File"
+// in the language the app shows.
+func MenuRevertFile() string { return In(i18n.Locale()).MenuRevertFile() }
+
+// MenuRevertFile says "Revert File"
+// in the language of msgs.
+func (msgs Messages) MenuRevertFile() string {
+	return Catalog.Format(msgs.locale, "menuRevertFile", nil)
 }
 
 // MenuSaveWithEncoding says "Save with Encoding"
@@ -944,6 +964,16 @@ func (msgs Messages) MenuRevealInFinder() string {
 	return Catalog.Format(msgs.locale, "menuRevealInFinder", nil)
 }
 
+// MenuRevealInSideBar says "Reveal in Side Bar"
+// in the language the app shows.
+func MenuRevealInSideBar() string { return In(i18n.Locale()).MenuRevealInSideBar() }
+
+// MenuRevealInSideBar says "Reveal in Side Bar"
+// in the language of msgs.
+func (msgs Messages) MenuRevealInSideBar() string {
+	return Catalog.Format(msgs.locale, "menuRevealInSideBar", nil)
+}
+
 // MenuCopyPath says "Copy Path"
 // in the language the app shows.
 func MenuCopyPath() string { return In(i18n.Locale()).MenuCopyPath() }
@@ -1032,6 +1062,16 @@ func MenuCloseTab() string { return In(i18n.Locale()).MenuCloseTab() }
 // in the language of msgs.
 func (msgs Messages) MenuCloseTab() string {
 	return Catalog.Format(msgs.locale, "menuCloseTab", nil)
+}
+
+// MenuCloseOtherTabs says "Close Other Tabs"
+// in the language the app shows.
+func MenuCloseOtherTabs() string { return In(i18n.Locale()).MenuCloseOtherTabs() }
+
+// MenuCloseOtherTabs says "Close Other Tabs"
+// in the language of msgs.
+func (msgs Messages) MenuCloseOtherTabs() string {
+	return Catalog.Format(msgs.locale, "menuCloseOtherTabs", nil)
 }
 
 // MenuCloseTabsToLeft says "Close Tabs to the Left"
@@ -1364,6 +1404,16 @@ func (msgs Messages) CmdSaveAll() string {
 	return Catalog.Format(msgs.locale, "cmdSaveAll", nil)
 }
 
+// CmdRevertFile says "File: Revert File"
+// in the language the app shows.
+func CmdRevertFile() string { return In(i18n.Locale()).CmdRevertFile() }
+
+// CmdRevertFile says "File: Revert File"
+// in the language of msgs.
+func (msgs Messages) CmdRevertFile() string {
+	return Catalog.Format(msgs.locale, "cmdRevertFile", nil)
+}
+
 // CmdClose says "File: Close"
 // in the language the app shows.
 func CmdClose() string { return In(i18n.Locale()).CmdClose() }
@@ -1372,6 +1422,46 @@ func CmdClose() string { return In(i18n.Locale()).CmdClose() }
 // in the language of msgs.
 func (msgs Messages) CmdClose() string {
 	return Catalog.Format(msgs.locale, "cmdClose", nil)
+}
+
+// CmdCloseOtherTabs says "File: Close Other Tabs"
+// in the language the app shows.
+func CmdCloseOtherTabs() string { return In(i18n.Locale()).CmdCloseOtherTabs() }
+
+// CmdCloseOtherTabs says "File: Close Other Tabs"
+// in the language of msgs.
+func (msgs Messages) CmdCloseOtherTabs() string {
+	return Catalog.Format(msgs.locale, "cmdCloseOtherTabs", nil)
+}
+
+// CmdCopyPath says "File: Copy Path"
+// in the language the app shows.
+func CmdCopyPath() string { return In(i18n.Locale()).CmdCopyPath() }
+
+// CmdCopyPath says "File: Copy Path"
+// in the language of msgs.
+func (msgs Messages) CmdCopyPath() string {
+	return Catalog.Format(msgs.locale, "cmdCopyPath", nil)
+}
+
+// CmdRevealInSideBar says "Reveal in Side Bar"
+// in the language the app shows.
+func CmdRevealInSideBar() string { return In(i18n.Locale()).CmdRevealInSideBar() }
+
+// CmdRevealInSideBar says "Reveal in Side Bar"
+// in the language of msgs.
+func (msgs Messages) CmdRevealInSideBar() string {
+	return Catalog.Format(msgs.locale, "cmdRevealInSideBar", nil)
+}
+
+// CmdRevealInFinder says "Reveal in Finder"
+// in the language the app shows.
+func CmdRevealInFinder() string { return In(i18n.Locale()).CmdRevealInFinder() }
+
+// CmdRevealInFinder says "Reveal in Finder"
+// in the language of msgs.
+func (msgs Messages) CmdRevealInFinder() string {
+	return Catalog.Format(msgs.locale, "cmdRevealInFinder", nil)
 }
 
 // CmdNewWindow says "Window: New Window"
@@ -2508,6 +2598,16 @@ func (msgs Messages) DialogSaveChanges(name string) string {
 	return Catalog.Format(msgs.locale, "dialogSaveChanges", map[string]any{"name": name})
 }
 
+// DialogRevertFile says "Revert {name} to the version on disk?"
+// in the language the app shows.
+func DialogRevertFile(name string) string { return In(i18n.Locale()).DialogRevertFile(name) }
+
+// DialogRevertFile says "Revert {name} to the version on disk?"
+// in the language of msgs.
+func (msgs Messages) DialogRevertFile(name string) string {
+	return Catalog.Format(msgs.locale, "dialogRevertFile", map[string]any{"name": name})
+}
+
 // DialogSaveWindowChanges says "{count, plural, one {Save changes to # file before closing the window?} other {Save changes to # files before closing…"
 // in the language the app shows.
 func DialogSaveWindowChanges(count int) string {
@@ -3360,6 +3460,28 @@ func StatusPosition(line int, column int) string {
 // in the language of msgs.
 func (msgs Messages) StatusPosition(line int, column int) string {
 	return Catalog.Format(msgs.locale, "statusPosition", map[string]any{"line": line, "column": column})
+}
+
+// StatusSelectedChars says "{count, plural, one {# character selected} other {# characters selected}}"
+// in the language the app shows.
+func StatusSelectedChars(count int) string { return In(i18n.Locale()).StatusSelectedChars(count) }
+
+// StatusSelectedChars says "{count, plural, one {# character selected} other {# characters selected}}"
+// in the language of msgs.
+func (msgs Messages) StatusSelectedChars(count int) string {
+	return Catalog.Format(msgs.locale, "statusSelectedChars", map[string]any{"count": count})
+}
+
+// StatusSelectedLines says "{lines, plural, one {# line} other {# lines}}, {chars, plural, one {# character} other {# characters}} selected"
+// in the language the app shows.
+func StatusSelectedLines(lines int, chars int) string {
+	return In(i18n.Locale()).StatusSelectedLines(lines, chars)
+}
+
+// StatusSelectedLines says "{lines, plural, one {# line} other {# lines}}, {chars, plural, one {# character} other {# characters}} selected"
+// in the language of msgs.
+func (msgs Messages) StatusSelectedLines(lines int, chars int) string {
+	return Catalog.Format(msgs.locale, "statusSelectedLines", map[string]any{"lines": lines, "chars": chars})
 }
 
 // StatusSyntax says "Syntax: {name}"

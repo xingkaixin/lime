@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
@@ -68,6 +70,111 @@ func currentTracked(a *app) bool {
 	return d != nil && a.tracked(d.path)
 }
 
+func currentMarkdown(a *app) bool {
+	d := a.current()
+	return d != nil && d.markdown()
+}
+
+func currentSaved(a *app) bool {
+	d := a.current()
+	return d != nil && d.path != ""
+}
+
+func currentInProject(a *app) bool {
+	d := a.current()
+	return d != nil && d.path != "" && a.proj.holds(d.path)
+}
+
+func currentRevertable(a *app) bool {
+	d := a.current()
+	return d != nil && d.kind == textDoc && d.path != ""
+}
+
+func (a *app) closeOtherTabs(g *group, keep *doc) {
+	for _, d := range slices.Clone(g.docs) {
+		if d != keep {
+			a.closeDoc(d)
+		}
+	}
+}
+
+func (a *app) revealInSideBar(path string) {
+	if path == "" || !a.proj.holds(path) {
+		return
+	}
+	if a.side != filesPanel {
+		a.showPanel(filesPanel)
+	}
+	for _, f := range a.proj.folders {
+		if !within(path, f) {
+			continue
+		}
+		for dir := filepath.Dir(path); within(dir, f); dir = filepath.Dir(dir) {
+			*a.proj.isOpen(dir, true) = true
+			if dir == f {
+				break
+			}
+		}
+		break
+	}
+}
+
+func (a *app) revert(d *doc) {
+	if d == nil || d.kind != textDoc || d.path == "" {
+		return
+	}
+	if !d.dirty() {
+		a.revertDoc(d)
+		return
+	}
+	name := d.name()
+	win := a.win
+	go func() {
+		res, err := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:             win,
+			Type:               mygo.MessageWarning,
+			Message:            locales.DialogRevertFile(name),
+			Detail:             locales.DialogUnsavedLost(),
+			Buttons:            []string{locales.ButtonRevert(), locales.ButtonCancel()},
+			DestructiveButtons: []int{0},
+			CancelButton:       1,
+		})
+		if err == nil && res.Button == 0 && win != nil {
+			win.Update(func() {
+				if gi, _ := a.locate(d); gi >= 0 {
+					a.revertDoc(d)
+				}
+			})
+		}
+	}()
+}
+
+// revertDoc reloads d's file from disk, discarding any unsaved changes.
+func (a *app) revertDoc(d *doc) {
+	if d == nil || d.kind != textDoc || d.path == "" {
+		return
+	}
+	raw, err := readText(d.path)
+	if err != nil {
+		go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(d.path)), err.Error())
+		return
+	}
+	text, enc := reopenText(raw, d.encoding(), a.set.FallbackEncoding)
+	text, ending := splitLines(text)
+	d.enc = enc
+	d.st.Buffer.Set(text)
+	d.setLineEnding(ending)
+	d.savedEnding = ending
+	d.st.Buffer.MarkSaved()
+	d.saved = d.st.Buffer.Snapshot()
+	if d.base == "" || d.saved.Len() > largeFile {
+		d.diffDisk()
+	}
+	a.l.diskChanged(d)
+	d.disk = stampOf(d.path)
+	a.readBases(d)
+}
+
 // convertCase runs cmd, which converts the case of the selections, on
 // them as caseSpans readies them, or as edit does in a diff tab, whose
 // selections MyGo keeps to itself. It gives the editor no key, which would
@@ -114,7 +221,28 @@ func makeCommands() []command {
 		{id: "save", caption: locales.Messages.CmdSave, run: withSource((*app).save)},
 		{id: "prompt_save_as", caption: locales.Messages.CmdSaveAs, run: withSource((*app).saveAs)},
 		{id: "save_all", caption: locales.Messages.CmdSaveAll, run: (*app).saveAll},
+		{id: "revert", caption: locales.Messages.CmdRevertFile, enabled: currentRevertable, run: withDoc((*app).revert)},
 		{id: "close", caption: locales.Messages.CmdClose, run: (*app).closeCurrent},
+		{id: "close_other_tabs", caption: locales.Messages.CmdCloseOtherTabs, enabled: func(a *app) bool { return len(a.group().docs) > 1 }, run: func(a *app) {
+			if d := a.current(); d != nil {
+				a.closeOtherTabs(a.group(), d)
+			}
+		}},
+		{id: "copy_path", caption: locales.Messages.CmdCopyPath, enabled: currentSaved, run: func(a *app) {
+			if d := a.current(); d != nil && d.path != "" {
+				mygo.Clipboard.WriteText(d.path)
+			}
+		}},
+		{id: "reveal_in_side_bar", caption: locales.Messages.CmdRevealInSideBar, enabled: currentInProject, run: func(a *app) {
+			if d := a.current(); d != nil {
+				a.revealInSideBar(d.path)
+			}
+		}},
+		{id: "reveal_in_finder", caption: locales.Messages.CmdRevealInFinder, enabled: currentSaved, run: func(a *app) {
+			if d := a.current(); d != nil && d.path != "" {
+				mygo.Shell.ShowItemInFolder(d.path)
+			}
+		}},
 		{id: "new_window", caption: locales.Messages.CmdNewWindow, run: (*app).openWindow},
 		{id: "close_window", caption: locales.Messages.CmdCloseWindow, run: func(a *app) { a.win.Close() }},
 
@@ -217,8 +345,8 @@ func makeCommands() []command {
 		{id: "compare_with", caption: locales.Messages.CmdCompareWith, run: withDoc((*app).showCompare)},
 		{id: "compare_with_clipboard", caption: locales.Messages.CmdCompareWithClipboard, run: withDoc((*app).compareClipboard)},
 		{id: "diff_changes", caption: locales.Messages.CmdShowUnsavedChanges, run: withDoc((*app).showUnsavedChanges)},
-		{id: "open_markdown_preview", caption: locales.Messages.CmdOpenPreview, run: withDoc(func(a *app, d *doc) { a.openPreview(d, false) })},
-		{id: "open_markdown_preview_to_the_side", caption: locales.Messages.CmdOpenPreviewToTheSide, run: withDoc(func(a *app, d *doc) { a.openPreview(d, true) })},
+		{id: "open_markdown_preview", caption: locales.Messages.CmdOpenPreview, enabled: currentMarkdown, run: withDoc(func(a *app, d *doc) { a.openPreview(d, false) })},
+		{id: "open_markdown_preview_to_the_side", caption: locales.Messages.CmdOpenPreviewToTheSide, enabled: currentMarkdown, run: withDoc(func(a *app, d *doc) { a.openPreview(d, true) })},
 		edit("toggle_comment", locales.Messages.CmdToggleComment, editor.ToggleComment),
 		edit("toggle_block_comment", locales.Messages.CmdToggleBlockComment, editor.ToggleBlockComment),
 		edit("split_selection_into_lines", locales.Messages.CmdSplitSelection, editor.SplitSelectionIntoLines),
@@ -252,8 +380,8 @@ func makeCommands() []command {
 		edit("delete_to_eol", nil, editor.DeleteToLineEnd),
 		edit("delete_to_bol", nil, editor.DeleteToLineStart),
 		edit("show_at_center", nil, editor.ScrollCursorCenter),
-		edit("find_next", nil, editor.FindNext),
-		edit("find_prev", nil, editor.FindPrevious),
+		{id: "find_next", run: func(a *app) { a.findStep(editor.FindNext) }},
+		{id: "find_prev", run: func(a *app) { a.findStep(editor.FindPrevious) }},
 		{id: "find_under_expand", run: quickFind(func(st *editor.State) { st.Run(editor.SelectNext) })},
 		{id: "find_all_under", run: quickFind(func(st *editor.State) { st.Run(editor.SelectAllMatches) })},
 		{id: "find_under_expand_skip", run: quickFind(skipNext)},
@@ -446,8 +574,9 @@ func (a *app) formatJSON(st *editor.State, minify bool) {
 	for _, sp := range spans {
 		// The white space around the JSON stays, as a file's final newline.
 		src := t.Slice(sp[0], sp[1])
-		lead := len(src) - len(strings.TrimLeft(src, " \t\r\n"))
-		src = strings.TrimSpace(src)
+		trimmed := strings.TrimLeftFunc(src, unicode.IsSpace)
+		lead := len(src) - len(trimmed)
+		src = strings.TrimRightFunc(trimmed, unicode.IsSpace)
 		at := sp[0] + lead
 		var out bytes.Buffer
 		var err error
