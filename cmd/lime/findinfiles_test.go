@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -11,6 +13,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/encoding/unicode"
 
 	"lime/locales"
 )
@@ -113,7 +117,7 @@ func TestReplaceInFiles(t *testing.T) {
 
 	a.fif.query, a.fif.regex, a.fif.where = `foo\((\d)\)`, true, openFolders
 	m, sc, open, ctx := a.prepareSearch(&a.fif.replacing)
-	res := searchFiles(ctx, m, sc, open, math.MaxInt)
+	res := searchFiles(ctx, m, sc, open, a.set.FallbackEncoding, math.MaxInt)
 	if res.matches != 4 || len(res.files) != 2 {
 		t.Fatalf("found %d matches in %d files, want 4 in 2", res.matches, len(res.files))
 	}
@@ -147,7 +151,7 @@ func TestReplaceInLinkedFile(t *testing.T) {
 	d.st.Buffer.Set("foo\nunsaved foo\n")
 	a.fif.query, a.fif.where = "foo", openFolders
 	m, sc, open, ctx := a.prepareSearch(&a.fif.replacing)
-	res := searchFiles(ctx, m, sc, open, math.MaxInt)
+	res := searchFiles(ctx, m, sc, open, a.set.FallbackEncoding, math.MaxInt)
 	a.replaceFound(m, "bar", res)
 	if got := d.st.Buffer.String(); a.docCount() != 1 || got != "bar\nunsaved bar\n" {
 		t.Fatalf("%d tabs, AGENTS.md %q; want one tab with both replaced", a.docCount(), got)
@@ -227,5 +231,139 @@ func TestMatcherRegexZeroWidthAndAnchors(t *testing.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("query=%q text=%q:\n got  %v\n want %v", tc.query, tc.text[:min(len(tc.text), 40)], got, want)
 		}
+	}
+}
+
+func TestFindInFilesGitignore(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		".gitignore":               "# comment\n*.log\n!keep.log\nbuild/\n/rootonly.txt\ndocs/**/draft.md\n",
+		"main.go":                  "needle\n",
+		"skip.log":                 "needle\n",
+		"keep.log":                 "needle\n",
+		"build/out.txt":            "needle\n",
+		"rootonly.txt":             "needle\n",
+		"sub/.gitignore":           "*.tmp\n!allow.log\n",
+		"sub/rootonly.txt":         "needle\n",
+		"sub/a.tmp":                "needle\n",
+		"sub/allow.log":            "needle\n",
+		"sub/other.log":            "needle\n",
+		"other/b.tmp":              "needle\n",
+		"docs/a/b/draft.md":        "needle\n",
+		"docs/draft.md":            "needle\n",
+		"docs/a/final.md":          "needle\n",
+	}
+	for name, content := range files {
+		p := filepath.Join(dir, name)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte(content), 0o644)
+	}
+	m, err := newMatcher("needle", false, true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := searchFiles(context.Background(), m, scope{paths: []string{dir}}, nil, defaultFallback, maxResults)
+	var got []string
+	for _, fh := range res.files {
+		rel, _ := filepath.Rel(dir, fh.src.path)
+		got = append(got, filepath.ToSlash(rel))
+	}
+	want := []string{
+		"docs/a/final.md",
+		"keep.log",
+		"main.go",
+		"other/b.tmp",
+		"sub/allow.log",
+		"sub/rootonly.txt",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("gitignore matched files:\n got  %v\n want %v", got, want)
+	}
+
+	// Explicit file path and <open files> remain searchable even if ignored.
+	skipLog := filepath.Join(dir, "skip.log")
+	resExplicit := searchFiles(context.Background(), m, scope{paths: []string{skipLog}}, nil, defaultFallback, maxResults)
+	if resExplicit.matches != 1 || len(resExplicit.files) != 1 {
+		t.Fatalf("explicit ignored file: got %d matches in %d files, want 1 in 1", resExplicit.matches, len(resExplicit.files))
+	}
+	a := newApp("")
+	a.open([]string{skipLog})
+	a.fif.query, a.fif.where = "needle", openFiles
+	m2, sc2, open2, ctx2 := a.prepareSearch(&a.fif.finding)
+	resOpen := searchFiles(ctx2, m2, sc2, open2, a.set.FallbackEncoding, maxResults)
+	if resOpen.matches != 1 {
+		t.Fatalf("<open files> ignored file: got %d matches, want 1", resOpen.matches)
+	}
+}
+
+func TestFindInFilesEncodingsAndLimits(t *testing.T) {
+	dir := t.TempDir()
+
+	utf16le, err := unicode.UTF16(unicode.LittleEndian, unicode.UseBOM).NewEncoder().Bytes([]byte("hello 世界\r\nsecond\r\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	utf16be, err := unicode.UTF16(unicode.BigEndian, unicode.UseBOM).NewEncoder().Bytes([]byte("hello 世界\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gbkBytes, err := simplifiedchinese.GBK.NewEncoder().Bytes([]byte("你好 世界\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "a_utf16le.txt"), utf16le, 0o644)
+	os.WriteFile(filepath.Join(dir, "b_utf16be.txt"), utf16be, 0o644)
+	os.WriteFile(filepath.Join(dir, "c_gbk.txt"), gbkBytes, 0o644)
+	os.WriteFile(filepath.Join(dir, "d_cr.txt"), []byte("one\r世界\rthree\r"), 0o644)
+
+	hugePath := filepath.Join(dir, "e_huge.log")
+	f, err := os.Create(hugePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.WriteString("世界\n")
+	if err := f.Truncate(largeFile + 1); err != nil {
+		f.Close()
+		t.Fatal(err)
+	}
+	f.Close()
+
+	m, err := newMatcher("世界$", true, true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := searchFiles(context.Background(), m, scope{paths: []string{dir}}, nil, "GBK", maxResults)
+	if res.searched != 4 || res.matches != 4 || len(res.files) != 4 {
+		t.Fatalf("encoding search: searched=%d matches=%d files=%d, want 4/4/4", res.searched, res.matches, len(res.files))
+	}
+	// Verify classic Mac CR line number is line 1 (0-based), not line 0.
+	if gotLine := res.files[3].lines[0].line; gotLine != 1 {
+		t.Fatalf("CR file line = %d, want 1", gotLine)
+	}
+}
+
+func TestFindInFilesParallelOrderAndLimit(t *testing.T) {
+	dir := t.TempDir()
+	for i := range 40 {
+		name := fmt.Sprintf("file_%02d.txt", i)
+		os.WriteFile(filepath.Join(dir, name), []byte("hit hit\n"), 0o644)
+	}
+	m, _ := newMatcher("hit", false, true, false)
+	res := searchFiles(context.Background(), m, scope{paths: []string{dir}}, nil, defaultFallback, 15)
+	if res.matches != 15 {
+		t.Fatalf("matches = %d, want 15", res.matches)
+	}
+	if len(res.files) != 8 {
+		t.Fatalf("files = %d, want 8", len(res.files))
+	}
+	for i, fh := range res.files {
+		want := fmt.Sprintf("file_%02d.txt", i)
+		if filepath.Base(fh.src.path) != want {
+			t.Fatalf("file[%d] = %q, want %q", i, filepath.Base(fh.src.path), want)
+		}
+	}
+	// Last file must be trimmed to 1 match so total is exactly 15.
+	if got := len(res.files[7].lines[0].spans); got != 1 {
+		t.Fatalf("last file spans = %d, want 1", got)
 	}
 }

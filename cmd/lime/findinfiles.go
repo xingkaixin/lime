@@ -8,11 +8,14 @@ import (
 	"io/fs"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"regexp/syntax"
+	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -573,86 +576,405 @@ type found struct {
 	matches  int
 }
 
-// searchFiles looks for m in sc until ctx is done or it finds limit
-// matches, in the text of the open files' tabs rather than on disk. It
-// blocks, so call it off the main thread.
-func searchFiles(ctx context.Context, m *matcher, sc scope, open []source, limit int) found {
-	var res found
-	// Files are told apart by their real paths: a link to a file, as
-	// CLAUDE.md to AGENTS.md, is the file, whose tab has its text.
-	seen := make(map[string]bool)
-	byReal := make(map[string]source)
-	for _, s := range open {
-		if s.path != "" {
-			byReal[realPath(s.path)] = s
+type fifTask struct {
+	seq int
+	src source
+}
+
+type fifResult struct {
+	seq     int
+	src     source
+	ok      bool
+	lines   []lineHit
+	matches int
+}
+
+func fifTrimHits(lines []lineHit, rem int) []lineHit {
+	var out []lineHit
+	for _, l := range lines {
+		if rem <= 0 {
+			break
 		}
-	}
-	look := func(s source, real string) bool {
-		if real != "" {
-			if seen[real] {
-				return true
-			}
-			seen[real] = true
-		}
-		var text string
-		var ok bool
-		if s.d != nil {
-			text = s.text.String()
-			ok = !binary(text)
+		if len(l.spans) <= rem {
+			out = append(out, l)
+			rem -= len(l.spans)
 		} else {
-			text, ok = readSearched(s.path)
-		}
-		if !ok {
-			return true
-		}
-		res.searched++
-		lines, n := m.lines(text, limit-res.matches)
-		if n > 0 {
-			res.files = append(res.files, fileHits{s, lines})
-			res.matches += n
-		}
-		return res.matches < limit
-	}
-	for _, p := range sc.paths {
-		if p == openFiles {
-			for _, s := range open {
-				if ctx.Err() != nil || sc.wants(filepath.Base(s.name)) && !look(s, realPath(s.path)) {
-					return res
-				}
-			}
-			continue
-		}
-		more, root := true, realPath(p)
-		filepath.WalkDir(p, func(path string, e fs.DirEntry, err error) error {
-			if !more || ctx.Err() != nil {
-				return filepath.SkipAll
-			}
-			if err != nil {
-				return nil
-			}
-			switch name := e.Name(); {
-			case e.IsDir():
-				if path != p && (excluded(name, folderExclude) || excluded(name, sc.exclude)) {
-					return filepath.SkipDir
-				}
-			case !regular(path, e.Type()):
-			case sc.wants(name) && !excluded(name, fileExclude) && !excluded(name, binaryFiles):
-				real := root + path[len(p):]
-				if e.Type()&fs.ModeSymlink != 0 {
-					real = realPath(path)
-				}
-				s, ok := byReal[real]
-				if !ok {
-					s = source{name: path, path: path}
-				}
-				more = look(s, real)
-			}
-			return nil
-		})
-		if !more || ctx.Err() != nil {
+			l.spans = l.spans[:rem]
+			out = append(out, l)
 			break
 		}
 	}
+	return out
+}
+
+type fifIgnoreRule struct {
+	pattern  string
+	negate   bool
+	dirOnly  bool
+	anchored bool
+}
+
+type fifIgnoreLayer struct {
+	dir   string
+	rules []fifIgnoreRule
+}
+
+// fifIgnore matches paths against stacked .gitignore files while walking a
+// directory tree depth-first.
+type fifIgnore struct {
+	layers []fifIgnoreLayer
+}
+
+func newFifIgnore(root string) *fifIgnore {
+	ig := &fifIgnore{}
+	var ancestors []string
+	for dir := filepath.Dir(root); ; {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			ancestors = append(ancestors, dir)
+			for i := len(ancestors) - 1; i >= 0; i-- {
+				ig.load(ancestors[i])
+			}
+			break
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		ancestors = append(ancestors, dir)
+		dir = parent
+	}
+	return ig
+}
+
+func (ig *fifIgnore) load(dir string) {
+	data, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
+	if err != nil {
+		return
+	}
+	if rules := fifParseIgnore(string(data)); len(rules) > 0 {
+		ig.layers = append(ig.layers, fifIgnoreLayer{dir: dir, rules: rules})
+	}
+}
+
+func (ig *fifIgnore) prune(p string) {
+	for len(ig.layers) > 0 && !fifIsUnder(p, ig.layers[len(ig.layers)-1].dir) {
+		ig.layers = ig.layers[:len(ig.layers)-1]
+	}
+}
+
+func (ig *fifIgnore) ignored(p string, isDir bool) bool {
+	ignored := false
+	for _, layer := range ig.layers {
+		rel := strings.TrimPrefix(p[len(layer.dir):], string(filepath.Separator))
+		if rel == "" {
+			continue
+		}
+		rel = filepath.ToSlash(rel)
+		base := path.Base(rel)
+		for _, r := range layer.rules {
+			if r.dirOnly && !isDir {
+				continue
+			}
+			var matched bool
+			if r.anchored {
+				matched = fifMatchGlob(r.pattern, rel)
+			} else {
+				matched = fifMatchSegment(r.pattern, base)
+			}
+			if matched {
+				ignored = !r.negate
+			}
+		}
+	}
+	return ignored
+}
+
+func fifIsUnder(p, dir string) bool {
+	if p == dir {
+		return true
+	}
+	if strings.HasSuffix(dir, string(filepath.Separator)) {
+		return strings.HasPrefix(p, dir)
+	}
+	return strings.HasPrefix(p, dir) && len(p) > len(dir) && p[len(dir)] == filepath.Separator
+}
+
+func fifParseIgnore(content string) []fifIgnoreRule {
+	var rules []fifIgnoreRule
+	for line := range strings.SplitSeq(content, "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		line = fifTrimTrailingSpaces(line)
+		if line == "" || line[0] == '#' {
+			continue
+		}
+		negate := false
+		if line[0] == '!' {
+			negate = true
+			line = line[1:]
+		}
+		dirOnly := strings.HasSuffix(line, "/")
+		if dirOnly {
+			line = strings.TrimRight(line, "/")
+		}
+		if line == "" {
+			continue
+		}
+		anchored := strings.HasPrefix(line, "/")
+		if anchored {
+			line = strings.TrimLeft(line, "/")
+		} else if strings.Contains(line, "/") {
+			anchored = true
+		}
+		if line == "" {
+			continue
+		}
+		rules = append(rules, fifIgnoreRule{
+			pattern:  line,
+			negate:   negate,
+			dirOnly:  dirOnly,
+			anchored: anchored,
+		})
+	}
+	return rules
+}
+
+func fifTrimTrailingSpaces(s string) string {
+	for len(s) > 0 && s[len(s)-1] == ' ' {
+		bs := 0
+		for i := len(s) - 2; i >= 0 && s[i] == '\\'; i-- {
+			bs++
+		}
+		if bs%2 == 1 {
+			break
+		}
+		s = s[:len(s)-1]
+	}
+	return s
+}
+
+func fifMatchSegment(pat, name string) bool {
+	ok, err := path.Match(pat, name)
+	return err == nil && ok
+}
+
+func fifMatchGlob(pat, rel string) bool {
+	if !strings.Contains(pat, "**") {
+		return fifMatchSegment(pat, rel)
+	}
+	return fifMatchSegments(strings.Split(pat, "/"), strings.Split(rel, "/"))
+}
+
+func fifMatchSegments(pat, name []string) bool {
+	pi, ni := 0, 0
+	starP, starN := -1, -1
+	for ni < len(name) {
+		if pi < len(pat) && pat[pi] == "**" {
+			starP, starN = pi, ni
+			pi++
+		} else if pi < len(pat) && fifMatchSegment(pat[pi], name[ni]) {
+			pi++
+			ni++
+		} else if starP >= 0 {
+			pi = starP + 1
+			starN++
+			ni = starN
+		} else {
+			return false
+		}
+	}
+	return pi == len(pat)
+}
+
+// searchFiles looks for m in sc until ctx is done or it finds limit
+// matches, in the text of the open files' tabs rather than on disk. It
+// blocks, so call it off the main thread.
+func searchFiles(ctx context.Context, m *matcher, sc scope, open []source, fallback string, limit int) found {
+	var res found
+	if limit <= 0 || ctx.Err() != nil {
+		return res
+	}
+	searchCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	workers := max(runtime.GOMAXPROCS(0), 1)
+	tasks := make(chan fifTask, workers*4)
+	results := make(chan fifResult, workers*4)
+	sem := make(chan struct{}, workers*8)
+
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for task := range tasks {
+				if searchCtx.Err() != nil {
+					return
+				}
+				var text string
+				var ok bool
+				if task.src.d != nil {
+					text = task.src.text.String()
+					ok = !binary(text)
+				} else {
+					text, ok = readSearched(task.src.path, fallback)
+				}
+				r := fifResult{seq: task.seq, src: task.src, ok: ok}
+				if ok && searchCtx.Err() == nil {
+					r.lines, r.matches = m.lines(text, limit)
+				}
+				select {
+				case results <- r:
+				case <-searchCtx.Done():
+					return
+				}
+			}
+		}()
+	}
+
+	walkDone := make(chan struct{})
+	go func() {
+		defer close(walkDone)
+		defer close(tasks)
+		// Files are told apart by their real paths: a link to a file, as
+		// CLAUDE.md to AGENTS.md, is the file, whose tab has its text.
+		seen := make(map[string]bool)
+		byReal := make(map[string]source)
+		for _, s := range open {
+			if s.path != "" {
+				byReal[realPath(s.path)] = s
+			}
+		}
+		seq := 0
+		dispatch := func(s source, real string) bool {
+			if real != "" {
+				if seen[real] {
+					return true
+				}
+				seen[real] = true
+			}
+			select {
+			case sem <- struct{}{}:
+			case <-searchCtx.Done():
+				return false
+			}
+			t := fifTask{seq: seq, src: s}
+			seq++
+			select {
+			case tasks <- t:
+				return true
+			case <-searchCtx.Done():
+				return false
+			}
+		}
+		for _, p := range sc.paths {
+			if searchCtx.Err() != nil {
+				return
+			}
+			if p == openFiles {
+				for _, s := range open {
+					if searchCtx.Err() != nil {
+						return
+					}
+					if sc.wants(filepath.Base(s.name)) && !dispatch(s, realPath(s.path)) {
+						return
+					}
+				}
+				continue
+			}
+			fi, err := os.Stat(p)
+			if err != nil {
+				continue
+			}
+			root := realPath(p)
+			if !fi.IsDir() {
+				if fi.Mode().IsRegular() {
+					name := filepath.Base(p)
+					if sc.wants(name) && !excluded(name, fileExclude) && !excluded(name, binaryFiles) {
+						s, ok := byReal[root]
+						if !ok {
+							s = source{name: p, path: p}
+						}
+						if !dispatch(s, root) {
+							return
+						}
+					}
+				}
+				continue
+			}
+			ig := newFifIgnore(p)
+			filepath.WalkDir(p, func(path string, e fs.DirEntry, err error) error {
+				if searchCtx.Err() != nil {
+					return filepath.SkipAll
+				}
+				if err != nil {
+					return nil
+				}
+				ig.prune(path)
+				switch name := e.Name(); {
+				case e.IsDir():
+					if path != p && (excluded(name, folderExclude) || excluded(name, sc.exclude) || ig.ignored(path, true)) {
+						return filepath.SkipDir
+					}
+					ig.load(path)
+				case !regular(path, e.Type()):
+				case sc.wants(name) && !excluded(name, fileExclude) && !excluded(name, binaryFiles) && !ig.ignored(path, false):
+					real := root + path[len(p):]
+					if e.Type()&fs.ModeSymlink != 0 {
+						real = realPath(path)
+					}
+					s, ok := byReal[real]
+					if !ok {
+						s = source{name: path, path: path}
+					}
+					if !dispatch(s, real) {
+						return filepath.SkipAll
+					}
+				}
+				return nil
+			})
+		}
+	}()
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	pending := make(map[int]fifResult)
+	nextSeq := 0
+collect:
+	for r := range results {
+		pending[r.seq] = r
+		for {
+			cur, ok := pending[nextSeq]
+			if !ok {
+				break
+			}
+			delete(pending, nextSeq)
+			nextSeq++
+			<-sem
+			if !cur.ok {
+				continue
+			}
+			res.searched++
+			if cur.matches > 0 {
+				if res.matches+cur.matches <= limit {
+					res.files = append(res.files, fileHits{cur.src, cur.lines})
+					res.matches += cur.matches
+				} else {
+					res.files = append(res.files, fileHits{cur.src, fifTrimHits(cur.lines, limit-res.matches)})
+					res.matches = limit
+				}
+			}
+			if res.matches >= limit {
+				cancel()
+				break collect
+			}
+		}
+	}
+	cancel()
+	<-walkDone
+	wg.Wait()
 	return res
 }
 
@@ -674,26 +996,47 @@ func regular(path string, t fs.FileMode) bool {
 	return t.IsRegular()
 }
 
-// readSearched reads the file at path as its tab would have it, \r\n as
-// \n, unless it is binary: a NUL in its first 8000 bytes, as fileKind
-// tells, read before the rest.
-func readSearched(path string) (string, bool) {
+// readSearched reads the file at path as its tab would have it, decoded
+// with fallback and with \r\n and \r normalized to \n, skipping files
+// larger than largeFile or binary files.
+func readSearched(path, fallback string) (string, bool) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", false
 	}
 	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil || fi.Size() > largeFile {
+		return "", false
+	}
 	head := make([]byte, 8000)
-	n, _ := io.ReadFull(f, head)
-	if bytes.IndexByte(head[:n], 0) >= 0 {
+	n, err := io.ReadFull(f, head)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return "", false
+	}
+	hasUTF16BOM := n >= 2 && ((head[0] == 0xff && head[1] == 0xfe) || (head[0] == 0xfe && head[1] == 0xff))
+	if !hasUTF16BOM && bytes.IndexByte(head[:n], 0) >= 0 {
 		return "", false
 	}
 	var b strings.Builder
+	if fi.Size() > 0 {
+		b.Grow(int(fi.Size()))
+	}
 	b.Write(head[:n])
-	if _, err := io.Copy(&b, f); err != nil {
+	if n == len(head) {
+		if _, err := io.Copy(&b, io.LimitReader(f, largeFile-int64(n)+1)); err != nil || int64(b.Len()) > largeFile {
+			return "", false
+		}
+	}
+	text, _ := openText(b.String(), fallback)
+	if hasUTF16BOM && binary(text) {
 		return "", false
 	}
-	return strings.ReplaceAll(b.String(), "\r\n", "\n"), true
+	text, ending := splitLines(text)
+	if ending == "\r\n" {
+		text = strings.ReplaceAll(text, "\r\n", "\n")
+	}
+	return text, true
 }
 
 // prepareSearch makes the matcher of the panel's query and the sources of
@@ -733,9 +1076,9 @@ func (a *app) searchInFiles() {
 	f.open = false
 	d := a.resultsTab()
 	d.results.show(d, locales.FindResultsSearching(f.query)+"\n", nil, nil)
-	query, opts := f.query, searchOptions(f)
+	query, opts, fallback := f.query, searchOptions(f), a.set.FallbackEncoding
 	a.background(func() func() {
-		res := searchFiles(ctx, m, sc, open, maxResults)
+		res := searchFiles(ctx, m, sc, open, fallback, maxResults)
 		return func() {
 			if !f.finding.finish(ctx) {
 				return
@@ -754,9 +1097,9 @@ func (a *app) replaceInFiles() {
 	if m == nil {
 		return
 	}
-	with := f.replace
+	with, fallback := f.replace, a.set.FallbackEncoding
 	a.background(func() func() {
-		res := searchFiles(ctx, m, sc, open, math.MaxInt)
+		res := searchFiles(ctx, m, sc, open, fallback, math.MaxInt)
 		return func() {
 			if !f.replacing.finish(ctx) {
 				return
