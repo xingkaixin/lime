@@ -86,9 +86,11 @@ func newKeymap(changes []keyChange) *keymap {
 		}
 		keys := []appKey{}
 		for _, s := range ch.Keys {
-			if k, ok := parseKey(s); ok && !slices.Contains(keys, k) {
+			if k, ok := parseKey(s); ok {
 				k.id = ch.Command
-				keys = append(keys, k)
+				if !slices.Contains(keys, k) {
+					keys = append(keys, k)
+				}
 			}
 		}
 		km.keys[ch.Command], km.changed[ch.Command] = keys, true
