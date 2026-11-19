@@ -59,11 +59,26 @@ func readRepo(dir string) gitRepo {
 	return r
 }
 
-// gitDir is the folder whose repository the side bar shows: the
-// project's, while it has one folder.
+// gitDir is the folder whose repository the side bar shows: the project's
+// folder, or when a project has several, the one holding the active file,
+// falling back to the first.
 func (a *app) gitDir() string {
-	if len(a.proj.folders) != 1 {
+	switch len(a.proj.folders) {
+	case 0:
 		return ""
+	case 1:
+		return a.proj.folders[0]
+	}
+	if d := a.current(); d != nil && d.path != "" {
+		best := ""
+		for _, f := range a.proj.folders {
+			if within(d.path, f) && len(f) > len(best) {
+				best = f
+			}
+		}
+		if best != "" {
+			return best
+		}
 	}
 	return a.proj.folders[0]
 }
@@ -125,30 +140,68 @@ func (a *app) background(work func() func()) {
 // and the branch as it left them, or what it said of a failure.
 func (a *app) gitRun(args ...string) { a.gitRunWith("", nil, args...) }
 
-// gitWrites lets one git that gitRun runs write at a time: two at once,
-// as check boxes clicked quickly start, would meet on index.lock.
-var gitWrites sync.Mutex
+// repoLocks lets one git write run at a time per repository root: two at
+// once, as check boxes clicked quickly start, would meet on index.lock,
+// while writes in different repositories do not block one another.
+var (
+	repoLocksMu sync.Mutex
+	repoLocks   = map[string]*sync.Mutex{}
+)
+
+func repoLock(dir string) *sync.Mutex {
+	key := filepath.Clean(dir)
+	repoLocksMu.Lock()
+	defer repoLocksMu.Unlock()
+	mu := repoLocks[key]
+	if mu == nil {
+		mu = &sync.Mutex{}
+		repoLocks[key] = mu
+	}
+	return mu
+}
 
 // gitRunWith runs git as gitRun does, with input on its standard input,
 // and done after it succeeds.
 func (a *app) gitRunWith(input string, done func(), args ...string) {
-	dir := a.git.root
+	a.gitRunIn(a.git.root, input, done, args...)
+}
+
+// gitRunIn runs git in dir, with input on its standard input, and done
+// after it succeeds.
+func (a *app) gitRunIn(dir, input string, done func(), args ...string) {
+	a.gitRunFinish(dir, input, func(err error) {
+		if err == nil && done != nil {
+			done()
+		}
+	}, args...)
+}
+
+func (a *app) gitRunFinish(dir, input string, finish func(error), args ...string) {
 	a.background(func() func() {
-		gitWrites.Lock()
+		mu := repoLock(dir)
+		mu.Lock()
 		_, err := gitWith(dir, input, args...)
-		gitWrites.Unlock()
+		mu.Unlock()
 		return func() {
 			if err != nil {
 				msg, _, _ := strings.Cut(err.Error(), "\n")
 				a.notifyError(msg)
-			} else if done != nil {
-				done()
+			}
+			if finish != nil {
+				finish(err)
 			}
 			a.refreshFolders()
 			for _, w := range a.l.wins {
 				w.reloadChanged()
 			}
 			a.readGit()
+			if dir != "" && dir != a.git.root {
+				for _, d := range a.allDocs() {
+					if cv := d.commit; cv != nil && cv.worktree() && cv.root == dir {
+						a.loadCommit(cv)
+					}
+				}
+			}
 		}
 	})
 }
@@ -330,10 +383,11 @@ func (a *app) deleteBranch(name string, force bool) {
 		flag = "-D"
 	}
 	a.background(func() func() {
-		gitWrites.Lock()
+		mu := repoLock(dir)
+		mu.Lock()
 		// The advice names -D, which tells a branch not merged.
 		out, err := gitWith(dir, "", "-c", "advice.forceDeleteBranch=true", "branch", flag, "--", name)
-		gitWrites.Unlock()
+		mu.Unlock()
 		return func() {
 			switch {
 			case err == nil:

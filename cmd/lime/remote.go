@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -10,9 +12,23 @@ import (
 	"lime/locales"
 )
 
+var remoteTimeout = 60 * time.Second
+
 func (a *app) push()  { a.remoteRun(locales.StatusPushing(), "push") }
 func (a *app) pull()  { a.remoteRun(locales.StatusPulling(), "pull") }
 func (a *app) fetch() { a.remoteRun(locales.StatusFetching(), "fetch") }
+
+// defaultRemote returns the first configured remote in dir, falling back to
+// "origin" when none is listed.
+func defaultRemote(ctx context.Context, dir string) string {
+	out, err := gitWithContext(ctx, dir, "", "remote")
+	if err == nil {
+		if name, _, _ := strings.Cut(strings.TrimSpace(out), "\n"); name != "" {
+			return strings.TrimSpace(name)
+		}
+	}
+	return "origin"
+}
 
 // remoteRun runs git with the remote in the background, one at a time,
 // which the status bar tells of until it ends, and shows what git says
@@ -26,22 +42,26 @@ func (a *app) remoteRun(status, command string) {
 	// Only pull writes the index and the work tree.
 	lock := command == "pull"
 	a.background(func() func() {
+		ctx, cancel := context.WithTimeout(context.Background(), remoteTimeout)
+		defer cancel()
 		args := []string{command}
 		if command == "push" {
-			if head, err := runGit(dir, "symbolic-ref", "--quiet", "HEAD"); err == nil {
+			if head, err := gitWithContext(ctx, dir, "", "symbolic-ref", "--quiet", "HEAD"); err == nil {
 				branch := strings.TrimPrefix(strings.TrimSpace(head), "refs/heads/")
 				// Pruning the tracking ref can leave the upstream configured.
-				if _, err := runGit(dir, "config", "--get", "branch."+branch+".merge"); err != nil {
-					args = append(args, "-u", "origin", "HEAD")
+				if _, err := gitWithContext(ctx, dir, "", "config", "--get", "branch."+branch+".merge"); err != nil {
+					args = append(args, "-u", defaultRemote(ctx, dir), "HEAD")
 				}
 			}
 		}
+		var err error
 		if lock {
-			gitWrites.Lock()
-		}
-		_, err := runGit(dir, args...)
-		if lock {
-			gitWrites.Unlock()
+			mu := repoLock(dir)
+			mu.Lock()
+			_, err = gitWithContext(ctx, dir, "", args...)
+			mu.Unlock()
+		} else {
+			_, err = gitWithContext(ctx, dir, "", args...)
 		}
 		return func() {
 			a.remote = ""
