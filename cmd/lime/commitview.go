@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -127,7 +129,7 @@ func (a *app) showCommitIn(root string, cm commit) *commitView {
 // loadCommit reads cv's message and files, again for the work tree's,
 // whose files stay folded as they were.
 func (a *app) loadCommit(cv *commitView) {
-	root, hash := cv.root, cv.hash
+	root, hash, fallback := cv.root, cv.hash, a.set.FallbackEncoding
 	cv.gen++
 	gen := cv.gen
 	a.background(func() func() {
@@ -136,7 +138,7 @@ func (a *app) loadCommit(cv *commitView) {
 		if hash != stagedChanges && hash != unstagedChanges && runtime.GOOS != "js" {
 			wg.Go(func() { github, _ = githubRepo(root) })
 		}
-		body, files := readCommit(root, hash)
+		body, files := readCommit(root, hash, fallback)
 		wg.Wait()
 		return func() {
 			if cv.gen != gen {
@@ -158,7 +160,7 @@ func (a *app) loadCommit(cv *commitView) {
 
 // readCommit reads the message of hash and the files it changes, with
 // their hunks and texts. It blocks, so call it off the main thread.
-func readCommit(root, hash string) (string, []*commitFile) {
+func readCommit(root, hash, fallback string) (string, []*commitFile) {
 	var body string
 	var changes []change
 	// Porcelain, unlike diff-tree, reads the user's diff settings, but
@@ -200,11 +202,18 @@ func readCommit(root, hash string) (string, []*commitFile) {
 		files = append(files, f)
 		// The work tree's untracked files are in no diff.
 		if !ok && ch.status == '?' {
-			text, _ := readText(filepath.Join(root, filepath.FromSlash(ch.path)))
-			f.binary, f.folded = binary(text), binary(text)
-			if !f.binary {
-				f.new = splitText(text, ch.path)
-				f.hunks = addedHunk(f.new.lines)
+			raw, oversized := readBoundedText(filepath.Join(root, filepath.FromSlash(ch.path)), largeFile)
+			if oversized {
+				f.folded = true
+			} else if !hasUTF16BOM(raw) && binary(raw) {
+				f.binary, f.folded = true, true
+			} else {
+				text, _ := openText(raw, fallback)
+				f.binary, f.folded = binary(text), binary(text)
+				if !f.binary {
+					f.new = splitText(text, ch.path)
+					f.hunks = addedHunk(f.new.lines)
+				}
 			}
 		}
 		if f.binary || !ok {
@@ -227,9 +236,17 @@ func readCommit(root, hash string) (string, []*commitFile) {
 		if hash == unstagedChanges {
 			newText = ""
 			if f.status != 'D' {
-				newText, _ = readText(filepath.Join(root, filepath.FromSlash(f.path)))
+				raw, oversized := readBoundedText(filepath.Join(root, filepath.FromSlash(f.path)), largeFile)
+				if oversized {
+					f.folded, f.hunks = true, nil
+					continue
+				}
+				newText, _ = openText(raw, fallback)
 			}
+		} else {
+			newText, _ = openText(newText, fallback)
 		}
+		oldText, _ = openText(oldText, fallback)
 		f.old, f.new = splitText(oldText, f.path), splitText(newText, f.path)
 	}
 	for _, f := range files {
@@ -245,6 +262,37 @@ func readCommit(root, hash string) (string, []*commitFile) {
 		}
 	}
 	return strings.TrimSpace(body), files
+}
+
+// readBoundedText reads up to limit bytes of path as a string. It reports
+// oversized when the file exceeds limit bytes, without reading past it.
+func readBoundedText(path string, limit int64) (string, bool) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", false
+	}
+	defer f.Close()
+	var b strings.Builder
+	if fi, err := f.Stat(); err == nil {
+		if fi.Size() > limit {
+			return "", true
+		}
+		if fi.Size() > 0 {
+			b.Grow(int(fi.Size()))
+		}
+	}
+	n, err := io.Copy(&b, io.LimitReader(f, limit+1))
+	if err != nil {
+		return "", false
+	}
+	if n > limit {
+		return "", true
+	}
+	return b.String(), false
+}
+
+func hasUTF16BOM(s string) bool {
+	return strings.HasPrefix(s, "\xff\xfe") || strings.HasPrefix(s, "\xfe\xff")
 }
 
 // addedHunk is the hunk of a file added with lines.
@@ -665,10 +713,10 @@ func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
 			button(locales.ButtonDiscard(), func() {
 				h := f.hunks[i]
 				a.confirm(locales.DialogDiscardHunk(filepath.Base(f.path)), locales.DialogDiscardLost(), locales.ButtonDiscard(),
-					func() { a.discardHunk(f.path, h) })
+					func() { a.discardHunkIn(cv.root, f.path, h) })
 			})
 		}
-		button(label, func() { a.stageHunk(f.path, f.hunks[i], unstage) })
+		button(label, func() { a.stageHunkIn(cv.root, f.path, f.hunks[i], unstage) })
 	})
 }
 
@@ -676,17 +724,25 @@ func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
 // Its start on the index's side is where it is there, as its tab diffs
 // the index with HEAD or with the work tree, so it applies alone.
 func (a *app) stageHunk(p string, h editor.PatchHunk, unstage bool) {
+	a.stageHunkIn(a.git.root, p, h, unstage)
+}
+
+func (a *app) stageHunkIn(root, p string, h editor.PatchHunk, unstage bool) {
 	args := []string{"apply", "--cached", "--recount"}
 	if unstage {
 		args = append(args, "--reverse")
 	}
-	a.gitRunWith(hunkPatch(p, h), nil, append(args, "-")...)
+	a.gitRunIn(root, hunkPatch(p, h), nil, append(args, "-")...)
 }
 
 // discardHunk takes h, of the unstaged changes of the file at p, out of
 // the work tree.
 func (a *app) discardHunk(p string, h editor.PatchHunk) {
-	a.gitRunWith(hunkPatch(p, h), nil, "apply", "--recount", "--reverse", "-")
+	a.discardHunkIn(a.git.root, p, h)
+}
+
+func (a *app) discardHunkIn(root, p string, h editor.PatchHunk) {
+	a.gitRunIn(root, hunkPatch(p, h), nil, "apply", "--recount", "--reverse", "-")
 }
 
 func hunkPatch(p string, h editor.PatchHunk) string {
