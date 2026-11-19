@@ -536,6 +536,24 @@ func TestFindInFilesContextAndScope(t *testing.T) {
 	if !fifMatchGlob(fifIgnorePattern("file[!]].txt"), "filea.txt") || fifMatchGlob(fifIgnorePattern("dir/a[!x]b"), "dir/a/b") {
 		t.Fatal("incorrect class or path separator match")
 	}
+	subAlias := filepath.Join(t.TempDir(), "subAlias")
+	if err := os.Symlink(filepath.Join(dir, "sub"), subAlias); err == nil {
+		sc := parseWhere(subAlias+", "+openFiles+", -nested/*.go", []string{dir})
+		nested := filepath.Join(dir, "sub", "nested")
+		if err := os.Mkdir(nested, 0755); err != nil {
+			t.Fatal(err)
+		}
+		file := filepath.Join(nested, "a.go")
+		if err := os.WriteFile(file, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if sc.wantsOpen(source{name: "a.go", path: file}) {
+			t.Fatal("lost explicit root through alias")
+		}
+	}
+	if !fifMatchGlob(fifIgnorePattern("dir/a[!x/]b"), "dir/azb") || !fifMatchGlob(`dir\/file`, "dir/file") {
+		t.Fatal("lost slash in class or escaped separator")
+	}
 	p := filepath.Join(dir, "mixed")
 	if err := os.WriteFile(p, []byte("first\rneedle\r\nthird\n"), 0600); err != nil {
 		t.Fatal(err)

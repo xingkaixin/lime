@@ -515,32 +515,36 @@ func (sc *scope) wants(name, rel string) bool {
 
 func (sc *scope) wantsOpen(s source) bool {
 	rel := filepath.Base(s.name)
-	relative := func(file string, resolve bool) string {
+	relative := func(file string, roots []string, resolve bool) string {
 		if file == "" {
 			return ""
 		}
-		for _, roots := range [][]string{sc.paths, sc.folders} {
-			var root string
-			for _, dir := range roots {
-				if dir == openFiles {
-					continue
-				}
-				if resolve {
-					dir = realPath(dir)
-				}
-				if len(dir) > len(root) && file != dir && fifIsUnder(file, dir) {
-					root = dir
-				}
+		var root string
+		for _, dir := range roots {
+			if dir == openFiles {
+				continue
 			}
-			if root != "" {
-				return filepath.ToSlash(strings.TrimPrefix(file[len(root):], string(filepath.Separator)))
+			if resolve {
+				dir = realPath(dir)
+			}
+			if len(dir) > len(root) && file != dir && fifIsUnder(file, dir) {
+				root = dir
 			}
 		}
-		return ""
+		if root == "" {
+			return ""
+		}
+		return filepath.ToSlash(strings.TrimPrefix(file[len(root):], string(filepath.Separator)))
 	}
-	r := relative(s.path, false)
-	if r == "" && s.path != "" {
-		r = relative(realPath(s.path), true)
+	var r string
+	for _, roots := range [][]string{sc.paths, sc.folders} {
+		r = relative(s.path, roots, false)
+		if r == "" && s.path != "" {
+			r = relative(realPath(s.path), roots, true)
+		}
+		if r != "" {
+			break
+		}
 	}
 	if r != "" {
 		rel = r
@@ -794,7 +798,30 @@ func fifMatchGlob(pat, rel string) bool {
 	if !strings.ContainsAny(pat, "/[") && !strings.Contains(pat, "**") {
 		return fifMatchSegment(pat, rel)
 	}
-	return fifMatchSegments(strings.Split(pat, "/"), strings.Split(rel, "/"))
+	var segments []string
+	start := 0
+	inClass := false
+	for i := 0; i < len(pat); i++ {
+		switch pat[i] {
+		case '\\':
+			if !inClass && i+1 < len(pat) && pat[i+1] == '/' {
+				segments = append(segments, pat[start:i])
+				start = i + 2
+			}
+			i++
+		case '[':
+			inClass = true
+		case ']':
+			inClass = false
+		case '/':
+			if !inClass {
+				segments = append(segments, pat[start:i])
+				start = i + 1
+			}
+		}
+	}
+	segments = append(segments, pat[start:])
+	return fifMatchSegments(segments, strings.Split(rel, "/"))
 }
 
 func fifMatchSegments(pat, name []string) bool {
