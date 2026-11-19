@@ -7,6 +7,7 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -775,8 +776,13 @@ func sameOpenedPath(a, b string) bool {
 	}
 	fa, ea := os.Stat(a)
 	fb, eb := os.Stat(b)
-	return ea == nil && eb == nil && os.SameFile(fa, fb)
+	if ea == nil && eb == nil {
+		return os.SameFile(fa, fb)
+	}
+	return os.IsNotExist(ea) && os.IsNotExist(eb) && caseInsensitiveDir(filepath.Dir(a))
 }
+
+var caseInsensitiveDir = func(string) bool { return runtime.GOOS == "windows" }
 
 func openedPathKey(path string) string {
 	p := filepath.Clean(path)
@@ -883,6 +889,8 @@ func (a *app) tidy(d *doc) {
 	})
 }
 
+var copySaveACL = func(src, dst *os.File) error { return nil }
+
 func writeFileAtomic(path string, data []byte, existing os.FileInfo) error {
 	// Resolve symlink targets so os.Rename updates the target instead of replacing the link.
 	if fi, err := os.Lstat(path); err == nil && fi.Mode()&os.ModeSymlink != 0 {
@@ -900,13 +908,6 @@ func writeFileAtomic(path string, data []byte, existing os.FileInfo) error {
 		if !existing.Mode().IsRegular() {
 			return &os.PathError{Op: "save", Path: path, Err: os.ErrInvalid}
 		}
-		target, err := os.OpenFile(path, os.O_WRONLY, 0)
-		if err != nil {
-			return err
-		}
-		if err := target.Close(); err != nil {
-			return err
-		}
 		mode = existing.Mode().Perm()
 	}
 	tmp := filepath.Join(filepath.Dir(path), ".lime-"+rand.Text())
@@ -916,7 +917,15 @@ func writeFileAtomic(path string, data []byte, existing os.FileInfo) error {
 	}
 	defer os.Remove(tmp)
 	if _, err = f.Write(data); err == nil && existing != nil {
-		err = f.Chmod(mode)
+		var target *os.File
+		target, err = os.OpenFile(path, os.O_WRONLY, 0)
+		if err == nil {
+			err = f.Chmod(mode)
+			if err == nil {
+				err = copySaveACL(target, f)
+			}
+			target.Close()
+		}
 	}
 	if err == nil {
 		err = f.Sync()
@@ -958,6 +967,8 @@ func (a *app) askMessage(opts mygo.MessageOptions) (mygo.MessageResult, error) {
 	return mygo.Dialog.Message(opts)
 }
 
+var askSaveConflict = (*app).askMessage
+
 func (a *app) save(d *doc) {
 	a.saveThen(d, d.encoding(), nil)
 }
@@ -983,7 +994,7 @@ func (a *app) saveThen(d *doc, want *fileEncoding, done func(bool)) {
 	d.prompting = true
 	name := d.name()
 	a.background(func() func() {
-		res, err := a.askMessage(mygo.MessageOptions{
+		res, err := askSaveConflict(a, mygo.MessageOptions{
 			Parent:             a.win,
 			Type:               mygo.MessageWarning,
 			Message:            locales.DialogChangedOnDisk(name),
@@ -1095,8 +1106,8 @@ func (a *app) closeDoc(d *doc) {
 			switch res.Button {
 			case 0:
 				a.saveThen(d, d.encoding(), func(ok bool) {
-					if ok {
-						a.remove(d)
+					if owner := a.l.owner(d); ok && owner != nil {
+						owner.remove(d)
 					}
 				})
 			case 1:

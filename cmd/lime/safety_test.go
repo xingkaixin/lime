@@ -26,6 +26,7 @@ func TestWriteFileAtomicAndSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	savedMode := fi.Mode().Perm()
 	if err := writeFileAtomic(realPath, []byte("after\n"), fi); err != nil {
 		t.Fatal(err)
 	}
@@ -38,8 +39,8 @@ func TestWriteFileAtomicAndSymlink(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if fi.Mode().Perm() != 0o640 {
-			t.Fatalf("mode %o, want 0640", fi.Mode().Perm())
+		if fi.Mode().Perm() != savedMode {
+			t.Fatalf("mode %o, want %o", fi.Mode().Perm(), savedMode)
 		}
 	}
 	entries, err := os.ReadDir(dir)
