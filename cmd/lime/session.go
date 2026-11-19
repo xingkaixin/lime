@@ -172,7 +172,7 @@ func (l *lime) sessionChanged() bool {
 	var b strings.Builder
 	fmt.Fprint(&b, l.recent)
 	for _, a := range l.wins {
-		fmt.Fprint(&b, "#", a.layout.name, a.cols, a.rows, a.focus, a.proj.path, a.proj.folders)
+		fmt.Fprint(&b, "#", a.layout.name, a.cols, a.rows, a.focus, a.proj.path, a.proj.folders, a.side)
 		for _, g := range a.groups {
 			fmt.Fprint(&b, "|", g.active)
 			for _, d := range g.docs {
@@ -181,8 +181,10 @@ func (l *lime) sessionChanged() bool {
 		}
 	}
 	key := b.String()
+	l.sessionMu.Lock()
 	changed := key != l.sessionKey
 	l.sessionKey = key
+	l.sessionMu.Unlock()
 	return changed
 }
 
@@ -191,7 +193,19 @@ func (l *lime) sessionChanged() bool {
 func (l *lime) autosave() {
 	if !l.quitting && len(l.wins) > 0 && l.sessionChanged() {
 		l.sessionGen++
-		go l.writeSession(l.session(), l.sessionGen)
+		gen, s := l.sessionGen, l.session()
+		l.sessionMu.Lock()
+		l.sessionKeyGen = gen
+		l.sessionMu.Unlock()
+		go func() {
+			if err := l.writeSession(s, gen); err != nil {
+				l.sessionMu.Lock()
+				if l.sessionKeyGen == gen {
+					l.sessionKey = ""
+				}
+				l.sessionMu.Unlock()
+			}
+		}()
 	}
 }
 
