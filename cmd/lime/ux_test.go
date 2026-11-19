@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 )
@@ -81,6 +82,26 @@ func TestChordWhileFocusChanges(t *testing.T) {
 	tt.Key(ui.Cmd, ui.KeyW)
 	if a.docCount() != 1 {
 		t.Fatal("next shortcut did not close tab")
+	}
+}
+
+func TestChordNativeMenu(t *testing.T) {
+	a := newApp("")
+	a.chord = true
+	a.syncMenu()
+	var check func([]*mygo.MenuItem)
+	check = func(items []*mygo.MenuItem) {
+		for _, item := range items {
+			if item.Accelerator != "" {
+				t.Errorf("%s still has %s", item.Label, item.Accelerator)
+			}
+			check(item.Submenu)
+		}
+	}
+	check(a.l.newMenu().Items())
+	a.l.closed(a)
+	if a.l.menuKey("new_file") == "" || a.l.menuKey("prompt_open") == "" {
+		t.Fatal("closing the last window left the menu shortcuts paused")
 	}
 }
 

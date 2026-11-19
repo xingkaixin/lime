@@ -111,7 +111,7 @@ func (l *lime) newMenu() *mygo.Menu {
 	}
 	revertItem := l.menuItem(locales.MenuRevertFile(), "revert")
 	revertItem.ID = "revert"
-	return mygo.NewMenu([]*mygo.MenuItem{
+	menu := mygo.NewMenu([]*mygo.MenuItem{
 		appMenu,
 		{Label: locales.MenuFile(), Submenu: append([]*mygo.MenuItem{
 			l.menuItem(locales.MenuNewFile(), "new_file"),
@@ -200,6 +200,20 @@ func (l *lime) newMenu() *mygo.Menu {
 		}},
 		{Role: mygo.RoleWindowMenu},
 	})
+	if l.menuPaused {
+		clearMenuKeys(menu.Items())
+	}
+	return menu
+}
+
+// MyGo assigns role shortcuts when it builds the menu, including Close on Windows.
+func clearMenuKeys(items []*mygo.MenuItem) {
+	for _, item := range items {
+		if item.Accelerator != "" {
+			item.SetAccelerator("")
+		}
+		clearMenuKeys(item.Submenu)
+	}
 }
 
 // syncMenu checks the menu's checkboxes and radio items as the state of
@@ -247,7 +261,7 @@ func (a *app) syncMenu() {
 	}
 }
 
-// pauseMenu takes the keys away from the menu while a key is recorded,
+// pauseMenu takes the keys away from the menu during a chord or key recording,
 // as the menu would take them first.
 func (l *lime) pauseMenu(paused bool) {
 	if l.menuPaused != paused {

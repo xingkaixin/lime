@@ -1405,6 +1405,9 @@ func (l *lime) closed(a *app) {
 		l.last = nil
 		if len(l.wins) > 0 {
 			l.last = l.wins[len(l.wins)-1]
+			l.last.syncMenu()
+		} else {
+			l.pauseMenu(false)
 		}
 	}
 }
