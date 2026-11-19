@@ -236,7 +236,7 @@ func (a *app) fileHistoryBar(c *ui.Context) {
 	ch := a.shell(c)
 	name, dir := path.Base(a.hist.file), path.Dir(a.hist.file)
 	ui.Row(c).FillWidth().Height(28).Shrink(0).Padding(0, th.Space(1), 0, th.Space(3)).Gap(th.Space(1.5)).AlignItems(ui.Center).Children(func() {
-		ic := fileIcon(name, a.scheme.dark)
+		ic := a.fileIcon(name)
 		ic.view(c, treeIcon, ic.tint(ch.muted))
 		ui.Text(c, name).FontSize(12).TextColor(ch.text).SingleLine().Ellipsis("…").Shrink(0).MaxWidth(200)
 		if dir != "." {

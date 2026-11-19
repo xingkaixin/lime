@@ -1254,6 +1254,26 @@ func (msgs Messages) TypingRampage() string {
 	return Catalog.Format(msgs.locale, "typingRampage", nil)
 }
 
+// FileIconsDefault says "File Icons"
+// in the language the app shows.
+func FileIconsDefault() string { return In(i18n.Locale()).FileIconsDefault() }
+
+// FileIconsDefault says "File Icons"
+// in the language of msgs.
+func (msgs Messages) FileIconsDefault() string {
+	return Catalog.Format(msgs.locale, "fileIconsDefault", nil)
+}
+
+// FileIconsPierre says "Pierre"
+// in the language the app shows.
+func FileIconsPierre() string { return In(i18n.Locale()).FileIconsPierre() }
+
+// FileIconsPierre says "Pierre"
+// in the language of msgs.
+func (msgs Messages) FileIconsPierre() string {
+	return Catalog.Format(msgs.locale, "fileIconsPierre", nil)
+}
+
 // CmdNewFile says "File: New File"
 // in the language the app shows.
 func CmdNewFile() string { return In(i18n.Locale()).CmdNewFile() }
@@ -2006,6 +2026,20 @@ func CmdCursorStyle(name string) string { return In(i18n.Locale()).CmdCursorStyl
 // in the language of msgs.
 func (msgs Messages) CmdCursorStyle(name string) string {
 	return Catalog.Format(msgs.locale, "cmdCursorStyle", map[string]any{"name": name})
+}
+
+// CmdFileIcons says "File Icons: {name}"
+// in the language the app shows.
+//
+// A file icon set in the command palette.
+func CmdFileIcons(name string) string { return In(i18n.Locale()).CmdFileIcons(name) }
+
+// CmdFileIcons says "File Icons: {name}"
+// in the language of msgs.
+//
+// A file icon set in the command palette.
+func (msgs Messages) CmdFileIcons(name string) string {
+	return Catalog.Format(msgs.locale, "cmdFileIcons", map[string]any{"name": name})
 }
 
 // CmdSetSyntaxTo says "Set Syntax: {name}"
@@ -4150,6 +4184,16 @@ func SettingsLayoutStyle() string { return In(i18n.Locale()).SettingsLayoutStyle
 // in the language of msgs.
 func (msgs Messages) SettingsLayoutStyle() string {
 	return Catalog.Format(msgs.locale, "settingsLayoutStyle", nil)
+}
+
+// SettingsFileIcons says "File Icons"
+// in the language the app shows.
+func SettingsFileIcons() string { return In(i18n.Locale()).SettingsFileIcons() }
+
+// SettingsFileIcons says "File Icons"
+// in the language of msgs.
+func (msgs Messages) SettingsFileIcons() string {
+	return Catalog.Format(msgs.locale, "settingsFileIcons", nil)
 }
 
 // SettingsSystem says "System"

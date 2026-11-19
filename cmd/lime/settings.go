@@ -41,6 +41,8 @@ type settings struct {
 	// LayoutStyle is the name of a layoutStyle: how the groups sit in the
 	// window.
 	LayoutStyle string `json:"layout_style"`
+	// FileIcons is the name of a fileIconSet: which icons files and folders show.
+	FileIcons string `json:"file_icons"`
 	// ShowScrollBars draws the text's scroll bars.
 	ShowScrollBars bool `json:"show_scroll_bars"`
 	// CursorStyle is the name of a cursorStyle: how the carets look.
@@ -113,7 +115,7 @@ func settingsPath(dir string) string { return filepath.Join(dir, "settings.json"
 func loadSettings(dir string) (settings, error) {
 	s := settings{
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
-		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, LayoutStyle: compactLayout, TabSize: 4, AutoComplete: true,
+		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, LayoutStyle: compactLayout, FileIcons: fileIconsDefault, TabSize: 4, AutoComplete: true,
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
 		Rulers: rulers{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
 		ScrollPastEnd: true, FontOptions: []string{}, InlineBlame: true, CursorStyle: "bar",
@@ -166,6 +168,17 @@ func (s *settings) layoutStyle() layoutStyle {
 		}
 	}
 	return layoutStyles[0]
+}
+
+// fileIcons is the icon set FileIcons names, file-icons for a name it
+// doesn't know.
+func (s *settings) fileIcons() fileIconSet {
+	for _, f := range fileIconSets {
+		if f.name == s.FileIcons {
+			return f
+		}
+	}
+	return fileIconSets[0]
 }
 
 // cursorStyle is the style CursorStyle names, bars for a name it doesn't

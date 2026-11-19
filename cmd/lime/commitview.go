@@ -865,7 +865,7 @@ func (a *app) fileHeader(c *ui.Context, cv *commitView, f *commitFile) {
 		if f.folded {
 			chevron.Rotate(-90)
 		}
-		ic := fileIcon(f.path, a.scheme.dark)
+		ic := a.fileIcon(f.path)
 		ic.view(c, treeIcon, ic.tint(ch.muted))
 		name, dir := filepath.Base(f.path), filepath.Dir(filepath.FromSlash(f.path))
 		ui.Text(c, name).FontSize(13).TextColor(ch.text).SingleLine().Shrink(0).MaxWidth(320).Ellipsis("…")

@@ -707,10 +707,7 @@ func (a *app) changeRow(c *ui.Context, r changeRow, selected bool, added, delete
 	indent := th.Space(3) + (treeIcon+treeGap)*float32(r.depth)
 	if r.dir != "" {
 		open := !a.changes.closed[r.key]
-		ic := rowIcon{svg: folderIcon}
-		if open {
-			ic = rowIcon{svg: folderOpenIcon, color: a.scheme.accent}
-		}
+		ic := a.folderIcon(open)
 		if selected {
 			ic.color = text
 		}
@@ -736,7 +733,7 @@ func (a *app) changeRow(c *ui.Context, r changeRow, selected bool, added, delete
 	p := r.file.path
 	ui.Row(c).FillWidth().Height(th.Space(7)).Gap(treeGap).Padding(0, th.Space(3)).PaddingStart(indent).AlignItems(ui.Center).
 		ContextMenu(a.changeMenu).Children(func() {
-		ic := fileIcon(p, a.scheme.dark)
+		ic := a.fileIcon(p)
 		if selected {
 			ic.view(c, treeIcon, text)
 		} else {

@@ -596,6 +596,51 @@ func TestIcons(t *testing.T) {
 	}
 }
 
+func TestPierreIcons(t *testing.T) {
+	for p, want := range map[string]string{
+		"main.go": "lang-go", "src/App.tsx": "react", "a.d.ts": "lang-typescript-duo",
+		"main.py": "lang-python", "styles.scss": "sass", "Dockerfile": "docker",
+		"CLAUDE.md": "claude", "package.json": "npm", ".gitignore": "git",
+		"LICENSE": "file-text-duo", ".env.local": "file-text-duo", "foo.env.production": "file-text-duo",
+		".editorconfig": "file-text-duo", "x.unknownext": "file-duo", "": "file-duo",
+	} {
+		if got := matchPierreIcon(p); got != want {
+			t.Errorf("%s: got %q, want %q", p, got, want)
+		}
+	}
+	for name, sp := range pierreIcons {
+		if u := pierreSVG(sp.svg, "").Unsupported(); len(u) > 0 {
+			t.Errorf("%s: unsupported SVG features: %v", name, u)
+		}
+		for _, bg := range []string{sp.bgDark, sp.bgLight} {
+			if bg != "" {
+				if u := pierreSVG(sp.svg, bg).Unsupported(); len(u) > 0 {
+					t.Errorf("%s (%s): unsupported SVG features: %v", name, bg, u)
+				}
+			}
+		}
+	}
+
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "main.py"), []byte("print(1)\n"), 0o644)
+	a := newApp(dir)
+	if a.set.fileIcons().name != fileIconsDefault {
+		t.Fatalf("default file icons = %q, want %q", a.set.fileIcons().name, fileIconsDefault)
+	}
+	a.addFolder(dir)
+	a.open([]string{filepath.Join(dir, "main.py")})
+	a.run("set_file_icons pierre")
+	if a.set.FileIcons != fileIconsPierre {
+		t.Fatalf("FileIcons = %q, want %q", a.set.FileIcons, fileIconsPierre)
+	}
+	ic := a.fileIcon("main.py")
+	if ic.svg == nil || ic.dual == nil {
+		t.Fatalf("expected dual-color SVG for main.py, got %+v", ic)
+	}
+	tt := ui.NewTester(a.view, 900, 600)
+	tt.Frame()
+}
+
 // Hot exit: the next run brings back the windows, their tabs, the unsaved
 // text over the file on disk, and the layout.
 func TestHotExit(t *testing.T) {

@@ -317,6 +317,18 @@ func (a *app) appearancePage(c *ui.Context) {
 				a.l.saveSettings()
 			}
 		})
+		a.settingsRow(c, locales.SettingsFileIcons(), "", func() {
+			m := locales.In(i18n.Locale())
+			var options []string
+			for _, s := range fileIconSets {
+				options = append(options, s.label(m))
+			}
+			choice := a.set.fileIcons().label(m)
+			if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsFileIcons()).Changed() {
+				a.set.FileIcons = fileIconSets[slices.Index(options, choice)].name
+				a.l.saveSettings()
+			}
+		})
 	})
 	a.themes(c, false)
 	a.themes(c, true)
