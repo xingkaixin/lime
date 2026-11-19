@@ -181,6 +181,16 @@ func TestSublimeProjectJSONCAndPreservation(t *testing.T) {
 	}
 
 	a.addFolder(extraDir)
+	snapshot := a.session()
+	legacy := snapshot
+	legacy.ProjectMeta, legacy.FolderMeta = nil, nil
+	for _, ss := range []sessionWindow{legacy, snapshot} {
+		a = newApp("")
+		a.restore(ss)
+		if len(a.proj.meta["settings"]) == 0 || len(a.proj.folderMeta[appDir]["name"]) == 0 || !slices.Contains(a.proj.folders, extraDir) {
+			t.Fatal("session lost project metadata or folders")
+		}
+	}
 	if err := a.saveProject(projPath); err != nil {
 		t.Fatalf("saveProject: %v", err)
 	}
@@ -190,8 +200,8 @@ func TestSublimeProjectJSONCAndPreservation(t *testing.T) {
 		t.Fatal(err)
 	}
 	var raw struct {
-		Folders []map[string]any `json:"folders"`
-		Settings map[string]any  `json:"settings"`
+		Folders      []map[string]any `json:"folders"`
+		Settings     map[string]any   `json:"settings"`
 		BuildSystems []map[string]any `json:"build_systems"`
 	}
 	if err := json.Unmarshal(saved, &raw); err != nil {
@@ -245,6 +255,11 @@ func TestNestedCreateAndEscapeGuard(t *testing.T) {
 		t.Fatal("intermediate created folders should be expanded in sidebar")
 	}
 
+	if err := os.Symlink(parent, filepath.Join(dir, "link")); err == nil {
+		if err := createNew(dir, filepath.Join(dir, "link", "outside"), false); err == nil {
+			t.Fatal("created through an escaping symlink")
+		}
+	}
 	// Nested folder creation creates parent directories too.
 	a.startCreate(dir, true)
 	a.proj.create.name = "x/y/z"
@@ -473,5 +488,29 @@ func TestSettingsAtomicSaveAndUIControls(t *testing.T) {
 	}
 	if afterNew.ModTime().Equal(past) {
 		t.Fatal("changing Rulers value did not save settings.json")
+	}
+}
+
+func TestIndexGitTrackedAndExcluded(t *testing.T) {
+	dir, git := newRepo(t)
+	for _, rel := range []string{"tracked/keep.go", "local.txt", "untracked.go"} {
+		p := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, nil, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("add", "tracked/keep.go")
+	if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("tracked/\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".git", "info", "exclude"), []byte("local.txt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	files := walkFolders([]string{dir})
+	if !slices.Contains(files, filepath.Join(dir, "tracked", "keep.go")) || slices.Contains(files, filepath.Join(dir, "local.txt")) {
+		t.Fatal(files)
 	}
 }

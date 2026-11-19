@@ -85,8 +85,8 @@ type settings struct {
 	InlineBlame bool `json:"inline_blame"`
 	// FolderExcludePatterns and FileExcludePatterns override the default
 	// side bar and indexing exclude patterns when set.
-	FolderExcludePatterns []string `json:"folder_exclude_patterns,omitempty"`
-	FileExcludePatterns   []string `json:"file_exclude_patterns,omitempty"`
+	FolderExcludePatterns []string `json:"folder_exclude_patterns,omitzero"`
+	FileExcludePatterns   []string `json:"file_exclude_patterns,omitzero"`
 	// Keys are the commands' keys the user changed, the one changed last
 	// last.
 	Keys []keyChange `json:"keys,omitempty"`
@@ -370,30 +370,9 @@ func writeSettingsAtomic(dir string, data []byte) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(dir, "settings-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmp := f.Name()
-	if _, err := f.Write(data); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if err := f.Chmod(0o644); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if err := f.Close(); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-	if err := os.Rename(tmp, settingsPath(dir)); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-	return nil
+	path := settingsPath(dir)
+	fi, _ := os.Stat(path)
+	return writeFileAtomic(path, data, fi)
 }
 
 // saveSettings keeps the settings, and shows them in all windows. A

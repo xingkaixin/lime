@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -22,14 +23,16 @@ type session struct {
 }
 
 type sessionWindow struct {
-	Layout  string         `json:"layout"`
-	Cols    []float32      `json:"cols,omitempty"`
-	Rows    []float32      `json:"rows,omitempty"`
-	Focus   int            `json:"focus"`
-	Groups  []sessionGroup `json:"groups"`
-	Folders []string       `json:"folders,omitempty"`
-	Project string         `json:"project,omitempty"`
-	Bounds  mygo.Rectangle `json:"bounds"`
+	Layout      string                                `json:"layout"`
+	Cols        []float32                             `json:"cols,omitempty"`
+	Rows        []float32                             `json:"rows,omitempty"`
+	Focus       int                                   `json:"focus"`
+	Groups      []sessionGroup                        `json:"groups"`
+	Folders     []string                              `json:"folders,omitempty"`
+	Project     string                                `json:"project,omitempty"`
+	ProjectMeta map[string]json.RawMessage            `json:"project_meta,omitempty"`
+	FolderMeta  map[string]map[string]json.RawMessage `json:"folder_meta,omitempty"`
+	Bounds      mygo.Rectangle                        `json:"bounds"`
 	// SideBar is one of panelNames; older sessions, without it, open
 	// with settings' side bar.
 	SideBar string `json:"side_bar,omitempty"`
@@ -82,7 +85,7 @@ func (l *lime) session() session {
 
 func (a *app) session() sessionWindow {
 	s := sessionWindow{Layout: a.layout.name, Cols: slices.Clone(a.cols), Rows: slices.Clone(a.rows), Focus: a.focus,
-		Folders: slices.Clone(a.proj.folders), Project: a.proj.path, SideBar: panelNames[a.side]}
+		Folders: slices.Clone(a.proj.folders), Project: a.proj.path, ProjectMeta: a.proj.meta, FolderMeta: maps.Clone(a.proj.folderMeta), SideBar: panelNames[a.side]}
 	if a.win != nil {
 		s.Bounds = a.win.Bounds()
 	}
@@ -259,6 +262,12 @@ func (a *app) restore(s sessionWindow) {
 			}
 		}
 		g.active = min(max(sg.Active, 0), len(g.docs)-1)
+	}
+	a.proj.meta, a.proj.folderMeta = s.ProjectMeta, s.FolderMeta
+	if s.Project != "" && s.ProjectMeta == nil && s.FolderMeta == nil {
+		if pf, err := readProject(s.Project); err == nil {
+			a.proj.loadProjectFields(s.Project, pf)
+		}
 	}
 	a.proj.folders, a.proj.path = s.Folders, s.Project
 	if i := slices.Index(panelNames[:], s.SideBar); i >= 0 {

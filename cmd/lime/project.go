@@ -209,7 +209,7 @@ func (a *app) watchDir(dir string) {
 	go func() {
 		w, err := mygo.WatchFiles(ctx, dir, mygo.FileWatchOptions{
 			Ignore: func(name string, isDir bool) bool {
-				return projLeftOut(filepath.Base(name), isDir, folderExcl, fileExcl)
+				return filepath.Base(name) != ".gitignore" && projLeftOut(filepath.Base(name), isDir, folderExcl, fileExcl)
 			},
 		})
 		if err != nil {
@@ -225,7 +225,7 @@ func (a *app) watchDir(dir string) {
 			var structural bool
 			var paths []string
 			for _, e := range events {
-				if e.Op != mygo.FileWrite {
+				if e.Op != mygo.FileWrite || filepath.Base(e.Path) == ".gitignore" {
 					structural = true
 				}
 				if !e.IsDir && e.Path != "" && e.Path != "." {
@@ -265,8 +265,6 @@ func (a *app) queueWatchEvents(batch *projWatchBatch, dir string, structural boo
 	}
 	if batch.timer == nil {
 		batch.timer = time.AfterFunc(watchDebounce, func() { a.flushWatchBatch(batch) })
-	} else {
-		batch.timer.Reset(watchDebounce)
 	}
 }
 
@@ -276,6 +274,7 @@ func (a *app) flushWatchBatch(batch *projWatchBatch) {
 		batch.mu.Unlock()
 		return
 	}
+	batch.timer = nil
 	dirs, paths, reindex := batch.dirs, batch.paths, batch.reindex
 	batch.dirs, batch.paths, batch.reindex = nil, nil, false
 	batch.mu.Unlock()
@@ -550,6 +549,28 @@ func walkFolders(folders []string) []string {
 func walkFoldersWith(folders, folderExcl, fileExcl []string) []string {
 	var files []string
 	for _, f := range folders {
+		if len(files) >= maxIndexed {
+			break
+		}
+		if candidates, err := runGit(f, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--deduplicate", "--", "."); err == nil {
+			for rel := range strings.SplitSeq(candidates, "\x00") {
+				if rel == "" {
+					continue
+				}
+				dir, name := path.Split(rel)
+				if excluded(name, fileExcl) || excluded(name, binaryFiles) || slices.ContainsFunc(strings.Split(strings.TrimSuffix(dir, "/"), "/"), func(d string) bool { return d != "" && excluded(d, folderExcl) }) {
+					continue
+				}
+				file := filepath.Join(f, filepath.FromSlash(rel))
+				if fi, err := os.Stat(file); err == nil && fi.Mode().IsRegular() {
+					files = append(files, file)
+					if len(files) >= maxIndexed {
+						break
+					}
+				}
+			}
+			continue
+		}
 		ig := projNewIgnore(f)
 		baseLayers := len(ig.layers)
 		filepath.WalkDir(f, func(p string, e fs.DirEntry, err error) error {
@@ -773,35 +794,26 @@ func (a *app) openProject(path string) error {
 func (a *app) useProject(path string, pf projectFile) {
 	a.closeProject()
 	a.proj.path, a.proj.jump = path, true
-	if len(pf.extra) > 0 {
-		a.proj.meta = make(map[string]json.RawMessage, len(pf.extra))
-		for k, v := range pf.extra {
-			a.proj.meta[k] = v
-		}
-	}
-	if len(pf.Folders) > 0 {
-		a.proj.folderMeta = make(map[string]map[string]json.RawMessage, len(pf.Folders))
-	}
-	for _, f := range pf.Folders {
-		p := filepath.FromSlash(f.Path)
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(filepath.Dir(path), p)
-		}
-		p = filepath.Clean(p)
-		a.proj.folders = append(a.proj.folders, p)
-		if len(f.extra) > 0 {
-			fm := make(map[string]json.RawMessage, len(f.extra))
-			for k, v := range f.extra {
-				fm[k] = v
-			}
-			a.proj.folderMeta[p] = fm
-		}
-	}
+	a.proj.loadProjectFields(path, pf)
 	if a.side == noPanel {
 		a.side = filesPanel
 	}
 	a.indexFolders()
 	a.l.addRecent(nil, []string{path})
+}
+
+func (p *project) loadProjectFields(path string, pf projectFile) {
+	p.meta = pf.extra
+	p.folderMeta = make(map[string]map[string]json.RawMessage)
+	for _, f := range pf.Folders {
+		dir := filepath.FromSlash(f.Path)
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(filepath.Dir(path), dir)
+		}
+		dir = filepath.Clean(dir)
+		p.folders = append(p.folders, dir)
+		p.folderMeta[dir] = f.extra
+	}
 }
 
 // saveProject writes the folders to path, relative to it as Sublime Text
@@ -940,10 +952,13 @@ func (a *app) renamed(from, to string) {
 			}
 			w.proj.folderMeta = meta
 		}
+		w.proj.path = moved(w.proj.path, from, to)
+		rootsMoved := false
 		for i, f := range w.proj.folders {
 			w.proj.folders[i] = moved(f, from, to)
+			rootsMoved = rootsMoved || w.proj.folders[i] != f
 		}
-		if w == a || w.proj.holds(from) || w.proj.holds(to) {
+		if rootsMoved || w == a || w.proj.holds(from) || w.proj.holds(to) {
 			w.proj.jump = true
 			w.refreshFolders()
 		}
@@ -1153,7 +1168,7 @@ func (a *app) finishCreate() {
 		go mygo.Dialog.Error(locales.DialogUnableToCreate(name), err.Error())
 		return
 	}
-	if err := createNew(p, cr.folder); err != nil {
+	if err := createNew(cr.dir, p, cr.folder); err != nil {
 		go mygo.Dialog.Error(locales.DialogUnableToCreate(name), err.Error())
 		return
 	}
@@ -1172,17 +1187,23 @@ func (a *app) finishCreate() {
 	}
 }
 
-func createNew(p string, folder bool) error {
-	if folder {
-		if _, err := os.Lstat(p); err == nil {
-			return &os.PathError{Op: "mkdir", Path: p, Err: fs.ErrExist}
-		}
-		return os.MkdirAll(p, 0o755)
-	}
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+func createNew(dir, p string, folder bool) error {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	defer root.Close()
+	rel, err := filepath.Rel(dir, p)
+	if err != nil {
+		return err
+	}
+	if err := root.MkdirAll(filepath.Dir(rel), 0755); err != nil {
+		return err
+	}
+	if folder {
+		return root.Mkdir(rel, 0755)
+	}
+	f, err := root.OpenFile(rel, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return err
 	}
