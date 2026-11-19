@@ -64,6 +64,7 @@ func main() {
 	}
 	copyFile(filepath.Join(strings.TrimSpace(run(nil, "go", "env", "GOROOT")), "lib", "wasm", "wasm_exec.js"), "wasm_exec.js")
 	copyFile("resources/icon.png", "icon.png")
+	copyFile("cmd/lime/fileicons/LICENSE-pierre-icons.md", "LICENSE-pierre-icons.md")
 	site, err := os.ReadDir("website")
 	if err != nil {
 		log.Fatal(err)
