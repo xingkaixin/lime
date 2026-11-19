@@ -515,19 +515,35 @@ func (sc *scope) wants(name, rel string) bool {
 
 func (sc *scope) wantsOpen(s source) bool {
 	rel := filepath.Base(s.name)
-	var root string
-	for _, roots := range [][]string{sc.paths, sc.folders} {
-		for _, dir := range roots {
-			if dir != openFiles && len(dir) > len(root) && s.path != dir && fifIsUnder(s.path, dir) {
-				root = dir
+	relative := func(file string, resolve bool) string {
+		if file == "" {
+			return ""
+		}
+		for _, roots := range [][]string{sc.paths, sc.folders} {
+			var root string
+			for _, dir := range roots {
+				if dir == openFiles {
+					continue
+				}
+				if resolve {
+					dir = realPath(dir)
+				}
+				if len(dir) > len(root) && file != dir && fifIsUnder(file, dir) {
+					root = dir
+				}
+			}
+			if root != "" {
+				return filepath.ToSlash(strings.TrimPrefix(file[len(root):], string(filepath.Separator)))
 			}
 		}
-		if root != "" {
-			break
-		}
+		return ""
 	}
-	if root != "" {
-		rel = filepath.ToSlash(strings.TrimPrefix(s.path[len(root):], string(filepath.Separator)))
+	r := relative(s.path, false)
+	if r == "" && s.path != "" {
+		r = relative(realPath(s.path), true)
+	}
+	if r != "" {
+		rel = r
 		for dir := path.Dir(rel); dir != "."; dir = path.Dir(dir) {
 			if fifMatchWhere(path.Base(dir), dir, sc.exclude) {
 				return false
@@ -721,25 +737,38 @@ func fifParseIgnore(content string) []fifIgnoreRule {
 
 // Git spells a negated character class [!...] where path.Match uses [^...].
 func fifIgnorePattern(p string) string {
-	if !strings.Contains(p, "[!") {
+	if !strings.Contains(p, "[") {
 		return p
 	}
-	b := []byte(p)
+	var out strings.Builder
 	inClass := false
-	for i := 0; i < len(b); i++ {
-		switch b[i] {
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+		out.WriteByte(c)
+		switch c {
 		case '\\':
-			i++
+			if i+1 < len(p) {
+				i++
+				out.WriteByte(p[i])
+			}
 		case ']':
 			inClass = false
 		case '[':
-			if !inClass && i+1 < len(b) && b[i+1] == '!' {
-				b[i+1] = '^'
+			if inClass {
+				continue
 			}
 			inClass = true
+			if i+1 < len(p) && (p[i+1] == '!' || p[i+1] == '^') {
+				i++
+				out.WriteByte('^')
+			}
+			if i+1 < len(p) && p[i+1] == ']' {
+				i++
+				out.WriteString(`\]`)
+			}
 		}
 	}
-	return string(b)
+	return out.String()
 }
 
 func fifTrimTrailingSpaces(s string) string {
@@ -762,7 +791,7 @@ func fifMatchSegment(pat, name string) bool {
 }
 
 func fifMatchGlob(pat, rel string) bool {
-	if !strings.Contains(pat, "**") {
+	if !strings.ContainsAny(pat, "/[") && !strings.Contains(pat, "**") {
 		return fifMatchSegment(pat, rel)
 	}
 	return fifMatchSegments(strings.Split(pat, "/"), strings.Split(rel, "/"))

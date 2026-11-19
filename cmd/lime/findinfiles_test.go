@@ -523,6 +523,19 @@ func TestFindInFilesContextAndScope(t *testing.T) {
 	if !ig.ignored(filepath.Join(dir, "filea.txt"), false) || ig.ignored(filepath.Join(dir, "file1.txt"), false) {
 		t.Fatal("wrong negated class")
 	}
+	alias := filepath.Join(t.TempDir(), "alias")
+	if err := os.MkdirAll(filepath.Join(dir, "sub"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "sub", "a.go"), []byte("a"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(dir, alias); err == nil && sc.wantsOpen(source{name: "a.go", path: filepath.Join(alias, "sub", "a.go")}) {
+		t.Fatal("included excluded alias")
+	}
+	if !fifMatchGlob(fifIgnorePattern("file[!]].txt"), "filea.txt") || fifMatchGlob(fifIgnorePattern("dir/a[!x]b"), "dir/a/b") {
+		t.Fatal("incorrect class or path separator match")
+	}
 	p := filepath.Join(dir, "mixed")
 	if err := os.WriteFile(p, []byte("first\rneedle\r\nthird\n"), 0600); err != nil {
 		t.Fatal(err)
