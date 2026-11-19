@@ -1,16 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui/editor"
@@ -43,36 +47,62 @@ func excluded(name string, patterns []string) bool {
 }
 
 // leftOut reports whether the side bar leaves out the file or folder
-// named name.
+// named name under the default exclude patterns.
 func leftOut(name string, dir bool) bool {
+	return projLeftOut(name, dir, folderExclude, fileExclude)
+}
+
+func projLeftOut(name string, dir bool, folderExcl, fileExcl []string) bool {
 	if dir {
-		return excluded(name, folderExclude)
+		return excluded(name, folderExcl)
 	}
-	return excluded(name, fileExclude)
+	return excluded(name, fileExcl)
+}
+
+const watchDebounce = 150 * time.Millisecond
+
+// projWatchBatch coalesces bursts of file system watch events across a
+// window's watched folders before refreshing git marks, re-indexing, or
+// reloading externally modified tabs.
+type projWatchBatch struct {
+	mu      sync.Mutex
+	timer   *time.Timer
+	dirs    map[string]bool
+	paths   map[string]bool
+	reindex bool
+	stopped bool
 }
 
 // project is the folders of the window, kept in a .sublime-project file
 // once saved.
 type project struct {
-	path    string
-	folders []string
-	open    map[string]*bool              // folders of the side bar shown open
-	dirs    map[string][]os.DirEntry      // folders read, for the side bar
-	watches map[string]context.CancelFunc // folders followed on disk while shown
-	shown   map[string]bool               // folders the side bar listed as it built
-	files   []string                      // the folders' files, for Goto Anything
-	gen     int                           // counts the indexings, for the last to win
-	create  *creation
+	path       string
+	folders    []string
+	meta       map[string]json.RawMessage            // preserved top-level .sublime-project fields
+	folderMeta map[string]map[string]json.RawMessage // preserved per-folder fields, keyed by folder path
+	open       map[string]*bool                      // folders of the side bar shown open
+	dirs       map[string][]os.DirEntry              // folders read, for the side bar
+	watches    map[string]context.CancelFunc         // folders followed on disk while shown
+	watchBatch *projWatchBatch                       // debounces watch events across open folders
+	shown      map[string]bool                       // folders the side bar listed as it built
+	files      []string                              // the folders' files, for Goto Anything
+	gen        int                                   // counts the indexings, for the last to win
+	create     *creation
 	// jump has the side bar show the next frame without motion: another
 	// project or a rename replaced the rows' paths, not their places.
 	jump bool
 }
 
-// projectFile is a .sublime-project file, of which Lime reads the folders.
+type projectFolder struct {
+	Path  string
+	extra map[string]json.RawMessage
+}
+
+// projectFile is a .sublime-project file, of which Lime reads the folders
+// while preserving any other fields for round-trip saves.
 type projectFile struct {
-	Folders []struct {
-		Path string `json:"path"`
-	} `json:"folders"`
+	Folders []projectFolder
+	extra   map[string]json.RawMessage
 }
 
 // rel shows path from its folder, as Goto Anything does.
@@ -106,12 +136,12 @@ func (p *project) isOpen(dir string, open bool) *bool {
 
 // list reads dir as the side bar shows it: folders first, then files, by
 // name.
-func (p *project) list(dir string) []os.DirEntry {
+func (p *project) list(dir string, folderExcl, fileExcl []string) []os.DirEntry {
 	if es, ok := p.dirs[dir]; ok {
 		return es
 	}
 	es, _ := os.ReadDir(dir)
-	es = slices.DeleteFunc(es, func(e os.DirEntry) bool { return leftOut(e.Name(), e.IsDir()) })
+	es = slices.DeleteFunc(es, func(e os.DirEntry) bool { return projLeftOut(e.Name(), e.IsDir(), folderExcl, fileExcl) })
 	slices.SortStableFunc(es, func(x, y os.DirEntry) int {
 		if x.IsDir() != y.IsDir() {
 			if x.IsDir() {
@@ -145,7 +175,7 @@ func (a *app) shownDir(dir string) []os.DirEntry {
 	if watchDirs && a.win != nil && a.proj.watches[dir] == nil {
 		a.watchDir(dir)
 	}
-	return a.proj.list(dir)
+	return a.proj.list(dir, a.set.folderExcludes(), a.set.fileExcludes())
 }
 
 // watchDir follows dir, dropping what was read of it as entries appear,
@@ -156,24 +186,32 @@ func (a *app) watchDir(dir string) {
 	if a.proj.watches == nil {
 		a.proj.watches = make(map[string]context.CancelFunc)
 	}
+	if a.proj.watchBatch == nil {
+		a.proj.watchBatch = &projWatchBatch{}
+	}
+	batch := a.proj.watchBatch
+	folderExcl := slices.Clone(a.set.folderExcludes())
+	fileExcl := slices.Clone(a.set.fileExcludes())
 	ctx, stop := context.WithCancel(context.Background())
 	a.proj.watches[dir] = stop
-	changed := func(ended bool) {
+	ended := func() {
 		a.win.Update(func() {
 			// Stopped: another watch, or none, follows dir now.
 			if ctx.Err() != nil {
 				return
 			}
 			delete(a.proj.dirs, dir)
-			a.readMarks()
-			if ended {
-				stop()
-				delete(a.proj.watches, dir)
-			}
+			stop()
+			delete(a.proj.watches, dir)
+			a.queueWatchEvents(batch, dir, true, nil)
 		})
 	}
 	go func() {
-		w, err := mygo.WatchFiles(ctx, dir, mygo.FileWatchOptions{Ignore: leftOut})
+		w, err := mygo.WatchFiles(ctx, dir, mygo.FileWatchOptions{
+			Ignore: func(name string, isDir bool) bool {
+				return projLeftOut(filepath.Base(name), isDir, folderExcl, fileExcl)
+			},
+		})
 		if err != nil {
 			return
 		}
@@ -181,14 +219,104 @@ func (a *app) watchDir(dir string) {
 		for {
 			events, err := w.Next(ctx)
 			if err != nil {
-				changed(true)
+				ended()
 				return
 			}
-			if slices.ContainsFunc(events, func(e mygo.FileEvent) bool { return e.Op != mygo.FileWrite }) {
-				changed(false)
+			var structural bool
+			var paths []string
+			for _, e := range events {
+				if e.Op != mygo.FileWrite {
+					structural = true
+				}
+				if !e.IsDir && e.Path != "" && e.Path != "." {
+					paths = append(paths, filepath.Join(dir, filepath.FromSlash(e.Path)))
+				}
+			}
+			if structural || len(paths) > 0 {
+				a.queueWatchEvents(batch, dir, structural, paths)
 			}
 		}
 	}()
+}
+
+func (a *app) queueWatchEvents(batch *projWatchBatch, dir string, structural bool, paths []string) {
+	batch.mu.Lock()
+	defer batch.mu.Unlock()
+	if batch.stopped {
+		return
+	}
+	if structural {
+		batch.reindex = true
+		if batch.dirs == nil {
+			batch.dirs = make(map[string]bool)
+		}
+		batch.dirs[dir] = true
+	}
+	if len(paths) > 0 {
+		if batch.paths == nil {
+			batch.paths = make(map[string]bool, len(paths))
+		}
+		for _, p := range paths {
+			batch.paths[p] = true
+		}
+	}
+	if !batch.reindex && len(batch.paths) == 0 {
+		return
+	}
+	if batch.timer == nil {
+		batch.timer = time.AfterFunc(watchDebounce, func() { a.flushWatchBatch(batch) })
+	} else {
+		batch.timer.Reset(watchDebounce)
+	}
+}
+
+func (a *app) flushWatchBatch(batch *projWatchBatch) {
+	batch.mu.Lock()
+	if batch.stopped {
+		batch.mu.Unlock()
+		return
+	}
+	dirs, paths, reindex := batch.dirs, batch.paths, batch.reindex
+	batch.dirs, batch.paths, batch.reindex = nil, nil, false
+	batch.mu.Unlock()
+	if !reindex && len(paths) == 0 {
+		return
+	}
+	if a.win == nil {
+		return
+	}
+	a.win.Update(func() {
+		a.applyWatchBatch(batch, dirs, paths, reindex)
+	})
+}
+
+func (a *app) applyWatchBatch(batch *projWatchBatch, dirs, paths map[string]bool, reindex bool) {
+	if a.proj.watchBatch != batch {
+		return
+	}
+	if reindex {
+		for dir := range dirs {
+			delete(a.proj.dirs, dir)
+		}
+		a.readMarks()
+		a.indexFolders()
+	}
+	if len(paths) > 0 {
+		for _, w := range a.l.wins {
+			if w.hasOpenPath(paths) {
+				w.reloadChanged()
+			}
+		}
+	}
+}
+
+func (a *app) hasOpenPath(paths map[string]bool) bool {
+	for _, d := range a.allDocs() {
+		if d.path != "" && paths[d.path] {
+			return true
+		}
+	}
+	return false
 }
 
 // forgetHidden stops following the folders the side bar no longer shows
@@ -213,23 +341,236 @@ func (p *project) unwatch() {
 	for _, stop := range p.watches {
 		stop()
 	}
+	if p.watchBatch != nil {
+		p.watchBatch.mu.Lock()
+		p.watchBatch.stopped = true
+		if p.watchBatch.timer != nil {
+			p.watchBatch.timer.Stop()
+		}
+		p.watchBatch.mu.Unlock()
+		p.watchBatch = nil
+	}
+}
+
+type projIgnoreRule struct {
+	pattern  string
+	negated  bool
+	dirOnly  bool
+	anchored bool
+}
+
+type projIgnoreLayer struct {
+	dir   string
+	rules []projIgnoreRule
+}
+
+// projIgnore matches paths against stacked .gitignore files while walking a
+// project folder.
+type projIgnore struct {
+	layers []projIgnoreLayer
+}
+
+func projNewIgnore(folder string) *projIgnore {
+	ig := &projIgnore{}
+	// Load ancestor .gitignore files up to the enclosing git repository root,
+	// if any, so opening a subdirectory still respects repo-level ignores.
+	var ancestors []string
+	var repoRoot string
+	for cur := filepath.Dir(folder); ; {
+		if _, err := os.Stat(filepath.Join(cur, ".git")); err == nil {
+			repoRoot = cur
+			ancestors = append(ancestors, cur)
+			break
+		}
+		ancestors = append(ancestors, cur)
+		parent := filepath.Dir(cur)
+		if parent == cur {
+			break
+		}
+		cur = parent
+	}
+	if repoRoot != "" {
+		if b, err := os.ReadFile(filepath.Join(repoRoot, ".git", "info", "exclude")); err == nil {
+			if rules := projParseIgnore(b); len(rules) > 0 {
+				ig.layers = append(ig.layers, projIgnoreLayer{dir: repoRoot, rules: rules})
+			}
+		}
+		for i := len(ancestors) - 1; i >= 0; i-- {
+			ig.pushDir(ancestors[i])
+		}
+	}
+	return ig
+}
+
+func (ig *projIgnore) pushDir(dir string) {
+	b, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
+	if err != nil {
+		return
+	}
+	if rules := projParseIgnore(b); len(rules) > 0 {
+		ig.layers = append(ig.layers, projIgnoreLayer{dir: dir, rules: rules})
+	}
+}
+
+func (ig *projIgnore) ignored(p, name string, isDir bool) bool {
+	ignored := false
+	for _, layer := range ig.layers {
+		rel, err := filepath.Rel(layer.dir, p)
+		if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+			continue
+		}
+		rel = filepath.ToSlash(rel)
+		for _, r := range layer.rules {
+			if r.dirOnly && !isDir {
+				continue
+			}
+			var matched bool
+			if r.anchored {
+				matched = projMatchGlob(r.pattern, rel)
+			} else {
+				matched = projMatchGlob(r.pattern, name)
+			}
+			if matched {
+				ignored = !r.negated
+			}
+		}
+	}
+	return ignored
+}
+
+func projParseIgnore(data []byte) []projIgnoreRule {
+	var rules []projIgnoreRule
+	for _, raw := range strings.Split(string(data), "\n") {
+		line := strings.TrimSuffix(raw, "\r")
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = projTrimTrailingSpaces(line)
+		if line == "" {
+			continue
+		}
+		negated := false
+		if strings.HasPrefix(line, "!") {
+			negated = true
+			line = line[1:]
+		} else if strings.HasPrefix(line, `\#`) || strings.HasPrefix(line, `\!`) {
+			line = line[1:]
+		}
+		dirOnly := false
+		if strings.HasSuffix(line, "/") {
+			dirOnly = true
+			line = strings.TrimRight(line, "/")
+		}
+		if line == "" {
+			continue
+		}
+		anchored := false
+		if strings.HasPrefix(line, "/") {
+			anchored = true
+			line = strings.TrimLeft(line, "/")
+		}
+		if strings.Contains(line, "/") {
+			anchored = true
+		}
+		if line == "" {
+			continue
+		}
+		rules = append(rules, projIgnoreRule{
+			pattern:  line,
+			negated:  negated,
+			dirOnly:  dirOnly,
+			anchored: anchored,
+		})
+	}
+	return rules
+}
+
+func projTrimTrailingSpaces(s string) string {
+	end := len(s)
+	for end > 0 && s[end-1] == ' ' {
+		bs := 0
+		for i := end - 2; i >= 0 && s[i] == '\\'; i-- {
+			bs++
+		}
+		if bs%2 == 1 {
+			// Escaped trailing space; keep it and drop the escape backslash.
+			return s[:end-2] + " "
+		}
+		end--
+	}
+	return s[:end]
+}
+
+func projMatchGlob(pattern, text string) bool {
+	if !strings.Contains(pattern, "**") {
+		ok, _ := path.Match(pattern, text)
+		return ok
+	}
+	return projMatchSegs(strings.Split(pattern, "/"), strings.Split(text, "/"))
+}
+
+func projMatchSegs(pSegs, tSegs []string) bool {
+	m, n := len(pSegs), len(tSegs)
+	dp := make([]bool, n+1)
+	dp[0] = true
+	for i := 1; i <= m; i++ {
+		next := make([]bool, n+1)
+		p := pSegs[i-1]
+		if p == "**" {
+			// Trailing "/**" matches inside the prefix, not the prefix itself.
+			trailing := i == m && m > 1
+			if !trailing {
+				next[0] = dp[0]
+			}
+			for j := 1; j <= n; j++ {
+				if trailing {
+					next[j] = dp[j-1] || next[j-1]
+				} else {
+					next[j] = dp[j] || next[j-1]
+				}
+			}
+		} else {
+			for j := 1; j <= n; j++ {
+				if dp[j-1] {
+					if ok, _ := path.Match(p, tSegs[j-1]); ok {
+						next[j] = true
+					}
+				}
+			}
+		}
+		dp = next
+	}
+	return dp[n]
 }
 
 func walkFolders(folders []string) []string {
+	return walkFoldersWith(folders, folderExclude, fileExclude)
+}
+
+func walkFoldersWith(folders, folderExcl, fileExcl []string) []string {
 	var files []string
 	for _, f := range folders {
-		filepath.WalkDir(f, func(path string, e fs.DirEntry, err error) error {
-			switch {
-			case err != nil:
+		ig := projNewIgnore(f)
+		baseLayers := len(ig.layers)
+		filepath.WalkDir(f, func(p string, e fs.DirEntry, err error) error {
+			if err != nil {
 				return nil
-			case len(files) >= maxIndexed:
+			}
+			if len(files) >= maxIndexed {
 				return filepath.SkipAll
-			case e.IsDir():
-				if path != f && excluded(e.Name(), folderExclude) {
+			}
+			for len(ig.layers) > baseLayers && !within(p, ig.layers[len(ig.layers)-1].dir) {
+				ig.layers = ig.layers[:len(ig.layers)-1]
+			}
+			if e.IsDir() {
+				if p != f && (excluded(e.Name(), folderExcl) || ig.ignored(p, e.Name(), true)) {
 					return filepath.SkipDir
 				}
-			case !excluded(e.Name(), fileExclude) && !excluded(e.Name(), binaryFiles):
-				files = append(files, path)
+				ig.pushDir(p)
+				return nil
+			}
+			if !excluded(e.Name(), fileExcl) && !excluded(e.Name(), binaryFiles) && !ig.ignored(p, e.Name(), false) {
+				files = append(files, p)
 			}
 			return nil
 		})
@@ -242,12 +583,13 @@ func walkFolders(folders []string) []string {
 func (a *app) indexFolders() {
 	a.proj.gen++
 	gen, folders := a.proj.gen, slices.Clone(a.proj.folders)
+	folderExcl, fileExcl := slices.Clone(a.set.folderExcludes()), slices.Clone(a.set.fileExcludes())
 	if a.win == nil {
-		a.proj.files = walkFolders(folders)
+		a.proj.files = walkFoldersWith(folders, folderExcl, fileExcl)
 		return
 	}
 	go func() {
-		files := walkFolders(folders)
+		files := walkFoldersWith(folders, folderExcl, fileExcl)
 		a.win.Update(func() {
 			if gen == a.proj.gen {
 				a.proj.files = files
@@ -296,6 +638,98 @@ func (a *app) closeProject() {
 	a.proj = project{gen: a.proj.gen + 1}
 }
 
+// projStripJSONC strips UTF-8 BOM, // line comments, /* */ block comments, and
+// trailing commas from Sublime Text's JSONC project files while leaving string
+// literals untouched.
+func projStripJSONC(src []byte) []byte {
+	src = bytes.TrimPrefix(src, []byte{0xef, 0xbb, 0xbf})
+	noComments := make([]byte, 0, len(src))
+	inString := false
+	for i := 0; i < len(src); {
+		b := src[i]
+		if inString {
+			if b == '\\' && i+1 < len(src) {
+				noComments = append(noComments, b, src[i+1])
+				i += 2
+				continue
+			}
+			if b == '"' {
+				inString = false
+			}
+			noComments = append(noComments, b)
+			i++
+			continue
+		}
+		if b == '"' {
+			inString = true
+			noComments = append(noComments, b)
+			i++
+			continue
+		}
+		if b == '/' && i+1 < len(src) {
+			if src[i+1] == '/' {
+				i += 2
+				for i < len(src) && src[i] != '\n' {
+					i++
+				}
+				continue
+			}
+			if src[i+1] == '*' {
+				i += 2
+				for i < len(src) {
+					if src[i] == '*' && i+1 < len(src) && src[i+1] == '/' {
+						i += 2
+						break
+					}
+					i++
+				}
+				noComments = append(noComments, ' ')
+				continue
+			}
+		}
+		noComments = append(noComments, b)
+		i++
+	}
+
+	out := make([]byte, 0, len(noComments))
+	inString = false
+	for i := 0; i < len(noComments); {
+		b := noComments[i]
+		if inString {
+			if b == '\\' && i+1 < len(noComments) {
+				out = append(out, b, noComments[i+1])
+				i += 2
+				continue
+			}
+			if b == '"' {
+				inString = false
+			}
+			out = append(out, b)
+			i++
+			continue
+		}
+		if b == '"' {
+			inString = true
+			out = append(out, b)
+			i++
+			continue
+		}
+		if b == ',' {
+			j := i + 1
+			for j < len(noComments) && (noComments[j] == ' ' || noComments[j] == '\t' || noComments[j] == '\r' || noComments[j] == '\n') {
+				j++
+			}
+			if j < len(noComments) && (noComments[j] == '}' || noComments[j] == ']') {
+				i++
+				continue
+			}
+		}
+		out = append(out, b)
+		i++
+	}
+	return out
+}
+
 // readProject reads the .sublime-project file at path.
 func readProject(path string) (projectFile, error) {
 	var pf projectFile
@@ -303,8 +737,27 @@ func readProject(path string) (projectFile, error) {
 	if err != nil {
 		return pf, err
 	}
-	err = json.Unmarshal(b, &pf)
-	return pf, err
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(projStripJSONC(b), &raw); err != nil {
+		return pf, err
+	}
+	pf.extra = raw
+	if fb, ok := raw["folders"]; ok {
+		var rawFolders []map[string]json.RawMessage
+		if err := json.Unmarshal(fb, &rawFolders); err != nil {
+			return pf, err
+		}
+		for _, fm := range rawFolders {
+			var p string
+			if pb, ok := fm["path"]; ok {
+				if err := json.Unmarshal(pb, &p); err != nil {
+					return pf, err
+				}
+			}
+			pf.Folders = append(pf.Folders, projectFolder{Path: p, extra: fm})
+		}
+	}
+	return pf, nil
 }
 
 func (a *app) openProject(path string) error {
@@ -320,12 +773,29 @@ func (a *app) openProject(path string) error {
 func (a *app) useProject(path string, pf projectFile) {
 	a.closeProject()
 	a.proj.path, a.proj.jump = path, true
+	if len(pf.extra) > 0 {
+		a.proj.meta = make(map[string]json.RawMessage, len(pf.extra))
+		for k, v := range pf.extra {
+			a.proj.meta[k] = v
+		}
+	}
+	if len(pf.Folders) > 0 {
+		a.proj.folderMeta = make(map[string]map[string]json.RawMessage, len(pf.Folders))
+	}
 	for _, f := range pf.Folders {
 		p := filepath.FromSlash(f.Path)
 		if !filepath.IsAbs(p) {
 			p = filepath.Join(filepath.Dir(path), p)
 		}
-		a.proj.folders = append(a.proj.folders, filepath.Clean(p))
+		p = filepath.Clean(p)
+		a.proj.folders = append(a.proj.folders, p)
+		if len(f.extra) > 0 {
+			fm := make(map[string]json.RawMessage, len(f.extra))
+			for k, v := range f.extra {
+				fm[k] = v
+			}
+			a.proj.folderMeta[p] = fm
+		}
 	}
 	if a.side == noPanel {
 		a.side = filesPanel
@@ -335,19 +805,27 @@ func (a *app) useProject(path string, pf projectFile) {
 }
 
 // saveProject writes the folders to path, relative to it as Sublime Text
-// writes them.
+// writes them, preserving any unknown top-level and per-folder fields.
 func (a *app) saveProject(path string) error {
-	var pf projectFile
+	out := make(map[string]any, len(a.proj.meta)+1)
+	for k, v := range a.proj.meta {
+		out[k] = v
+	}
+	folders := make([]map[string]any, 0, len(a.proj.folders))
 	for _, f := range a.proj.folders {
 		p := f
 		if r, err := filepath.Rel(filepath.Dir(path), f); err == nil {
 			p = r
 		}
-		pf.Folders = append(pf.Folders, struct {
-			Path string `json:"path"`
-		}{filepath.ToSlash(p)})
+		entry := make(map[string]any, len(a.proj.folderMeta[f])+1)
+		for k, v := range a.proj.folderMeta[f] {
+			entry[k] = v
+		}
+		entry["path"] = filepath.ToSlash(p)
+		folders = append(folders, entry)
 	}
-	b, err := json.MarshalIndent(pf, "", "\t")
+	out["folders"] = folders
+	b, err := json.MarshalIndent(out, "", "\t")
 	if err != nil {
 		return err
 	}
@@ -438,27 +916,39 @@ func renameNew(from, to string) error {
 }
 
 // renamed has the tabs of the files in from, its folders shown open and
-// the project's folders follow it to to.
+// the project's folders follow it to to, across all windows.
 func (a *app) renamed(from, to string) {
-	for _, d := range a.allDocs() {
-		if p := moved(d.path, from, to); p != d.path {
-			d.path = p
-			d.st.Buffer.SetLanguage(editor.LanguageFor(p))
-			if a.reloading {
-				a.reloadAgain = true
+	for _, w := range a.l.wins {
+		for _, d := range w.allDocs() {
+			if p := moved(d.path, from, to); p != d.path {
+				d.path = p
+				d.st.Buffer.SetLanguage(editor.LanguageFor(p))
+				if w.reloading {
+					w.reloadAgain = true
+				}
 			}
 		}
+		open := make(map[string]*bool, len(w.proj.open))
+		for dir, o := range w.proj.open {
+			open[moved(dir, from, to)] = o
+		}
+		w.proj.open = open
+		if len(w.proj.folderMeta) > 0 {
+			meta := make(map[string]map[string]json.RawMessage, len(w.proj.folderMeta))
+			for dir, m := range w.proj.folderMeta {
+				meta[moved(dir, from, to)] = m
+			}
+			w.proj.folderMeta = meta
+		}
+		for i, f := range w.proj.folders {
+			w.proj.folders[i] = moved(f, from, to)
+		}
+		if w == a || w.proj.holds(from) || w.proj.holds(to) {
+			w.proj.jump = true
+			w.refreshFolders()
+		}
 	}
-	open := make(map[string]*bool, len(a.proj.open))
-	for dir, o := range a.proj.open {
-		open[moved(dir, from, to)] = o
-	}
-	a.proj.open = open
-	for i, f := range a.proj.folders {
-		a.proj.folders[i] = moved(f, from, to)
-	}
-	a.proj.jump = true
-	a.refreshFolders()
+	a.l.redraw()
 }
 
 // canDrop reports whether path dragged in the side bar can go into dir:
@@ -478,7 +968,7 @@ func (a *app) dropInto(path, dir string, copy bool) {
 		return
 	}
 	detail := []string{locales.DialogReplaceDetail()}
-	if slices.ContainsFunc(a.docsIn(to), (*doc).dirty) {
+	if slices.ContainsFunc(a.l.docsIn(to), (*doc).dirty) {
 		detail = append(detail, locales.DialogUnsavedLost())
 	}
 	labels := []string{locales.ButtonReplace(), locales.ButtonKeepBoth()}
@@ -486,21 +976,26 @@ func (a *app) dropInto(path, dir string, copy bool) {
 		func() { a.replace(path, to, copy) },
 		func() { a.transfer(path, keepBoth(to), copy) },
 	}
+	destructive := []int{0}
 	// Replacing the folder path is in would trash path too.
 	if within(path, to) {
-		labels, choices, detail = labels[1:], choices[1:], nil
+		labels, choices, detail, destructive = labels[1:], choices[1:], nil, nil
 	}
 	labels = append(labels, locales.ButtonCancel())
 	go func() {
-		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
-			Parent:       a.win,
-			Type:         mygo.MessageWarning,
-			Message:      locales.DialogItemExists(name, filepath.Base(dir)),
-			Detail:       strings.Join(detail, " "),
-			Buttons:      labels,
-			CancelButton: len(labels) - 1,
+		res, err := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:             a.win,
+			Type:               mygo.MessageWarning,
+			Message:            locales.DialogItemExists(name, filepath.Base(dir)),
+			Detail:             strings.Join(detail, " "),
+			Buttons:            labels,
+			CancelButton:       len(labels) - 1,
+			DestructiveButtons: destructive,
 		})
-		if res.Button < len(choices) {
+		if err != nil {
+			return
+		}
+		if res.Button >= 0 && res.Button < len(choices) {
 			a.win.Update(choices[res.Button])
 		}
 	}()
@@ -615,18 +1110,61 @@ func (a *app) startCreate(dir string, folder bool) {
 	a.proj.create = &creation{dir: dir, folder: folder}
 }
 
+// projResolveCreate resolves a user-typed relative path under dir, rejecting
+// absolute paths and ".." segments that would escape dir.
+func projResolveCreate(dir, name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", nil
+	}
+	if strings.HasPrefix(name, "/") || strings.HasPrefix(name, "\\") {
+		return "", &os.PathError{Op: "create", Path: name, Err: fs.ErrInvalid}
+	}
+	rel := filepath.FromSlash(name)
+	if filepath.IsAbs(rel) {
+		return "", &os.PathError{Op: "create", Path: name, Err: fs.ErrInvalid}
+	}
+	base := filepath.Clean(dir)
+	p := filepath.Join(base, rel)
+	r, err := filepath.Rel(base, p)
+	if err != nil || r == "." || r == ".." || strings.HasPrefix(r, ".."+string(filepath.Separator)) {
+		return "", &os.PathError{Op: "create", Path: name, Err: fs.ErrPermission}
+	}
+	return p, nil
+}
+
 // finishCreate makes the file or folder named, opening a file in a tab.
 func (a *app) finishCreate() {
 	cr := a.proj.create
 	a.proj.create = nil
+	if cr == nil {
+		return
+	}
 	name := strings.TrimSpace(cr.name)
 	if name == "" {
 		return
 	}
-	p := filepath.Join(cr.dir, name)
+	if !cr.folder && (strings.HasSuffix(name, "/") || strings.HasSuffix(name, "\\")) {
+		go mygo.Dialog.Error(locales.DialogUnableToCreate(name), fs.ErrInvalid.Error())
+		return
+	}
+	p, err := projResolveCreate(cr.dir, name)
+	if err != nil {
+		go mygo.Dialog.Error(locales.DialogUnableToCreate(name), err.Error())
+		return
+	}
 	if err := createNew(p, cr.folder); err != nil {
 		go mygo.Dialog.Error(locales.DialogUnableToCreate(name), err.Error())
 		return
+	}
+	base := filepath.Clean(cr.dir)
+	for d := filepath.Dir(p); within(d, base) && d != base; {
+		*a.proj.isOpen(d, true) = true
+		parent := filepath.Dir(d)
+		if parent == d {
+			break
+		}
+		d = parent
 	}
 	a.refreshFolders()
 	if !cr.folder {
@@ -634,11 +1172,17 @@ func (a *app) finishCreate() {
 	}
 }
 
-func createNew(path string, folder bool) error {
+func createNew(p string, folder bool) error {
 	if folder {
-		return os.Mkdir(path, 0o755)
+		if _, err := os.Lstat(p); err == nil {
+			return &os.PathError{Op: "mkdir", Path: p, Err: fs.ErrExist}
+		}
+		return os.MkdirAll(p, 0o755)
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return err
 	}
@@ -656,25 +1200,51 @@ func (a *app) docsIn(path string) []*doc {
 	return docs
 }
 
-// discard moves path to the Trash, with the tabs of its files and the
-// project's folders in it.
+// docsIn returns the tabs of the files in path across all windows.
+func (l *lime) docsIn(path string) []*doc {
+	var docs []*doc
+	for _, w := range l.wins {
+		docs = append(docs, w.docsIn(path)...)
+	}
+	return docs
+}
+
+var projTrashItem = func(p string) error { return mygo.Shell.TrashItem(p) }
+
+// discard moves path to the Trash, with the tabs of its files, any dependent
+// diff/preview views, and the project's folders in it across all windows.
 func (a *app) discard(path string) error {
-	if err := mygo.Shell.TrashItem(path); err != nil {
+	if err := projTrashItem(path); err != nil {
 		return err
 	}
-	docs := a.docsIn(path)
-	for _, d := range docs {
-		a.take(d)
+	var removed []*doc
+	for _, w := range a.l.wins {
+		docs := w.docsIn(path)
+		for _, d := range docs {
+			w.closeViews(d)
+			w.take(d)
+		}
+		removed = append(removed, docs...)
+		before := len(w.proj.folders)
+		w.proj.folders = slices.DeleteFunc(w.proj.folders, func(f string) bool { return within(f, path) })
+		for dir := range w.proj.folderMeta {
+			if within(dir, path) {
+				delete(w.proj.folderMeta, dir)
+			}
+		}
+		if w != a && (len(w.proj.folders) != before || w.proj.holds(path)) {
+			w.refreshFolders()
+		}
 	}
-	release(docs...)
-	a.proj.folders = slices.DeleteFunc(a.proj.folders, func(f string) bool { return within(f, path) })
+	release(removed...)
+	a.l.redraw()
 	return nil
 }
 
 // trash moves path to the Trash, with the tabs of its files. It asks first
 // for a folder, or when a tab has changes.
 func (a *app) trash(path string, folder bool) {
-	docs := a.docsIn(path)
+	docs := a.l.docsIn(path)
 	del := func() {
 		if err := a.discard(path); err != nil {
 			go mygo.Dialog.Error(locales.DialogUnableToDelete(filepath.Base(path)), err.Error())
@@ -694,13 +1264,18 @@ func (a *app) trash(path string, folder bool) {
 		return
 	}
 	go func() {
-		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
-			Parent:  a.win,
-			Type:    mygo.MessageWarning,
-			Message: locales.DialogDelete(filepath.Base(path)),
-			Detail:  strings.Join(detail, " "),
-			Buttons: []string{locales.ButtonDelete(), locales.ButtonCancel()},
+		res, err := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:             a.win,
+			Type:               mygo.MessageWarning,
+			Message:            locales.DialogDelete(filepath.Base(path)),
+			Detail:             strings.Join(detail, " "),
+			Buttons:            []string{locales.ButtonDelete(), locales.ButtonCancel()},
+			CancelButton:       1,
+			DestructiveButtons: []int{0},
 		})
+		if err != nil {
+			return
+		}
 		if res.Button == 0 {
 			a.win.Update(del)
 		}
