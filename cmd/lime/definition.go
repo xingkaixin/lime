@@ -89,8 +89,8 @@ func goGroupSymbols(src []byte, offset int, constants bool) ([]symbol, int) {
 	var scan scanner.Scanner
 	file := token.NewFileSet().AddFile("", -1, len(src))
 	scan.Init(file, src, func(token.Position, string) {}, 0)
-	scan.Scan() // opening parenthesis
-	depth := 0
+	scan.Scan()
+	parens, nested := 0, 0
 	expectName, afterName := true, false
 	var out []symbol
 	for {
@@ -100,16 +100,18 @@ func goGroupSymbols(src []byte, offset int, constants bool) ([]symbol, int) {
 		case token.EOF:
 			return out, at
 		case token.RPAREN:
-			if depth == 0 {
+			if parens == 0 {
 				return out, at + 1
 			}
-			depth--
+			parens--
+		case token.LPAREN:
+			parens++
 		case token.RBRACE, token.RBRACK:
-			depth--
-		case token.LPAREN, token.LBRACE, token.LBRACK:
-			depth++
+			nested = max(0, nested-1)
+		case token.LBRACE, token.LBRACK:
+			nested++
 		case token.IDENT:
-			if depth == 0 && expectName {
+			if parens == 0 && nested == 0 && expectName {
 				if word != "_" {
 					out = append(out, symbol{word, at, 0})
 				}
@@ -117,7 +119,7 @@ func goGroupSymbols(src []byte, offset int, constants bool) ([]symbol, int) {
 				continue
 			}
 		case token.SEMICOLON, token.COMMA:
-			if depth == 0 && (t == token.SEMICOLON || afterName) {
+			if parens == 0 && nested == 0 && (t == token.SEMICOLON || afterName) {
 				expectName, afterName = true, false
 				continue
 			}

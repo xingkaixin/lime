@@ -229,6 +229,13 @@ func helper() {}
 
 }
 
+func TestSymbolsAfterUnfinishedStruct(t *testing.T) {
+	syms := symbols(editor.LanguageNamed("Go"), "type (\n Pair struct {\n X int\n)\nfunc helper() {}")
+	if !slices.ContainsFunc(syms, func(s symbol) bool { return s.name == "helper" }) {
+		t.Fatalf("missing helper after incomplete type: %v", syms)
+	}
+}
+
 func TestCompletionWordListCacheAndCaretExclusion(t *testing.T) {
 	a := newApp("")
 	d := a.add("", "alpha beta alpha\n")
