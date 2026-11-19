@@ -36,9 +36,12 @@ func symbols(l *editor.Language, text string) []symbol {
 	if l == nil || l.Tokenizer == nil {
 		return nil
 	}
+	isGo := l.Name == "Go"
 	var syms []symbol
 	var toks []editor.Token
 	var state uint64
+	var goGroup string
+	var groupParen, groupBrace int
 	at := 0
 	for line := range strings.SplitSeq(text, "\n") {
 		toks, state = l.Tokenizer.Tokenize(line, state, toks[:0])
@@ -47,10 +50,110 @@ func symbols(l *editor.Language, text string) []symbol {
 			syms = append(syms, h)
 		}
 		start, prev := 0, editor.TokenText
+		pendingGroup := ""
+		expectName := goGroup != "" && groupParen == 1 && groupBrace == 0
+		afterConstName := false
 		for _, t := range toks {
-			switch word := line[start:t.End]; {
+			word := line[start:t.End]
+			if goGroup != "" {
+				switch t.Kind {
+				case editor.TokenText, editor.TokenComment:
+				case editor.TokenPunctuation:
+					for i := 0; i < len(word); i++ {
+						switch word[i] {
+						case '(':
+							groupParen++
+							expectName, afterConstName = false, false
+						case ')':
+							groupParen--
+							expectName, afterConstName = false, false
+							if groupParen == 0 {
+								goGroup = ""
+								break
+							}
+						case '{':
+							groupBrace++
+							expectName, afterConstName = false, false
+						case '}':
+							if groupBrace > 0 {
+								groupBrace--
+							}
+						case ',':
+							if goGroup == "const" && groupParen == 1 && groupBrace == 0 && afterConstName {
+								expectName, afterConstName = true, false
+							}
+						case ';':
+							if groupParen == 1 && groupBrace == 0 {
+								expectName, afterConstName = true, false
+							}
+						default:
+							expectName, afterConstName = false, false
+						}
+						if goGroup == "" {
+							break
+						}
+					}
+				case editor.TokenVariable:
+					if expectName && groupParen == 1 && groupBrace == 0 {
+						if word != "_" {
+							syms = append(syms, symbol{word, at + start, 0})
+						}
+						expectName = false
+						afterConstName = goGroup == "const"
+					} else {
+						expectName, afterConstName = false, false
+					}
+				default:
+					expectName, afterConstName = false, false
+				}
+				start = t.End
+				continue
+			}
+			if pendingGroup != "" {
+				switch t.Kind {
+				case editor.TokenText, editor.TokenComment:
+					start = t.End
+					continue
+				case editor.TokenPunctuation:
+					if word[0] == '(' {
+						goGroup = pendingGroup
+						pendingGroup = ""
+						groupParen, groupBrace = 1, 0
+						expectName, afterConstName = true, false
+						for i := 1; i < len(word); i++ {
+							switch word[i] {
+							case '(':
+								groupParen++
+								expectName = false
+							case ')':
+								groupParen--
+								expectName = false
+								if groupParen == 0 {
+									goGroup = ""
+								}
+							case '{':
+								groupBrace++
+								expectName = false
+							case '}':
+								if groupBrace > 0 {
+									groupBrace--
+								}
+							}
+							if goGroup == "" {
+								break
+							}
+						}
+						start = t.End
+						continue
+					}
+				}
+				pendingGroup = ""
+			}
+			switch {
 			case t.Kind == editor.TokenKeyword && definers[word]:
-				if name, i := definedAfter(line, t.End, l.WordChars); name != "" {
+				if isGo && (word == "type" || word == "const") && strings.HasPrefix(line[skipSpace(line, t.End):], "(") {
+					pendingGroup = word
+				} else if name, i := definedAfter(line, t.End, l.WordChars); name != "" {
 					syms = append(syms, symbol{name, at + i, 0})
 				}
 			case t.Kind == editor.TokenFunction && (prev == editor.TokenType || prev == editor.TokenVariable):
@@ -147,6 +250,53 @@ func wordAt(text string, i int, chars string) string {
 	return text[start:wordEnd(text, i, chars)]
 }
 
+type symCacheEntry struct {
+	version uint64
+	lang    *editor.Language
+	syms    []symbol
+}
+
+var docSymCache = make(map[*doc]symCacheEntry)
+
+func (a *app) pruneSymCache() {
+	if len(docSymCache) == 0 {
+		return
+	}
+	live := make(map[*doc]bool)
+	if a.l != nil && len(a.l.wins) > 0 {
+		for _, w := range a.l.wins {
+			for _, d := range w.allDocs() {
+				live[d] = true
+			}
+		}
+	} else {
+		for _, d := range a.allDocs() {
+			live[d] = true
+		}
+	}
+	for d := range docSymCache {
+		if !live[d] {
+			delete(docSymCache, d)
+		}
+	}
+}
+
+func cachedSymbols(d *doc) []symbol {
+	b := d.st.Buffer
+	ver, lang := b.Version(), b.Language()
+	if e, ok := docSymCache[d]; ok && e.version == ver && e.lang == lang {
+		return e.syms
+	}
+	syms := symbols(lang, b.String())
+	docSymCache[d] = symCacheEntry{version: ver, lang: lang, syms: syms}
+	return syms
+}
+
+func (a *app) docSymbols(d *doc) []symbol {
+	a.pruneSymCache()
+	return cachedSymbols(d)
+}
+
 // definition is where a symbol is defined.
 type definition struct {
 	d  *doc
@@ -166,6 +316,7 @@ func (a *app) gotoDefinition(d *doc, off int) {
 	if name == "" {
 		return
 	}
+	a.pruneSymCache()
 	defs := definitionsIn(d, name)
 	if len(defs) == 0 {
 		for _, o := range a.allDocs() {
@@ -195,7 +346,7 @@ func (a *app) gotoDefinition(d *doc, off int) {
 
 func definitionsIn(d *doc, name string) []definition {
 	var defs []definition
-	for _, s := range symbols(d.st.Buffer.Language(), d.st.Buffer.String()) {
+	for _, s := range cachedSymbols(d) {
 		if s.name == name && s.level == 0 {
 			defs = append(defs, definition{d, s.at})
 		}
