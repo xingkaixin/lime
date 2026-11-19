@@ -240,10 +240,7 @@ var copyMods = func() ui.Modifiers {
 // it.
 func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 	open := a.proj.isOpen(dir, depth == 0)
-	ic := rowIcon{svg: folderIcon}
-	if *open {
-		ic = rowIcon{svg: folderOpenIcon, color: a.scheme.accent}
-	}
+	ic := a.folderIcon(*open)
 	box := ui.Column(c.Key(treeBox(dir))).FillWidth().Radius(c.Theme().Radius).Transition(colorFade)
 	if p, ok := ui.Drop[treeDrag](box); ok && canDrop(string(p), dir) {
 		a.dropInto(string(p), dir, c.Modifiers()&copyMods != 0)
@@ -271,7 +268,7 @@ func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 					a.treeDir(c, p, depth+1, cur)
 					continue
 				}
-				row := a.treeRow(c, p, depth+1, fileIcon(p, a.scheme.dark), cur != nil && cur.path == p).
+				row := a.treeRow(c, p, depth+1, a.fileIcon(p), cur != nil && cur.path == p).
 					OnClick(func() { a.open([]string{p}) }).
 					ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
 				treeSource(c, row, p)
@@ -293,9 +290,9 @@ func treeSource(c *ui.Context, row ui.Element, path string) {
 // it; Escape, a press elsewhere or the focus leaving cancels it.
 func (a *app) treeInput(c *ui.Context, cr *creation, depth int) {
 	t := c.Theme()
-	ic := fileIcon(filepath.Join(cr.dir, cr.name), a.scheme.dark)
+	ic := a.fileIcon(filepath.Join(cr.dir, cr.name))
 	if cr.folder {
-		ic = rowIcon{svg: folderIcon}
+		ic = a.folderIcon(false)
 	}
 	tint := ic.tint(a.scheme.chrome().muted)
 	ui.Row(c.Key(cr)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).

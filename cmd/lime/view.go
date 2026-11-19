@@ -463,7 +463,7 @@ func tabTitle(c *ui.Context, d *doc, dir string, fg ui.Color) {
 func (a *app) tabIcon(c *ui.Context, d *doc, fg ui.Color) {
 	ic := rowIcon{svg: commitIcon}
 	if d.commit == nil {
-		ic = fileIcon(d.source().path, a.scheme.dark)
+		ic = a.fileIcon(d.source().path)
 	}
 	ic.view(c, tabIcon, ic.tint(fg))
 }

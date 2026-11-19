@@ -9,7 +9,26 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo/ui"
+
+	"lime/locales"
 )
+
+const (
+	fileIconsDefault = "file-icons"
+	fileIconsPierre  = "pierre"
+)
+
+type fileIconSet struct {
+	name  string
+	label func(locales.Messages) string
+}
+
+func (f fileIconSet) id() string { return "set_file_icons " + f.name }
+
+var fileIconSets = []fileIconSet{
+	{fileIconsDefault, locales.Messages.FileIconsDefault},
+	{fileIconsPierre, locales.Messages.FileIconsPierre},
+}
 
 // fileIconFonts are the icon fonts of file-icons
 // (https://github.com/file-icons/atom), whose rules, glyphs and colours
@@ -34,6 +53,7 @@ type fileIconGlyph struct {
 // font, and its colour, zero for the muted one.
 type rowIcon struct {
 	svg        *ui.SVG
+	dual       *ui.SVG // two-colour SVG; falls back to monochrome svg when overridden by selection tint
 	font, char string
 	scale      float32 // of the row's size
 	color      ui.Color
@@ -48,6 +68,13 @@ func (ic rowIcon) tint(fallback ui.Color) ui.Color {
 }
 
 func (ic rowIcon) view(c *ui.Context, size float32, tint ui.Color) {
+	if ic.dual != nil && ic.color.A > 0 && tint.R == ic.color.R && tint.G == ic.color.G && tint.B == ic.color.B {
+		img := ui.Image(c, ic.dual).Size(size, size).Shrink(0).TextColor(ic.color)
+		if tint.A < ic.color.A {
+			img.Opacity(float32(tint.A) / float32(ic.color.A))
+		}
+		return
+	}
 	if ic.svg != nil {
 		ui.Icon(c, ic.svg).Size(size, size).Shrink(0).TextColor(tint)
 		return
@@ -144,4 +171,21 @@ func fileIcon(p string, dark bool) rowIcon {
 		}
 	}
 	return ic
+}
+
+func (a *app) fileIcon(p string) rowIcon {
+	if a.set.FileIcons == fileIconsPierre {
+		return pierreFileIcon(p, a.scheme.dark)
+	}
+	return fileIcon(p, a.scheme.dark)
+}
+
+func (a *app) folderIcon(open bool) rowIcon {
+	if a.set.FileIcons == fileIconsPierre {
+		return pierreFolderIcon(open, a.scheme.accent)
+	}
+	if open {
+		return rowIcon{svg: folderOpenIcon, color: a.scheme.accent}
+	}
+	return rowIcon{svg: folderIcon}
 }

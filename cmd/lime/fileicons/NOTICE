@@ -7,5 +7,8 @@ converted from WOFF2 to TrueType, and with Octicons 4.4.0:
 - fontawesome.ttf Font Awesome 4.7 by Dave Gandy, SIL OFL 1.1
 - octicons.ttf    Octicons 4.4.0 by GitHub, MIT (LICENSE-octicons)
 
+The SVGs in pierre/ come from Pierre Icons for VS Code
+(https://github.com/pierrecomputer/vscode-icons), MIT (LICENSE-pierre-icons.md).
+
 gen.go, dump.js and update.sh come from Peek
 (https://github.com/hyoban/peek), MIT, Copyright (c) 2026 Stephen Zhou.

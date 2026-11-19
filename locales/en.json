@@ -128,6 +128,8 @@
   "cursorSmooth": "Smooth",
   "typingNormal": "Normal",
   "typingRampage": "Rampage",
+  "fileIconsDefault": "File Icons",
+  "fileIconsPierre": "Pierre",
 
   "cmdNewFile": "File: New File",
   "cmdOpen": "File: Open…",
@@ -204,6 +206,11 @@
   "cmdRevertHunk": "Revert Diff Hunk",
   "cmdLayout": "Layout: {name}",
   "cmdCursorStyle": "Cursor Style: {name}",
+  "cmdFileIcons": "File Icons: {name}",
+  "@cmdFileIcons": {
+    "description": "A file icon set in the command palette.",
+    "placeholders": { "name": { "type": "String", "example": "Pierre" } }
+  },
   "@cmdLayout": {
     "description": "A layout in the command palette.",
     "placeholders": { "name": { "type": "String", "example": "Columns: 2" } }
@@ -606,6 +613,7 @@
   "settingsMode": "Color Mode",
   "settingsModeDesc": "Follow System switches between light and dark with the system",
   "settingsLayoutStyle": "Layout Style",
+  "settingsFileIcons": "File Icons",
   "settingsSystem": "System",
   "settingsLightTheme": "Light Theme",
   "settingsDarkTheme": "Dark Theme",

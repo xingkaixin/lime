@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "main": "./cmd/lime",
   "out": "build",
+  "resources": ["cmd/lime/fileicons/LICENSE-pierre-icons.md"],
   "i18n": { "dir": "locales", "source": "en" },
   "macos": {
     "infoPlist": {

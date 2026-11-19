@@ -292,6 +292,13 @@ func makeCommands() []command {
 			a.l.saveSettings()
 		}})
 	}
+	for _, s := range fileIconSets {
+		caption := func(m locales.Messages) string { return m.CmdFileIcons(s.label(m)) }
+		c = append(c, command{id: s.id(), caption: caption, run: func(a *app) {
+			a.set.FileIcons = s.name
+			a.l.saveSettings()
+		}})
+	}
 	return slices.Concat(c, indentCommands(), lineEndingCommands(), encodingCommands())
 }
 
