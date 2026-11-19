@@ -537,10 +537,12 @@ func (sc *scope) wantsOpen(s source) bool {
 		return filepath.ToSlash(strings.TrimPrefix(file[len(root):], string(filepath.Separator)))
 	}
 	var r string
+	canonical := realPath(s.path)
 	for _, roots := range [][]string{sc.paths, sc.folders} {
 		r = relative(s.path, roots, false)
-		if r == "" && s.path != "" {
-			r = relative(realPath(s.path), roots, true)
+		resolved := relative(canonical, roots, true)
+		if r == "" || resolved != "" && strings.Count(resolved, "/") < strings.Count(r, "/") {
+			r = resolved
 		}
 		if r != "" {
 			break
@@ -805,6 +807,10 @@ func fifMatchGlob(pat, rel string) bool {
 		switch pat[i] {
 		case '\\':
 			if !inClass && i+1 < len(pat) && pat[i+1] == '/' {
+				if pat[start:i] == "**" {
+					// Git requires at least one directory before an escaped separator.
+					segments = append(segments, "*")
+				}
 				segments = append(segments, pat[start:i])
 				start = i + 2
 			}

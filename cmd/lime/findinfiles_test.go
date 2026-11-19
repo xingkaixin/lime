@@ -538,7 +538,7 @@ func TestFindInFilesContextAndScope(t *testing.T) {
 	}
 	subAlias := filepath.Join(t.TempDir(), "subAlias")
 	if err := os.Symlink(filepath.Join(dir, "sub"), subAlias); err == nil {
-		sc := parseWhere(subAlias+", "+openFiles+", -nested/*.go", []string{dir})
+		sc := parseWhere(dir+", "+subAlias+", "+openFiles+", -nested/*.go", []string{dir})
 		nested := filepath.Join(dir, "sub", "nested")
 		if err := os.Mkdir(nested, 0755); err != nil {
 			t.Fatal(err)
@@ -553,6 +553,11 @@ func TestFindInFilesContextAndScope(t *testing.T) {
 	}
 	if !fifMatchGlob(fifIgnorePattern("dir/a[!x/]b"), "dir/azb") || !fifMatchGlob(`dir\/file`, "dir/file") {
 		t.Fatal("lost slash in class or escaped separator")
+	}
+	for _, name := range []string{"dir/keep.txt", "dir/x/keep.txt", "dir/x/y/keep.txt"} {
+		if got := fifMatchGlob(`dir/**\/keep.txt`, name); got != (name != "dir/keep.txt") {
+			t.Fatalf("escaped globstar %s: %v", name, got)
+		}
 	}
 	p := filepath.Join(dir, "mixed")
 	if err := os.WriteFile(p, []byte("first\rneedle\r\nthird\n"), 0600); err != nil {
