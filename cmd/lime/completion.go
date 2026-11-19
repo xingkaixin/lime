@@ -19,20 +19,27 @@ const completeSizeLimit = 4 << 20
 // background, and its words as last found serve meanwhile.
 const syncScanLimit = 128 << 10
 
-// wordList is the words of a doc's text at a version, each once, in the
-// order they first come, but for the word at caret, which is being typed
-// (-1 for none).
+// wordList is the words of a doc's text at a version, each once in the
+// order they first come, with their occurrence counts.
 type wordList struct {
 	version uint64
-	caret   int
+	chars   string
 	words   []string
-	has     map[string]bool
+	counts  map[string]int
+}
+
+func (w *wordList) has(word, exclude string) bool {
+	c := w.counts[word]
+	if exclude != "" && word == exclude {
+		return c > 1
+	}
+	return c > 0
 }
 
 var noWords wordList
 
-func scanWords(s editor.Snapshot, chars string, caret int) *wordList {
-	w := &wordList{version: s.Version(), caret: caret, has: make(map[string]bool)}
+func scanWords(s editor.Snapshot, chars string) *wordList {
+	w := &wordList{version: s.Version(), chars: chars, counts: make(map[string]int)}
 	if s.Len() > completeSizeLimit {
 		return w
 	}
@@ -46,31 +53,36 @@ func scanWords(s editor.Snapshot, chars string, caret int) *wordList {
 		e := wordEnd(text, i, chars)
 		// A word of one character completes nothing, and numbers, which
 		// typing would otherwise complete, take Enter from a new line.
-		if word := text[i:e]; e > i+n && !unicode.IsDigit(r) && (caret < i || caret > e) && !w.has[word] {
-			word = strings.Clone(word)
-			w.words = append(w.words, word)
-			w.has[word] = true
+		if e > i+n && !unicode.IsDigit(r) {
+			word := text[i:e]
+			if c := w.counts[word]; c > 0 {
+				w.counts[word] = c + 1
+			} else {
+				word = strings.Clone(word)
+				w.words = append(w.words, word)
+				w.counts[word] = 1
+			}
 		}
 		i = e
 	}
 	return w
 }
 
-// wordList returns the words of d's text but for the word at caret,
-// scanning it again only once it changed.
-func (a *app) wordList(d *doc, caret int) *wordList {
+// wordList returns the words of d's text, scanning it again only once
+// its version or word characters changed.
+func (a *app) wordList(d *doc) *wordList {
 	s := d.st.Buffer.Snapshot()
+	chars := wordChars(d.st.Buffer)
 	w := d.words
 	switch {
-	case w != nil && w.version == s.Version() && w.caret == caret || d.scanning:
+	case w != nil && w.version == s.Version() && w.chars == chars || d.scanning:
 	case s.Len() <= syncScanLimit || a.win == nil:
-		w = scanWords(s, wordChars(d.st.Buffer), caret)
+		w = scanWords(s, chars)
 		d.words = w
 	default:
 		d.scanning = true
-		chars := wordChars(d.st.Buffer)
 		go func() {
-			found := scanWords(s, chars, caret)
+			found := scanWords(s, chars)
 			a.win.Update(func() {
 				d.words, d.scanning = found, false
 				// The completions asked for meanwhile get the words found.
@@ -98,7 +110,7 @@ func (a *app) otherWords(d *doc) *tabWords {
 	var lists []*wordList
 	for _, o := range a.allDocs() {
 		if o != d && o.kind == textDoc {
-			lists = append(lists, a.wordList(o, -1))
+			lists = append(lists, a.wordList(o))
 		}
 	}
 	if a.others == nil || !slices.Equal(lists, a.others.lists) {
@@ -134,6 +146,40 @@ func wordStart(s string, i int, chars string) int {
 	return i
 }
 
+// matchesPrefix reports whether s contains all characters of prefix in order,
+// ignoring case, matching editor.State's completion subsequence filter.
+func matchesPrefix(prefix, s string) bool {
+	if prefix == "" {
+		return true
+	}
+	if isASCII(prefix) && isASCII(s) {
+		pi := 0
+		for i := 0; i < len(s); i++ {
+			if lower(s[i]) == lower(prefix[pi]) {
+				pi++
+				if pi == len(prefix) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	pi := 0
+	pr, pn := utf8.DecodeRuneInString(prefix)
+	pl := unicode.ToLower(pr)
+	for _, r := range s {
+		if unicode.ToLower(r) == pl {
+			pi += pn
+			if pi == len(prefix) {
+				return true
+			}
+			pr, pn = utf8.DecodeRuneInString(prefix[pi:])
+			pl = unicode.ToLower(pr)
+		}
+	}
+	return false
+}
+
 // complete answers d's request for completions with the words of the
 // window's tabs, d's first, as Sublime Text's auto_complete does.
 func (a *app) complete(d *doc, r editor.CompletionRequest) {
@@ -143,22 +189,39 @@ func (a *app) complete(d *doc, r editor.CompletionRequest) {
 		return
 	}
 	d.asked = r
-	own, others := a.wordList(d, r.Offset), a.otherWords(d)
+	own, others := a.wordList(d), a.otherWords(d)
 	if !d.scanning {
 		d.asked = editor.CompletionRequest{}
 	}
+	exclude := ""
+	if own.version == b.Version() {
+		chars := wordChars(b)
+		line := b.Line(p.Line)
+		exclude = line[wordStart(line, p.Col, chars):wordEnd(line, p.Col, chars)]
+	}
 	// The word typed, a word itself, would be chosen first, and Enter
 	// would complete it rather than break the line.
-	if !r.Explicit && (own.has[r.Prefix] || others.has[r.Prefix]) {
+	if !r.Explicit && (own.has(r.Prefix, exclude) || others.has[r.Prefix]) {
 		d.st.ShowCompletions(-1, nil)
 		return
 	}
-	items := make([]editor.Completion, 0, len(own.words)+len(others.words))
+	var items []editor.Completion
+	if r.Prefix == "" {
+		items = make([]editor.Completion, 0, len(own.words)+len(others.words))
+	}
 	for _, w := range own.words {
-		items = append(items, editor.Completion{Label: w})
+		if !own.has(w, exclude) {
+			continue
+		}
+		if r.Prefix == "" || matchesPrefix(r.Prefix, w) {
+			items = append(items, editor.Completion{Label: w})
+		}
 	}
 	for _, w := range others.words {
-		if !own.has[w] {
+		if own.has(w, exclude) {
+			continue
+		}
+		if r.Prefix == "" || matchesPrefix(r.Prefix, w) {
 			items = append(items, editor.Completion{Label: w})
 		}
 	}
@@ -179,7 +242,12 @@ func (a *app) typing(d *doc, ev ui.InputEvent) {
 	}
 	p := b.Pos(d.st.Cursor())
 	line := b.Line(p.Line)
-	if word := line[wordStart(line, p.Col, chars):p.Col] + ev.Text; d.words.has[word] || a.others.has[word] {
+	start := wordStart(line, p.Col, chars)
+	exclude := ""
+	if d.words.version == b.Version() {
+		exclude = line[start:wordEnd(line, p.Col, chars)]
+	}
+	if word := line[start:p.Col] + ev.Text; d.words.has(word, exclude) || a.others.has[word] {
 		d.st.ShowCompletions(-1, nil)
 	}
 }
