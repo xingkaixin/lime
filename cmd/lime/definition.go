@@ -1,6 +1,8 @@
 package main
 
 import (
+	"go/scanner"
+	"go/token"
 	"strconv"
 	"strings"
 	"unicode"
@@ -40,9 +42,8 @@ func symbols(l *editor.Language, text string) []symbol {
 	var syms []symbol
 	var toks []editor.Token
 	var state uint64
-	var goGroup string
-	var groupParen, groupBrace int
-	var expectName, afterConstName bool
+	var goText []byte
+	groupEnd := 0
 	at := 0
 	for line := range strings.SplitSeq(text, "\n") {
 		toks, state = l.Tokenizer.Tokenize(line, state, toks[:0])
@@ -51,112 +52,22 @@ func symbols(l *editor.Language, text string) []symbol {
 			syms = append(syms, h)
 		}
 		start, prev := 0, editor.TokenText
-		pendingGroup := ""
-		var last string
-		var lastKind editor.TokenKind
 		for _, t := range toks {
 			word := line[start:t.End]
-			if t.Kind != editor.TokenText && t.Kind != editor.TokenComment {
-				last, lastKind = word, t.Kind
-			}
-			if goGroup != "" {
-				switch t.Kind {
-				case editor.TokenText, editor.TokenComment:
-				case editor.TokenPunctuation:
-					for i := 0; i < len(word); i++ {
-						switch word[i] {
-						case '(':
-							groupParen++
-							expectName, afterConstName = false, false
-						case ')':
-							groupParen--
-							expectName, afterConstName = false, false
-							if groupParen == 0 {
-								goGroup = ""
-								break
-							}
-						case '{':
-							groupBrace++
-							expectName, afterConstName = false, false
-						case '}':
-							if groupBrace > 0 {
-								groupBrace--
-							}
-						case ',':
-							if goGroup == "const" && groupParen == 1 && groupBrace == 0 && afterConstName {
-								expectName, afterConstName = true, false
-							}
-						case ';':
-							if groupParen == 1 && groupBrace == 0 {
-								expectName, afterConstName = true, false
-							}
-						default:
-							expectName, afterConstName = false, false
-						}
-						if goGroup == "" {
-							break
-						}
-					}
-				case editor.TokenVariable:
-					if expectName && groupParen == 1 && groupBrace == 0 {
-						if word != "_" {
-							syms = append(syms, symbol{word, at + start, 0})
-						}
-						expectName = false
-						afterConstName = goGroup == "const"
-					} else {
-						expectName, afterConstName = false, false
-					}
-				default:
-					expectName, afterConstName = false, false
-				}
+			if at+start < groupEnd {
 				start = t.End
 				continue
-			}
-			if pendingGroup != "" {
-				switch t.Kind {
-				case editor.TokenText, editor.TokenComment:
-					start = t.End
-					continue
-				case editor.TokenPunctuation:
-					if word[0] == '(' {
-						goGroup = pendingGroup
-						pendingGroup = ""
-						groupParen, groupBrace = 1, 0
-						expectName, afterConstName = true, false
-						for i := 1; i < len(word); i++ {
-							switch word[i] {
-							case '(':
-								groupParen++
-								expectName = false
-							case ')':
-								groupParen--
-								expectName = false
-								if groupParen == 0 {
-									goGroup = ""
-								}
-							case '{':
-								groupBrace++
-								expectName = false
-							case '}':
-								if groupBrace > 0 {
-									groupBrace--
-								}
-							}
-							if goGroup == "" {
-								break
-							}
-						}
-						start = t.End
-						continue
-					}
-				}
-				pendingGroup = ""
 			}
 			switch {
 			case t.Kind == editor.TokenKeyword && definers[word]:
 				if isGo && (word == "type" || word == "const") && strings.HasPrefix(line[skipSpace(line, t.End):], "(") {
-					pendingGroup = word
+					if goText == nil {
+						goText = []byte(text)
+					}
+					open := at + skipSpace(line, t.End)
+					var grouped []symbol
+					grouped, groupEnd = goGroupSymbols(goText[open:], open, word == "const")
+					syms = append(syms, grouped...)
 				} else if name, i := definedAfter(line, t.End, l.WordChars); name != "" {
 					syms = append(syms, symbol{name, at + i, 0})
 				}
@@ -168,20 +79,51 @@ func symbols(l *editor.Language, text string) []symbol {
 			}
 			start = t.End
 		}
-		if goGroup != "" && groupParen == 1 && groupBrace == 0 && last != "" {
-			// Go inserts a semicolon after an identifier, literal or closing delimiter.
-			switch lastKind {
-			case editor.TokenVariable, editor.TokenProperty, editor.TokenConstant, editor.TokenType, editor.TokenNumber, editor.TokenString, editor.TokenFunction:
-				expectName, afterConstName = true, false
-			case editor.TokenPunctuation:
-				if strings.ContainsRune(")]}", rune(last[len(last)-1])) {
-					expectName, afterConstName = true, false
-				}
-			}
-		}
 		at += len(line) + 1
 	}
 	return syms
+}
+
+// The Go scanner inserts semicolons, so a continued expression cannot start a declaration.
+func goGroupSymbols(src []byte, offset int, constants bool) ([]symbol, int) {
+	var scan scanner.Scanner
+	file := token.NewFileSet().AddFile("", -1, len(src))
+	scan.Init(file, src, func(token.Position, string) {}, 0)
+	scan.Scan() // opening parenthesis
+	depth := 0
+	expectName, afterName := true, false
+	var out []symbol
+	for {
+		pos, t, word := scan.Scan()
+		at := offset + file.Offset(pos)
+		switch t {
+		case token.EOF:
+			return out, at
+		case token.RPAREN:
+			if depth == 0 {
+				return out, at + 1
+			}
+			depth--
+		case token.RBRACE, token.RBRACK:
+			depth--
+		case token.LPAREN, token.LBRACE, token.LBRACK:
+			depth++
+		case token.IDENT:
+			if depth == 0 && expectName {
+				if word != "_" {
+					out = append(out, symbol{word, at, 0})
+				}
+				expectName, afterName = false, constants
+				continue
+			}
+		case token.SEMICOLON, token.COMMA:
+			if depth == 0 && (t == token.SEMICOLON || afterName) {
+				expectName, afterName = true, false
+				continue
+			}
+		}
+		expectName, afterName = false, false
+	}
 }
 
 // heading is the symbol of line when it is a Markdown heading of #s.

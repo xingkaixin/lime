@@ -188,7 +188,7 @@ type (
 )
 
 const (
-	First = 1
+	First = 1.
 	Second, Third = 2, 3
 	_ = iota
 	Fourth string = "a(b)c"
