@@ -117,7 +117,7 @@ func (a *app) closeFindInFiles() {
 // matcher finds the query of the find panels, with their options.
 type matcher struct {
 	re               *regexp.Regexp
-	reAt1            *regexp.Regexp // verifies a slice-start match at pos > 0 when re uses ^, \A, \b or \B
+	fullContext      bool
 	lit              string
 	lower, upper     string
 	litRunes         []rune
@@ -128,7 +128,7 @@ type matcher struct {
 }
 
 func newMatcher(query string, regex, caseSens, wholeWord bool) (*matcher, error) {
-	if !regex {
+	if !regex && !strings.ContainsRune(query, utf8.RuneError) {
 		m := &matcher{
 			lit:       query,
 			caseSens:  caseSens,
@@ -157,6 +157,9 @@ func newMatcher(query string, regex, caseSens, wholeWord bool) (*matcher, error)
 		return m, nil
 	}
 	expr := query
+	if !regex {
+		expr = regexp.QuoteMeta(expr)
+	}
 	if !caseSens {
 		expr = "(?i)" + expr
 	}
@@ -165,11 +168,8 @@ func newMatcher(query string, regex, caseSens, wholeWord bool) (*matcher, error)
 	if err != nil {
 		return nil, err
 	}
-	var reAt1 *regexp.Regexp
-	if parsed, err := syntax.Parse(expr, syntax.Perl); err == nil && fifHasStartCtx(parsed) {
-		reAt1 = regexp.MustCompile(`\A[\s\S](?:` + expr + `)`)
-	}
-	return &matcher{re: re, reAt1: reAt1, caseSens: caseSens, wholeWord: wholeWord, regex: true}, nil
+	parsed, err := syntax.Parse(expr, syntax.Perl)
+	return &matcher{re: re, fullContext: err == nil && fifHasStartCtx(parsed), wholeWord: wholeWord, regex: regex}, nil
 }
 
 func fifHasStartCtx(re *syntax.Regexp) bool {
@@ -247,63 +247,18 @@ func (m *matcher) replace(b *editor.Buffer, with string) int {
 			edits = append(edits, editor.Edit{Start: sub[0], End: sub[1], Text: with})
 		}
 	} else {
-		m.findSubmatches(text, func(sub []int) {
+		for _, sub := range m.re.FindAllStringSubmatchIndex(text, -1) {
+			if sub[0] == sub[1] || m.wholeWord && !wholeWordAt(text, sub[0], sub[1]) {
+				continue
+			}
 			r := string(m.re.ExpandString(nil, with, text, sub))
 			edits = append(edits, editor.Edit{Start: sub[0], End: sub[1], Text: r})
-		})
+		}
 	}
 	if len(edits) > 0 {
 		b.Edit(edits...)
 	}
 	return len(edits)
-}
-
-func (m *matcher) findSubmatches(text string, fn func([]int)) {
-	for pos := 0; pos <= len(text); {
-		sub := m.re.FindStringSubmatchIndex(text[pos:])
-		if sub == nil {
-			break
-		}
-		if sub[0] == 0 && pos > 0 && m.reAt1 != nil {
-			_, prevW := utf8.DecodeLastRuneInString(text[:pos])
-			at1 := m.reAt1.FindStringSubmatchIndex(text[pos-prevW:])
-			if at1 == nil {
-				if pos >= len(text) {
-					break
-				}
-				_, w := utf8.DecodeRuneInString(text[pos:])
-				pos += w
-				continue
-			}
-			at1[0] = prevW
-			shift := pos - prevW
-			for i, v := range at1 {
-				if v >= 0 {
-					at1[i] = v + shift
-				}
-			}
-			sub = at1
-		} else {
-			for i, v := range sub {
-				if v >= 0 {
-					sub[i] = v + pos
-				}
-			}
-		}
-		a, b := sub[0], sub[1]
-		if a == b {
-			if a >= len(text) {
-				break
-			}
-			_, w := utf8.DecodeRuneInString(text[a:])
-			pos = a + w
-			continue
-		}
-		if !m.wholeWord || wholeWordAt(text, a, b) {
-			fn(sub)
-		}
-		pos = b
-	}
 }
 
 // lineHit is a line of a file with matches: their bytes in it, the first
@@ -319,7 +274,7 @@ func (m *matcher) find(text string, limit int) [][]int {
 	if limit <= 0 {
 		return nil
 	}
-	if !m.regex {
+	if m.re == nil {
 		if m.caseSens {
 			return m.findLiteral(text, limit)
 		}
@@ -357,41 +312,22 @@ func (m *matcher) nextFirstFold(s string) (int, int) {
 			return strings.IndexByte(s, f[0]), 1
 		}
 		return strings.Index(s, f), len(f)
-	case 2:
-		if len(m.firstFolds[0]) == 1 && len(m.firstFolds[1]) == 1 {
-			c0, c1 := m.firstFolds[0][0], m.firstFolds[1][0]
-			i := strings.IndexByte(s, c0)
-			if i < 0 {
-				return strings.IndexByte(s, c1), 1
-			}
-			if i > 0 {
-				if j := strings.IndexByte(s[:i], c1); j >= 0 {
-					return j, 1
-				}
-			}
-			return i, 1
-		}
 	}
-	best, bestW := -1, 0
-	for _, f := range m.firstFolds {
-		end := len(s)
-		if best >= 0 {
-			end = min(len(s), best+len(f)-1)
+	if len(m.firstFolds) == 2 && len(m.firstFolds[0]) == 1 && len(m.firstFolds[1]) == 1 {
+		c0, c1 := m.firstFolds[0][0], m.firstFolds[1][0]
+		for i := 0; i < len(s); i++ {
+			if s[i] == c0 || s[i] == c1 {
+				return i, 1
+			}
 		}
-		var j int
-		if len(f) == 1 {
-			j = strings.IndexByte(s[:end], f[0])
-		} else {
-			j = strings.Index(s[:end], f)
-		}
-		if j >= 0 && (best < 0 || j < best) {
-			best, bestW = j, len(f)
-			if best == 0 {
-				break
+	} else {
+		for i, r := range s {
+			if fifEqualFoldRune(r, m.litRunes[0]) {
+				return i, utf8.RuneLen(r)
 			}
 		}
 	}
-	return best, bestW
+	return -1, 0
 }
 
 func (m *matcher) findLiteralFold(text string, limit int) [][]int {
@@ -445,25 +381,29 @@ func (m *matcher) findLiteralFold(text string, limit int) [][]int {
 
 func (m *matcher) findRegex(text string, limit int) [][]int {
 	var kept [][]int
+	if m.fullContext {
+		for n := limit; ; n = min(len(text)+1, n*2) {
+			all := m.re.FindAllStringIndex(text, n)
+			kept = kept[:0]
+			for _, loc := range all {
+				if loc[0] != loc[1] && (!m.wholeWord || wholeWordAt(text, loc[0], loc[1])) {
+					kept = append(kept, loc)
+					if len(kept) == limit {
+						return kept
+					}
+				}
+			}
+			if len(all) < n || n >= len(text)+1 {
+				return kept
+			}
+		}
+	}
 	for pos := 0; pos <= len(text) && len(kept) < limit; {
 		loc := m.re.FindStringIndex(text[pos:])
 		if loc == nil {
 			break
 		}
 		a, b := pos+loc[0], pos+loc[1]
-		if loc[0] == 0 && pos > 0 && m.reAt1 != nil {
-			_, prevW := utf8.DecodeLastRuneInString(text[:pos])
-			sub := m.reAt1.FindStringIndex(text[pos-prevW:])
-			if sub == nil {
-				if pos >= len(text) {
-					break
-				}
-				_, w := utf8.DecodeRuneInString(text[pos:])
-				pos += w
-				continue
-			}
-			a, b = pos, pos+sub[1]-prevW
-		}
 		if a == b {
 			if a >= len(text) {
 				break
@@ -522,12 +462,12 @@ func wholeWordAt(text string, a, b int) bool {
 // scope is where a search looks, as the Where field has it: folders and
 // files, the open files, and patterns of the names to look in, or not.
 type scope struct {
-	paths            []string
+	paths, folders   []string
 	include, exclude []string
 }
 
 func parseWhere(where string, folders []string) scope {
-	var sc scope
+	sc := scope{folders: slices.Clone(folders)}
 	placed := false
 	for p := range strings.SplitSeq(where, ",") {
 		switch p = strings.TrimSpace(p); {
@@ -571,6 +511,30 @@ func fifMatchWhere(name, rel string, patterns []string) bool {
 
 func (sc *scope) wants(name, rel string) bool {
 	return !fifMatchWhere(name, rel, sc.exclude) && (len(sc.include) == 0 || fifMatchWhere(name, rel, sc.include))
+}
+
+func (sc *scope) wantsOpen(s source) bool {
+	rel := filepath.Base(s.name)
+	var root string
+	for _, roots := range [][]string{sc.paths, sc.folders} {
+		for _, dir := range roots {
+			if dir != openFiles && len(dir) > len(root) && s.path != dir && fifIsUnder(s.path, dir) {
+				root = dir
+			}
+		}
+		if root != "" {
+			break
+		}
+	}
+	if root != "" {
+		rel = filepath.ToSlash(strings.TrimPrefix(s.path[len(root):], string(filepath.Separator)))
+		for dir := path.Dir(rel); dir != "."; dir = path.Dir(dir) {
+			if fifMatchWhere(path.Base(dir), dir, sc.exclude) {
+				return false
+			}
+		}
+	}
+	return sc.wants(filepath.Base(s.name), rel)
 }
 
 // source is a file a search looks in: its tab's text when open.
@@ -746,13 +710,36 @@ func fifParseIgnore(content string) []fifIgnoreRule {
 			continue
 		}
 		rules = append(rules, fifIgnoreRule{
-			pattern:  line,
+			pattern:  fifIgnorePattern(line),
 			negate:   negate,
 			dirOnly:  dirOnly,
 			anchored: anchored,
 		})
 	}
 	return rules
+}
+
+// Git spells a negated character class [!...] where path.Match uses [^...].
+func fifIgnorePattern(p string) string {
+	if !strings.Contains(p, "[!") {
+		return p
+	}
+	b := []byte(p)
+	inClass := false
+	for i := 0; i < len(b); i++ {
+		switch b[i] {
+		case '\\':
+			i++
+		case ']':
+			inClass = false
+		case '[':
+			if !inClass && i+1 < len(b) && b[i+1] == '!' {
+				b[i+1] = '^'
+			}
+			inClass = true
+		}
+	}
+	return string(b)
 }
 
 func fifTrimTrailingSpaces(s string) string {
@@ -892,7 +879,7 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source, fallb
 					if searchCtx.Err() != nil {
 						return
 					}
-					if sc.wants(filepath.Base(s.name), filepath.ToSlash(s.path)) && !dispatch(s, realPath(s.path)) {
+					if sc.wantsOpen(s) && !dispatch(s, realPath(s.path)) {
 						return
 					}
 				}
@@ -1054,11 +1041,8 @@ func readSearched(path, fallback string) (string, bool) {
 	if hasUTF16BOM && binary(text) {
 		return "", false
 	}
-	text, ending := splitLines(text)
-	if ending == "\r\n" {
-		text = strings.ReplaceAll(text, "\r\n", "\n")
-	}
-	return text, true
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	return strings.ReplaceAll(text, "\r", "\n"), true
 }
 
 // prepareSearch makes the matcher of the panel's query and the sources of

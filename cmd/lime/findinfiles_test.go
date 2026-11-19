@@ -238,21 +238,21 @@ func TestMatcherRegexZeroWidthAndAnchors(t *testing.T) {
 func TestFindInFilesGitignore(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
-		".gitignore":               "# comment\n*.log\n!keep.log\nbuild/\n/rootonly.txt\ndocs/**/draft.md\n",
-		"main.go":                  "needle\n",
-		"skip.log":                 "needle\n",
-		"keep.log":                 "needle\n",
-		"build/out.txt":            "needle\n",
-		"rootonly.txt":             "needle\n",
-		"sub/.gitignore":           "*.tmp\n!allow.log\n",
-		"sub/rootonly.txt":         "needle\n",
-		"sub/a.tmp":                "needle\n",
-		"sub/allow.log":            "needle\n",
-		"sub/other.log":            "needle\n",
-		"other/b.tmp":              "needle\n",
-		"docs/a/b/draft.md":        "needle\n",
-		"docs/draft.md":            "needle\n",
-		"docs/a/final.md":          "needle\n",
+		".gitignore":        "# comment\n*.log\n!keep.log\nbuild/\n/rootonly.txt\ndocs/**/draft.md\n",
+		"main.go":           "needle\n",
+		"skip.log":          "needle\n",
+		"keep.log":          "needle\n",
+		"build/out.txt":     "needle\n",
+		"rootonly.txt":      "needle\n",
+		"sub/.gitignore":    "*.tmp\n!allow.log\n",
+		"sub/rootonly.txt":  "needle\n",
+		"sub/a.tmp":         "needle\n",
+		"sub/allow.log":     "needle\n",
+		"sub/other.log":     "needle\n",
+		"other/b.tmp":       "needle\n",
+		"docs/a/b/draft.md": "needle\n",
+		"docs/draft.md":     "needle\n",
+		"docs/a/final.md":   "needle\n",
 	}
 	for name, content := range files {
 		p := filepath.Join(dir, name)
@@ -492,5 +492,42 @@ func TestFindInFilesReplaceEnterSubmitsReplace(t *testing.T) {
 	}
 	if a.notice.text != locales.PanelNoMatches() {
 		t.Fatalf("notice = %q, want %q", a.notice.text, locales.PanelNoMatches())
+	}
+}
+
+func TestFindInFilesContextAndScope(t *testing.T) {
+	m, err := newMatcher(`a|(\Bfoo)`, true, true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := editor.NewBuffer("afoo")
+	if got := m.find(b.String(), 2); len(got) != 2 {
+		t.Fatalf("matches %v", got)
+	}
+	if m.replace(b, "<$1>") != 2 || b.String() != "<><foo>" {
+		t.Fatalf("replacement %q", b.String())
+	}
+	m, err = newMatcher("�", false, true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := m.find("\xff", 1); len(got) != 1 || got[0][1] != 1 {
+		t.Fatalf("invalid UTF-8: %v", got)
+	}
+	dir := t.TempDir()
+	sc := parseWhere(openFolders+", "+openFiles+", -sub/*.go", []string{dir})
+	if sc.wantsOpen(source{name: "a.go", path: filepath.Join(dir, "sub", "a.go")}) {
+		t.Fatal("included excluded open tab")
+	}
+	ig := fifIgnore{layers: []fifIgnoreLayer{{dir: dir, rules: fifParseIgnore("file[!0-9].txt")}}}
+	if !ig.ignored(filepath.Join(dir, "filea.txt"), false) || ig.ignored(filepath.Join(dir, "file1.txt"), false) {
+		t.Fatal("wrong negated class")
+	}
+	p := filepath.Join(dir, "mixed")
+	if err := os.WriteFile(p, []byte("first\rneedle\r\nthird\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := readSearched(p, defaultFallback); !ok || got != "first\nneedle\nthird\n" {
+		t.Fatalf("mixed endings %q", got)
 	}
 }
