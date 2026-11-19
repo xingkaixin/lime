@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
@@ -34,7 +35,15 @@ func (a *app) showFind(replace bool) {
 	s := &a.find
 	s.replacing, s.pending = replace, true
 	if d.cmp != nil {
-		d.cmp.diff.Find(s.query)
+		ed := diffActiveEditor(&d.cmp.diff)
+		*findQueryAt(ed) = ""
+		d.cmp.diff.Run(editor.UseSelectionForFind)
+		if t := *findQueryAt(ed); t != "" && !strings.Contains(t, "\n") {
+			s.query = t
+			d.cmp.diff.Run(editor.Find)
+		} else {
+			d.cmp.diff.Find(s.query)
+		}
 		return
 	}
 	d.st.Run(editor.Find)
@@ -42,6 +51,33 @@ func (a *app) showFind(replace bool) {
 		s.query = t
 	} else {
 		d.st.Find(s.query)
+	}
+}
+
+func (a *app) syncFind(ed unsafe.Pointer) {
+	s := &a.find
+	if s.query == "" {
+		return
+	}
+	if *findQueryAt(ed) != s.query || *findCaseSensAt(ed) != s.caseSens ||
+		*findWholeWordAt(ed) != s.wholeWord || *findRegexAt(ed) != s.regex {
+		*findQueryAt(ed) = s.query
+		*findCaseSensAt(ed) = s.caseSens
+		*findWholeWordAt(ed) = s.wholeWord
+		*findRegexAt(ed) = s.regex
+		*findStaleAt(ed) = true
+	}
+}
+
+func (a *app) findStep(cmd editor.Command) {
+	switch d := a.current(); {
+	case d == nil:
+	case d.cmp != nil:
+		a.syncFind(diffActiveEditor(&d.cmp.diff))
+		d.cmp.diff.Run(cmd)
+	case d.kind == textDoc:
+		a.syncFind(unsafe.Add(unsafe.Pointer(d.st), editorOffset))
+		d.st.Run(cmd)
 	}
 }
 
@@ -165,6 +201,14 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 		}
 		b.Children(func() { ui.Text(c, label).FontSize(12).TextColor(ch.text).SingleLine().Ellipsis("…") })
 	}
+	closeBtn := func() {
+		b := ui.ButtonBase(c).Width(24).Height(24).Shrink(0).Center().Radius(3).Transition(colorFade).
+			Label(locales.SettingsClose()).Tooltip(locales.SettingsClose()).KeepFocus().OnClick(f.Close)
+		if b.Hovered() {
+			b.Background(ch.hover)
+		}
+		b.Children(func() { ui.Text(c, "×").FontSize(14).TextColor(ch.muted) })
+	}
 	row := func(fill func()) ui.Element { return ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(fill) }
 
 	bar.Children(func() {
@@ -181,6 +225,7 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 			button(locales.Find(), f.Next)
 			button(locales.FindPrevious(), f.Previous)
 			button(locales.FindAll(), f.SelectAll)
+			closeBtn()
 		})
 		if f.Replacing() {
 			row(func() {
@@ -190,6 +235,7 @@ func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) 
 				button(locales.Replace(), f.Replace)
 				button(locales.ReplaceAll(), f.ReplaceAll)
 				slot(ui.Box(c))
+				ui.Box(c).Width(24).Shrink(0)
 			}).Transition(findRowMotion)
 		}
 	})
