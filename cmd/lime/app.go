@@ -2,11 +2,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"io"
 	"iter"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -509,7 +509,7 @@ func stampOf(path string) stamp {
 }
 
 func (d *doc) changedOnDisk() bool {
-	if d.path == "" || d.disk == (stamp{}) {
+	if d.path == "" {
 		return false
 	}
 	now := stampOf(d.path)
@@ -766,7 +766,16 @@ func sameOpenedPath(a, b string) bool {
 	if a == b {
 		return true
 	}
-	return openedPathKey(a) == openedPathKey(b)
+	a, b = openedPathKey(a), openedPathKey(b)
+	if a == b {
+		return true
+	}
+	if !strings.EqualFold(a, b) {
+		return false
+	}
+	fa, ea := os.Stat(a)
+	fb, eb := os.Stat(b)
+	return ea == nil && eb == nil && os.SameFile(fa, fb)
 }
 
 func openedPathKey(path string) string {
@@ -775,9 +784,6 @@ func openedPathKey(path string) string {
 		p = resolved
 	} else if dir, err := filepath.EvalSymlinks(filepath.Dir(p)); err == nil {
 		p = filepath.Join(dir, filepath.Base(p))
-	}
-	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
-		p = strings.ToLower(p)
 	}
 	return p
 }
@@ -812,10 +818,7 @@ func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	if _, err := snap.WriteTo(&b); err != nil {
 		return err
 	}
-	mode, created := os.FileMode(0o644), true
-	if fi, err := os.Stat(path); err == nil {
-		mode, created = fi.Mode().Perm(), false
-	}
+	fi, _ := os.Stat(path)
 	out := b.Bytes()
 	if d.cr {
 		out = bytes.ReplaceAll(out, []byte("\n"), []byte("\r"))
@@ -828,7 +831,7 @@ func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	} else {
 		enc = utf8Encoding
 	}
-	if err := writeFileAtomic(path, out, mode); err != nil {
+	if err := writeFileAtomic(path, out, fi); err != nil {
 		go mygo.Dialog.Error(locales.DialogUnableToSave(filepath.Base(path)), err.Error())
 		return err
 	}
@@ -851,7 +854,7 @@ func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	a.l.diskChanged(d)
 	d.disk = stampOf(path)
 	a.readBases(d)
-	if created && a.proj.holds(path) {
+	if fi == nil && a.proj.holds(path) {
 		a.refreshFolders()
 	} else if a.proj.holds(path) {
 		a.readMarks()
@@ -880,7 +883,7 @@ func (a *app) tidy(d *doc) {
 	})
 }
 
-func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
+func writeFileAtomic(path string, data []byte, existing os.FileInfo) error {
 	// Resolve symlink targets so os.Rename updates the target instead of replacing the link.
 	if fi, err := os.Lstat(path); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 		if target, err := filepath.EvalSymlinks(path); err == nil {
@@ -892,44 +895,40 @@ func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
 			path = filepath.Clean(link)
 		}
 	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".lime-*")
+	mode := os.FileMode(0o644)
+	if existing != nil {
+		if !existing.Mode().IsRegular() {
+			return &os.PathError{Op: "save", Path: path, Err: os.ErrInvalid}
+		}
+		target, err := os.OpenFile(path, os.O_WRONLY, 0)
+		if err != nil {
+			return err
+		}
+		if err := target.Close(); err != nil {
+			return err
+		}
+		mode = existing.Mode().Perm()
+	}
+	tmp := filepath.Join(filepath.Dir(path), ".lime-"+rand.Text())
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 	if err != nil {
 		return err
 	}
-	tmp := f.Name()
-	cleanup := true
-	defer func() {
-		if cleanup {
-			os.Remove(tmp)
-		}
-	}()
-	if runtime.GOOS != "windows" {
-		if err := f.Chmod(mode); err != nil {
-			f.Close()
-			return err
-		}
+	defer os.Remove(tmp)
+	if _, err = f.Write(data); err == nil && existing != nil {
+		err = f.Chmod(mode)
 	}
-	if _, err := f.Write(data); err != nil {
-		f.Close()
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err != nil {
 		return err
 	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		return err
+	if closeErr != nil {
+		return closeErr
 	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	if runtime.GOOS == "windows" {
-		if err := os.Chmod(tmp, mode); err != nil {
-			return err
-		}
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		return err
-	}
-	cleanup = false
-	return nil
+	return os.Rename(tmp, path)
 }
 
 // pickPath asks where to save d; "" when canceled. It blocks, so call it
@@ -960,21 +959,24 @@ func (a *app) askMessage(opts mygo.MessageOptions) (mygo.MessageResult, error) {
 }
 
 func (a *app) save(d *doc) {
-	if d.path == "" {
-		a.saveAs(d)
-		return
-	}
-	if d.changedOnDisk() && (a.win != nil || a.messageDialog != nil) {
-		a.promptOverwrite(d, d.encoding(), nil)
-		return
-	}
-	a.write(d, d.path)
+	a.saveThen(d, d.encoding(), nil)
 }
 
-func (a *app) promptOverwrite(d *doc, want *fileEncoding, done func(bool)) {
+func (a *app) saveThen(d *doc, want *fileEncoding, done func(bool)) {
 	if d.prompting {
 		if done != nil {
 			done(false)
+		}
+		return
+	}
+	if d.path == "" {
+		a.saveAsThen(d, want, done)
+		return
+	}
+	if !d.changedOnDisk() {
+		ok := a.writeIn(d, d.path, want) == nil
+		if done != nil {
+			done(ok)
 		}
 		return
 	}
@@ -988,45 +990,29 @@ func (a *app) promptOverwrite(d *doc, want *fileEncoding, done func(bool)) {
 			Detail:             locales.DialogChangedOnDiskDetail(),
 			Buttons:            []string{locales.ButtonOverwrite(), locales.ButtonReload(), locales.ButtonCancel()},
 			CancelButton:       2,
+			DefaultButton:      2,
 			DestructiveButtons: []int{0},
 		})
 		return func() {
 			d.prompting = false
-			if err != nil {
-				if done != nil {
-					done(false)
+			owner := a.l.owner(d)
+			ok := false
+			if err == nil && owner != nil {
+				switch res.Button {
+				case 0:
+					ok = owner.writeIn(d, d.path, want) == nil
+				case 1:
+					owner.reloadFromDisk(d)
 				}
-				return
 			}
-			if gi, _ := a.locate(d); gi < 0 {
-				if done != nil {
-					done(false)
-				}
-				return
-			}
-			switch res.Button {
-			case 0:
-				ok := a.writeIn(d, d.path, want) == nil
-				if done != nil {
-					done(ok)
-				}
-			case 1:
-				a.reloadFromDisk(d)
-				if done != nil {
-					done(false)
-				}
-			default:
-				if done != nil {
-					done(false)
-				}
+			if done != nil {
+				done(ok)
 			}
 		}
 	})
 }
 
-func (a *app) saveAs(d *doc) { a.saveAsIn(d, d.encoding()) }
-
-func (a *app) saveAsIn(d *doc, want *fileEncoding) { a.saveAsThen(d, want, nil) }
+func (a *app) saveAs(d *doc) { a.saveAsThen(d, d.encoding(), nil) }
 
 func (a *app) saveAsThen(d *doc, want *fileEncoding, done func(bool)) {
 	if d.prompting || (a.win == nil && a.saveDialog == nil) {
@@ -1041,19 +1027,8 @@ func (a *app) saveAsThen(d *doc, want *fileEncoding, done func(bool)) {
 		p := a.pickPath(name, path)
 		return func() {
 			d.prompting = false
-			if p == "" {
-				if done != nil {
-					done(false)
-				}
-				return
-			}
-			if gi, _ := a.locate(d); gi < 0 {
-				if done != nil {
-					done(false)
-				}
-				return
-			}
-			ok := a.writeIn(d, p, want) == nil
+			owner := a.l.owner(d)
+			ok := p != "" && owner != nil && owner.writeIn(d, p, want) == nil
 			if done != nil {
 				done(ok)
 			}
@@ -1066,29 +1041,18 @@ func (a *app) saveAll() { a.saveAllThen(nil) }
 func (a *app) saveAllThen(done func(bool)) {
 	docs := a.allDocs()
 	savedAll := true
-	var untitled []*doc
-	for _, d := range docs {
-		if !d.dirty() {
-			continue
-		}
-		if d.path != "" {
-			if a.write(d, d.path) != nil {
-				savedAll = false
-			}
-		} else {
-			untitled = append(untitled, d)
-		}
-	}
 	var next func(int)
 	next = func(i int) {
-		for i < len(untitled) {
-			d := untitled[i]
+		for i < len(docs) {
+			d := docs[i]
 			i++
 			if gi, _ := a.locate(d); gi < 0 || !d.dirty() {
 				continue
 			}
-			a.show(d)
-			a.saveAsThen(d, d.encoding(), func(ok bool) {
+			if d.path == "" {
+				a.show(d)
+			}
+			a.saveThen(d, d.encoding(), func(ok bool) {
 				if !ok {
 					savedAll = false
 				}
@@ -1113,7 +1077,7 @@ func (a *app) closeDoc(d *doc) {
 		return
 	}
 	d.prompting = true
-	name, path := d.name(), d.path
+	name := d.name()
 	a.background(func() func() {
 		res, err := a.askMessage(mygo.MessageOptions{
 			Parent:             a.win,
@@ -1123,35 +1087,21 @@ func (a *app) closeDoc(d *doc) {
 			CancelButton:       2,
 			DestructiveButtons: []int{1},
 		})
-		if err != nil {
-			return func() { d.prompting = false }
-		}
-		switch res.Button {
-		case 0:
-			if path == "" {
-				if path = a.pickPath(name, ""); path == "" {
-					return func() { d.prompting = false }
-				}
+		return func() {
+			d.prompting = false
+			if gi, _ := a.locate(d); gi < 0 || err != nil {
+				return
 			}
-			return func() {
-				d.prompting = false
-				if gi, _ := a.locate(d); gi < 0 {
-					return
-				}
-				if a.write(d, path) == nil {
-					a.remove(d)
-				}
-			}
-		case 1:
-			return func() {
-				d.prompting = false
-				if gi, _ := a.locate(d); gi < 0 {
-					return
-				}
+			switch res.Button {
+			case 0:
+				a.saveThen(d, d.encoding(), func(ok bool) {
+					if ok {
+						a.remove(d)
+					}
+				})
+			case 1:
 				a.remove(d)
 			}
-		default:
-			return func() { d.prompting = false }
 		}
 	})
 }

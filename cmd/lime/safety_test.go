@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"lime/locales"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -21,7 +22,11 @@ func TestWriteFileAtomicAndSymlink(t *testing.T) {
 	if err := os.WriteFile(realPath, []byte("before\n"), 0o640); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeFileAtomic(realPath, []byte("after\n"), 0o640); err != nil {
+	fi, err := os.Stat(realPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(realPath, []byte("after\n"), fi); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.ReadFile(realPath)
@@ -70,6 +75,29 @@ func TestWriteFileAtomicAndSymlink(t *testing.T) {
 	}
 }
 
+func TestNewFilePermissions(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "new")
+	reference := filepath.Join(dir, "reference")
+	if err := os.WriteFile(reference, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(p, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.Stat(reference)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Mode().Perm() != want.Mode().Perm() {
+		t.Fatalf("mode %o, want %o", got.Mode().Perm(), want.Mode().Perm())
+	}
+}
+
 func TestExternalChangeConflict(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "doc.txt")
@@ -101,7 +129,7 @@ func TestExternalChangeConflict(t *testing.T) {
 		return mygo.MessageResult{Button: 0}, errors.New("dialog failed")
 	}
 	a.save(d)
-	if gotOpts.CancelButton != 2 || !slices.Equal(gotOpts.DestructiveButtons, []int{0}) {
+	if gotOpts.CancelButton != 2 || gotOpts.DefaultButton != 2 || !slices.Equal(gotOpts.DestructiveButtons, []int{0}) {
 		t.Fatalf("overwrite dialog options: cancel=%d destructive=%v", gotOpts.CancelButton, gotOpts.DestructiveButtons)
 	}
 	if got, _ := os.ReadFile(p); string(got) != "external change\n" {
@@ -142,6 +170,46 @@ func TestExternalChangeConflict(t *testing.T) {
 	a.save(d)
 	if got, _ := os.ReadFile(p); string(got) != "override\n" || d.dirty() || d.changedOnDisk() {
 		t.Fatalf("after overwrite: disk=%q dirty=%v changed=%v", got, d.dirty(), d.changedOnDisk())
+	}
+}
+
+func TestSaveCommandsRespectNewDiskFile(t *testing.T) {
+	for _, command := range []string{"save", "save_all", "close", "close_window", "encoding"} {
+		t.Run(command, func(t *testing.T) {
+			p := filepath.Join(t.TempDir(), "new.txt")
+			a := newApp("")
+			a.l.newWindow()
+			a.openCLI([]string{p})
+			d := a.current()
+			d.st.Buffer.Set("mine")
+			if err := os.WriteFile(p, []byte("theirs"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			conflicts := 0
+			a.messageDialog = func(o mygo.MessageOptions) (mygo.MessageResult, error) {
+				if o.Message == locales.DialogChangedOnDisk(d.name()) {
+					conflicts++
+					return mygo.MessageResult{Button: 2}, nil
+				}
+				return mygo.MessageResult{Button: 0}, nil
+			}
+			switch command {
+			case "save":
+				a.save(d)
+			case "save_all":
+				a.saveAll()
+			case "close":
+				a.closeDoc(d)
+			case "close_window":
+				a.closing(&mygo.CloseEvent{})
+			case "encoding":
+				a.run(encodingNamed("GBK").saveID())
+			}
+			data, err := os.ReadFile(p)
+			if err != nil || string(data) != "theirs" || conflicts != 1 || !d.dirty() || a.l.owner(d) != a {
+				t.Fatalf("disk=%q err=%v conflicts=%d dirty=%v", data, err, conflicts, d.dirty())
+			}
+		})
 	}
 }
 
