@@ -51,6 +51,39 @@ func TestChordCancelsOnEscapeAndNonTextFocus(t *testing.T) {
 
 }
 
+func TestChordWhileFocusChanges(t *testing.T) {
+	a := newApp("")
+	a.add("a.txt", "a")
+	a.add("b.txt", "b")
+	moveFocus := false
+	tt := ui.NewTester(func(c *ui.Context) {
+		a.view(c)
+		target := ui.Box(c.Key("focus")).Focusable()
+		if moveFocus {
+			moveFocus = false
+			target.Focus()
+		}
+	}, 900, 600)
+	a.showFind(false)
+	tt.Frame()
+	tt.Key(ui.Cmd, ui.KeyK)
+	if !a.chord {
+		t.Fatal("chord did not start")
+	}
+	if a.l.menuKey("close") != "" {
+		t.Fatal("native Close shortcut active during chord")
+	}
+	moveFocus = true
+	tt.Key(ui.Cmd, ui.KeyW)
+	if a.chord || a.docCount() != 2 {
+		t.Fatalf("second key closed a tab: %d", a.docCount())
+	}
+	tt.Key(ui.Cmd, ui.KeyW)
+	if a.docCount() != 1 {
+		t.Fatal("next shortcut did not close tab")
+	}
+}
+
 func TestChordEscapeInFindField(t *testing.T) {
 	a := newApp("")
 	a.add("doc.txt", "test")

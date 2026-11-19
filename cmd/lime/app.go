@@ -321,7 +321,7 @@ type app struct {
 	cycle      []*doc // mru as Ctrl+Tab began, while Ctrl is held
 	cycleAt    int
 	closed     []string
-	endChord   bool
+	chordKeyUp ui.Key
 	revealPath string
 	chord      bool // Cmd+K was pressed, waiting for the chord's second key
 	title      string

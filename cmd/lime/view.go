@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"slices"
@@ -59,7 +60,7 @@ func (a *app) view(c *ui.Context) {
 					return
 				}
 				if !a.isChordKey(ev.Mods, ev.Key) {
-					a.endChord = true
+					a.chordKeyUp = cmp.Or(ev.Key, ev.PhysicalKey)
 				}
 			}
 		})
@@ -680,17 +681,20 @@ func (a *app) isChordKey(mods ui.Modifiers, key ui.Key) bool {
 // chords after Cmd+K, which go before the editor's.
 func (a *app) shortcuts(c *ui.Context) {
 	keys := a.l.keys.window
-	if a.endChord {
-		// Keep normal shortcuts unbound for the frame routing the second key.
-		a.chord, a.endChord = false, false
-		return
+	if a.chordKeyUp != ui.KeyUnknown {
+		a.chord = false
+		// Focus changes can rebuild and reroute the same press before key-up.
+		if c.KeyDown(a.chordKeyUp) {
+			return
+		}
+		a.chordKeyUp = ui.KeyUnknown
 	}
 	if a.chord {
 		if !c.Root().FocusWithin() {
 			mods := c.Modifiers()
 			for _, k := range c.KeysDown() {
 				if k != ui.KeyK && !a.isChordKey(mods, k) && !(mods == 0 && k == ui.KeyEscape) {
-					a.chord = false
+					a.chord, a.chordKeyUp = false, k
 					c.Invalidate()
 					return
 				}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/i18n"
+	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
@@ -205,7 +206,11 @@ func (l *lime) newMenu() *mygo.Menu {
 // the window last focused has them, when that changed.
 func (a *app) syncMenu() {
 	l := a.l
-	if l.menu == nil || l.last != a {
+	if l.last != a {
+		return
+	}
+	l.pauseMenu(a.prefs.rec.id != "" || a.chord || a.chordKeyUp != ui.KeyUnknown)
+	if l.menu == nil {
 		return
 	}
 	tabSize, spaces, ending, reopen, revert := a.set.TabSize, a.set.indent() != editor.IndentTabs, "\n", false, false
