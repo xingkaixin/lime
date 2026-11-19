@@ -3916,6 +3916,26 @@ func (msgs Messages) SettingsHighlightLine() string {
 	return Catalog.Format(msgs.locale, "settingsHighlightLine", nil)
 }
 
+// SettingsIndentGuides says "Indent Guides"
+// in the language the app shows.
+func SettingsIndentGuides() string { return In(i18n.Locale()).SettingsIndentGuides() }
+
+// SettingsIndentGuides says "Indent Guides"
+// in the language of msgs.
+func (msgs Messages) SettingsIndentGuides() string {
+	return Catalog.Format(msgs.locale, "settingsIndentGuides", nil)
+}
+
+// SettingsScrollPastEnd says "Scroll Past End"
+// in the language the app shows.
+func SettingsScrollPastEnd() string { return In(i18n.Locale()).SettingsScrollPastEnd() }
+
+// SettingsScrollPastEnd says "Scroll Past End"
+// in the language of msgs.
+func (msgs Messages) SettingsScrollPastEnd() string {
+	return Catalog.Format(msgs.locale, "settingsScrollPastEnd", nil)
+}
+
 // SettingsScrollBars says "Scroll Bars"
 // in the language the app shows.
 func SettingsScrollBars() string { return In(i18n.Locale()).SettingsScrollBars() }
@@ -3936,6 +3956,16 @@ func (msgs Messages) SettingsCursorStyle() string {
 	return Catalog.Format(msgs.locale, "settingsCursorStyle", nil)
 }
 
+// SettingsAutoComplete says "Auto Complete"
+// in the language the app shows.
+func SettingsAutoComplete() string { return In(i18n.Locale()).SettingsAutoComplete() }
+
+// SettingsAutoComplete says "Auto Complete"
+// in the language of msgs.
+func (msgs Messages) SettingsAutoComplete() string {
+	return Catalog.Format(msgs.locale, "settingsAutoComplete", nil)
+}
+
 // SettingsTypingMode says "Typing Mode"
 // in the language the app shows.
 func SettingsTypingMode() string { return In(i18n.Locale()).SettingsTypingMode() }
@@ -3944,6 +3974,56 @@ func SettingsTypingMode() string { return In(i18n.Locale()).SettingsTypingMode()
 // in the language of msgs.
 func (msgs Messages) SettingsTypingMode() string {
 	return Catalog.Format(msgs.locale, "settingsTypingMode", nil)
+}
+
+// SettingsInlineBlame says "Inline Blame"
+// in the language the app shows.
+func SettingsInlineBlame() string { return In(i18n.Locale()).SettingsInlineBlame() }
+
+// SettingsInlineBlame says "Inline Blame"
+// in the language of msgs.
+func (msgs Messages) SettingsInlineBlame() string {
+	return Catalog.Format(msgs.locale, "settingsInlineBlame", nil)
+}
+
+// SettingsGitDiffTarget says "Diff Target"
+// in the language the app shows.
+func SettingsGitDiffTarget() string { return In(i18n.Locale()).SettingsGitDiffTarget() }
+
+// SettingsGitDiffTarget says "Diff Target"
+// in the language of msgs.
+func (msgs Messages) SettingsGitDiffTarget() string {
+	return Catalog.Format(msgs.locale, "settingsGitDiffTarget", nil)
+}
+
+// SettingsGitDiffIndex says "Index"
+// in the language the app shows.
+func SettingsGitDiffIndex() string { return In(i18n.Locale()).SettingsGitDiffIndex() }
+
+// SettingsGitDiffIndex says "Index"
+// in the language of msgs.
+func (msgs Messages) SettingsGitDiffIndex() string {
+	return Catalog.Format(msgs.locale, "settingsGitDiffIndex", nil)
+}
+
+// SettingsGitDiffHead says "HEAD"
+// in the language the app shows.
+func SettingsGitDiffHead() string { return In(i18n.Locale()).SettingsGitDiffHead() }
+
+// SettingsGitDiffHead says "HEAD"
+// in the language of msgs.
+func (msgs Messages) SettingsGitDiffHead() string {
+	return Catalog.Format(msgs.locale, "settingsGitDiffHead", nil)
+}
+
+// SettingsFallbackEncoding says "Fallback Encoding"
+// in the language the app shows.
+func SettingsFallbackEncoding() string { return In(i18n.Locale()).SettingsFallbackEncoding() }
+
+// SettingsFallbackEncoding says "Fallback Encoding"
+// in the language of msgs.
+func (msgs Messages) SettingsFallbackEncoding() string {
+	return Catalog.Format(msgs.locale, "settingsFallbackEncoding", nil)
 }
 
 // SettingsIndentation says "Indentation"

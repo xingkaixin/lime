@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -82,6 +83,10 @@ type settings struct {
 	// InlineBlame shows who last changed the caret's line at its end, as
 	// Zed's inline blame does.
 	InlineBlame bool `json:"inline_blame"`
+	// FolderExcludePatterns and FileExcludePatterns override the default
+	// side bar and indexing exclude patterns when set.
+	FolderExcludePatterns []string `json:"folder_exclude_patterns,omitempty"`
+	FileExcludePatterns   []string `json:"file_exclude_patterns,omitempty"`
 	// Keys are the commands' keys the user changed, the one changed last
 	// last.
 	Keys []keyChange `json:"keys,omitempty"`
@@ -345,6 +350,52 @@ func (s *settings) showScheme(sc *scheme, shownDark bool) {
 	}
 }
 
+func (s *settings) folderExcludes() []string {
+	if s != nil && s.FolderExcludePatterns != nil {
+		return s.FolderExcludePatterns
+	}
+	return folderExclude
+}
+
+func (s *settings) fileExcludes() []string {
+	if s != nil && s.FileExcludePatterns != nil {
+		return s.FileExcludePatterns
+	}
+	return fileExclude
+}
+
+// writeSettingsAtomic writes settings.json via a temp file and rename in dir
+// so an interrupted write leaves the previous file intact.
+func writeSettingsAtomic(dir string, data []byte) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(dir, "settings-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Chmod(0o644); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, settingsPath(dir)); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
 // saveSettings keeps the settings, and shows them in all windows. A
 // settings.json that does not parse is left for the user to fix.
 func (l *lime) saveSettings() {
@@ -356,8 +407,9 @@ func (l *lime) saveSettings() {
 	if err != nil {
 		return
 	}
-	os.MkdirAll(l.dir, 0o755)
-	os.WriteFile(settingsPath(l.dir), b, 0o644)
+	if err := writeSettingsAtomic(l.dir, append(b, '\n')); err != nil {
+		go mygo.Dialog.Error(locales.DialogUnableToSave("settings.json"), err.Error())
+	}
 }
 
 // setLanguage shows the language of tag, or the system's for
@@ -378,6 +430,7 @@ func (l *lime) reloadSettings() {
 		return
 	}
 	rev := l.set.diffRev()
+	oldFolders, oldFiles := l.set.folderExcludes(), l.set.fileExcludes()
 	l.set = s
 	l.keys = newKeymap(l.set.Keys)
 	mygo.App.SetLocale(l.set.locale())
@@ -386,6 +439,13 @@ func (l *lime) reloadSettings() {
 	if l.set.diffRev() != rev {
 		for _, a := range l.wins {
 			a.reloadChanged()
+		}
+	}
+	if !slices.Equal(oldFolders, l.set.folderExcludes()) || !slices.Equal(oldFiles, l.set.fileExcludes()) {
+		for _, a := range l.wins {
+			a.proj.unwatch()
+			clear(a.proj.watches)
+			a.refreshFolders()
 		}
 	}
 }
