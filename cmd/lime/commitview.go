@@ -326,7 +326,9 @@ func largeWorktreeChanges(root string, changes []change) map[string]bool {
 	}
 	for _, ch := range changes {
 		if large[ch.path] && ch.oldPath != "" {
-			large[ch.oldPath] = true
+			if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(ch.oldPath))); os.IsNotExist(err) {
+				large[ch.oldPath] = true
+			}
 		}
 	}
 	return large
