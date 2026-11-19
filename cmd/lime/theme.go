@@ -5,9 +5,8 @@ import (
 	"github.com/egoist/mygo/ui/editor"
 )
 
-// scheme is a color scheme: GitHub's, as its Primer colors have it, or
-// one of Sublime Text's or Flexoki's, its colors taken from their
-// .sublime-color-scheme files. The chrome around the editor derives from it, as Sublime's
+// scheme is a color scheme: GitHub's, Sublime Text's, Flexoki's or
+// Pierre's. The chrome around the editor derives from it, as Sublime's
 // Adaptive theme does.
 type scheme struct {
 	name        string
@@ -187,6 +186,34 @@ var schemes = []*scheme{
 			editor.TokenOperator: "#6f6e69", editor.TokenPunctuation: "#6f6e69", editor.TokenTag: "#205ea6",
 			editor.TokenAttribute: "#bc5215", editor.TokenMeta: "#ad8301", editor.TokenHeading: "#b7b5ac/b",
 			editor.TokenLink: "#24837b", editor.TokenInserted: "#66800b", editor.TokenDeleted: "#af3029",
+		}),
+	},
+	{
+		name: "Pierre Dark", dark: true,
+		bg: ui.Hex("#0a0a0a"), fg: ui.Hex("#fafafa"), caret: ui.Hex("#009fff"), sel: ui.Hex("#009fff").Alpha(0.3),
+		accent: ui.Hex("#009fff"), activeGuide: ui.Hex("#636363"), find: ui.Hex("#ffca00"), bracket: ui.Hex("#009fff"),
+		tokens: tokens(map[editor.TokenKind]string{
+			editor.TokenKeyword: "#ff678d", editor.TokenType: "#d568ea", editor.TokenFunction: "#9d6afb",
+			editor.TokenProperty: "#ffa359", editor.TokenConstant: "#ffd452", editor.TokenNumber: "#68cdf2",
+			editor.TokenString: "#5ecc71", editor.TokenEscape: "#61d5c0", editor.TokenRegexp: "#64d1db",
+			editor.TokenComment: "#737373", editor.TokenOperator: "#08c0ef", editor.TokenPunctuation: "#636363",
+			editor.TokenTag: "#ff855e", editor.TokenAttribute: "#60d199", editor.TokenMeta: "#69b1ff",
+			editor.TokenHeading: "#ff855e/b", editor.TokenLink: "#009fff", editor.TokenCode: "#5ecc71",
+			editor.TokenInserted: "#07c480", editor.TokenDeleted: "#ff2e3f", editor.TokenInvalid: "#ff2e3f",
+		}),
+	},
+	{
+		name: "Pierre Light",
+		bg:   ui.Hex("#ffffff"), fg: ui.Hex("#0a0a0a"), caret: ui.Hex("#009fff"), sel: ui.Hex("#009fff").Alpha(0.18),
+		accent: ui.Hex("#009fff"), activeGuide: ui.Hex("#8a8a8a"), find: ui.Hex("#d5a910"), bracket: ui.Hex("#009fff"),
+		tokens: tokens(map[editor.TokenKind]string{
+			editor.TokenKeyword: "#d32a61", editor.TokenType: "#a631be", editor.TokenFunction: "#693acf",
+			editor.TokenProperty: "#d47628", editor.TokenConstant: "#d5a910", editor.TokenNumber: "#1ca1c7",
+			editor.TokenString: "#199f43", editor.TokenEscape: "#16a994", editor.TokenRegexp: "#17a5af",
+			editor.TokenComment: "#737373", editor.TokenOperator: "#08c0ef", editor.TokenPunctuation: "#636363",
+			editor.TokenTag: "#d5512f", editor.TokenAttribute: "#18a46c", editor.TokenMeta: "#1a85d4",
+			editor.TokenHeading: "#d5512f/b", editor.TokenLink: "#009fff", editor.TokenCode: "#199f43",
+			editor.TokenInserted: "#18a46c", editor.TokenDeleted: "#d52c36", editor.TokenInvalid: "#d52c36",
 		}),
 	},
 }
