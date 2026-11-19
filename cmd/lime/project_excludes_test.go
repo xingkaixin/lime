@@ -342,6 +342,20 @@ func TestMultiWindowRenamedAndDiscardViews(t *testing.T) {
 	}
 }
 
+func TestRenamedProjectInQuickSwitch(t *testing.T) {
+	a := newApp("")
+	dir := t.TempDir()
+	from, to := filepath.Join(dir, "old.sublime-project"), filepath.Join(dir, "new.sublime-project")
+	a.proj.path = from
+	a.l.addRecent(nil, []string{from})
+	a.renamed(from, to)
+	a.showWorkspaces()
+	items := a.panel.list("")
+	if a.proj.path != to || len(items) != 1 || items[0].label != "new" {
+		t.Fatalf("project %q, items %+v", a.proj.path, items)
+	}
+}
+
 func TestWatchBatchReindexAndReload(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "main.go")
@@ -509,8 +523,19 @@ func TestIndexGitTrackedAndExcluded(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".git", "info", "exclude"), []byte("local.txt\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
+	nested := filepath.Join(dir, "nested")
+	if err := os.Mkdir(nested, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runGit(nested, "init", "-q"); err != nil {
+		t.Fatal(err)
+	}
+	child := filepath.Join(nested, "child.go")
+	if err := os.WriteFile(child, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
 	files := walkFolders([]string{dir})
-	if !slices.Contains(files, filepath.Join(dir, "tracked", "keep.go")) || slices.Contains(files, filepath.Join(dir, "local.txt")) {
+	if !slices.Contains(files, child) || !slices.Contains(files, filepath.Join(dir, "tracked", "keep.go")) || slices.Contains(files, filepath.Join(dir, "local.txt")) {
 		t.Fatal(files)
 	}
 }

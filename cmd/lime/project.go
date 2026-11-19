@@ -548,7 +548,10 @@ func walkFolders(folders []string) []string {
 
 func walkFoldersWith(folders, folderExcl, fileExcl []string) []string {
 	var files []string
-	for _, f := range folders {
+	pending := slices.Clone(folders)
+	for len(pending) > 0 {
+		f := pending[0]
+		pending = pending[1:]
 		if len(files) >= maxIndexed {
 			break
 		}
@@ -557,12 +560,24 @@ func walkFoldersWith(folders, folderExcl, fileExcl []string) []string {
 				if rel == "" {
 					continue
 				}
+				rel = strings.TrimSuffix(rel, "/")
 				dir, name := path.Split(rel)
-				if excluded(name, fileExcl) || excluded(name, binaryFiles) || slices.ContainsFunc(strings.Split(strings.TrimSuffix(dir, "/"), "/"), func(d string) bool { return d != "" && excluded(d, folderExcl) }) {
+				if slices.ContainsFunc(strings.Split(strings.TrimSuffix(dir, "/"), "/"), func(d string) bool { return d != "" && excluded(d, folderExcl) }) {
 					continue
 				}
 				file := filepath.Join(f, filepath.FromSlash(rel))
-				if fi, err := os.Stat(file); err == nil && fi.Mode().IsRegular() {
+				fi, err := os.Lstat(file)
+				if err != nil {
+					continue
+				}
+				if fi.IsDir() {
+					// Git lists a checked-out submodule or embedded repository as one entry.
+					if _, err := os.Stat(filepath.Join(file, ".git")); err == nil && !excluded(name, folderExcl) {
+						pending = append(pending, file)
+					}
+					continue
+				}
+				if !excluded(name, fileExcl) && !excluded(name, binaryFiles) && regular(file, fi.Mode().Type()) {
 					files = append(files, file)
 					if len(files) >= maxIndexed {
 						break
@@ -930,6 +945,7 @@ func renameNew(from, to string) error {
 // renamed has the tabs of the files in from, its folders shown open and
 // the project's folders follow it to to, across all windows.
 func (a *app) renamed(from, to string) {
+	a.l.renameRecent(from, to)
 	for _, w := range a.l.wins {
 		for _, d := range w.allDocs() {
 			if p := moved(d.path, from, to); p != d.path {
