@@ -245,11 +245,28 @@ func (b gitBase) mark(p string) gitMark {
 	return gitClean
 }
 
+type gitTintKey struct {
+	scheme *scheme
+	mark   gitMark
+}
+
+var gitTintCache = map[gitTintKey]ui.Color{}
+
 // gitTint is the color of the name of a file or folder git marks m: the
 // gutter's, taken toward black on a light scheme, or white on a dark
 // one, until it reads as text on the side bar, as some schemes' are too
 // pale to.
 func (s *scheme) gitTint(m gitMark) ui.Color {
+	key := gitTintKey{s, m}
+	if tint, ok := gitTintCache[key]; ok {
+		return tint
+	}
+	tint := s.computeGitTint(m)
+	gitTintCache[key] = tint
+	return tint
+}
+
+func (s *scheme) computeGitTint(m gitMark) ui.Color {
 	th := s.editorTheme()
 	c := th.Modified
 	switch m {
