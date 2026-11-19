@@ -63,6 +63,24 @@ func pushRecent(list *[]string, p string, n int) bool {
 	return true
 }
 
+func (l *lime) renameRecent(from, to string) {
+	changed := false
+	for _, list := range []*[]string{&l.recent.Files, &l.recent.Folders} {
+		kept := (*list)[:0]
+		for _, p := range *list {
+			next := moved(p, from, to)
+			changed = changed || next != p
+			if !slices.Contains(kept, next) {
+				kept = append(kept, next)
+			}
+		}
+		*list = kept
+	}
+	if changed {
+		l.refreshMenu()
+	}
+}
+
 func (l *lime) clearRecent() {
 	l.recent = recentList{}
 	l.refreshMenu()

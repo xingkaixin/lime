@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -247,6 +248,25 @@ func (a *app) generalPage(c *ui.Context) {
 				a.l.setLanguage(tag)
 			}
 		})
+		a.settingsRow(c, locales.SettingsFallbackEncoding(), "", func() {
+			m := locales.In(i18n.Locale())
+			var list []*fileEncoding
+			var options []string
+			for _, e := range encodings {
+				if e.enc != nil && e.bom == "" {
+					list = append(list, e)
+					options = append(options, e.title(m))
+				}
+			}
+			cur := cmp.Or(encodingNamed(a.set.FallbackEncoding), encodingNamed(defaultFallback))
+			choice := cur.title(m)
+			if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsFallbackEncoding()).Changed() {
+				if i := slices.Index(options, choice); i >= 0 && list[i].name != a.set.FallbackEncoding {
+					a.set.FallbackEncoding = list[i].name
+					a.l.saveSettings()
+				}
+			}
+		})
 	})
 	if a.l.dir == "" {
 		return
@@ -350,6 +370,9 @@ func (a *app) themes(c *ui.Context, dark bool) {
 					continue
 				}
 				a.choiceCard(c, sc.name, sc == chosen, func() {
+					if sc == chosen {
+						return
+					}
 					if dark {
 						a.set.DarkTheme = sc.name
 					} else {
@@ -485,14 +508,22 @@ func (a *app) editorPage(c *ui.Context) {
 	ui.Column(c).FillWidth().Gap(10).Children(func() {
 		a.heading(c, locales.SettingsDisplay(), false)
 		a.settingsGroup(c, func() {
+			a.settingsRow(c, locales.MenuWordWrap(), "", func() {
+				if ui.Switch(c, &a.set.WordWrap).Label(locales.MenuWordWrap()).Changed() {
+					a.l.saveSettings()
+				}
+			})
 			a.settingsRow(c, locales.SettingsRulers(), "", func() {
 				p := &a.prefs
 				if !p.ruler.Focused(c) {
 					p.rulers = formatRulers(a.set.Rulers)
 				}
 				ui.TextInput(c, &p.rulers).Width(prefsControlW).Label(locales.SettingsRulers()).Bind(&p.ruler).OnChange(func() {
-					a.set.Rulers = parseRulers(p.rulers)
-					a.l.saveSettings()
+					next := parseRulers(p.rulers)
+					if !slices.Equal(a.set.Rulers, next) {
+						a.set.Rulers = next
+						a.l.saveSettings()
+					}
 				})
 			})
 			a.settingsRow(c, locales.SettingsWhiteSpace(), "", func() {
@@ -514,6 +545,16 @@ func (a *app) editorPage(c *ui.Context) {
 					a.l.saveSettings()
 				}
 			})
+			a.settingsRow(c, locales.SettingsIndentGuides(), "", func() {
+				if ui.Switch(c, &a.set.DrawIndentGuides).Label(locales.SettingsIndentGuides()).Changed() {
+					a.l.saveSettings()
+				}
+			})
+			a.settingsRow(c, locales.SettingsScrollPastEnd(), "", func() {
+				if ui.Switch(c, (*bool)(&a.set.ScrollPastEnd)).Label(locales.SettingsScrollPastEnd()).Changed() {
+					a.l.saveSettings()
+				}
+			})
 			a.settingsRow(c, locales.SettingsScrollBars(), "", func() {
 				if ui.Switch(c, &a.set.ShowScrollBars).Label(locales.SettingsScrollBars()).Changed() {
 					a.l.saveSettings()
@@ -528,6 +569,11 @@ func (a *app) editorPage(c *ui.Context) {
 				choice := a.set.cursorStyle().label(m)
 				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsCursorStyle()).Changed() {
 					a.set.CursorStyle = cursorStyles[slices.Index(options, choice)].name
+					a.l.saveSettings()
+				}
+			})
+			a.settingsRow(c, locales.SettingsAutoComplete(), "", func() {
+				if ui.Switch(c, &a.set.AutoComplete).Label(locales.SettingsAutoComplete()).Changed() {
 					a.l.saveSettings()
 				}
 			})
@@ -549,8 +595,11 @@ func (a *app) editorPage(c *ui.Context) {
 		a.settingsGroup(c, func() {
 			a.settingsRow(c, locales.SettingsTabSize(), locales.SettingsTabSizeDesc(), func() {
 				a.stepper(c, strconv.Itoa(a.set.TabSize), locales.SettingsTabSizeSmaller(), locales.SettingsTabSizeLarger(), func(by int) {
-					a.set.TabSize = max(1, min(a.set.TabSize+by, 8))
-					a.l.saveSettings()
+					next := max(1, min(a.set.TabSize+by, 8))
+					if next != a.set.TabSize {
+						a.set.TabSize = next
+						a.l.saveSettings()
+					}
 				})
 			})
 			a.settingsRow(c, locales.SettingsIndentWith(), locales.SettingsIndentWithDesc(), func() {
@@ -584,6 +633,36 @@ func (a *app) editorPage(c *ui.Context) {
 		})
 	})
 	ui.Column(c).FillWidth().Gap(10).Children(func() {
+		a.heading(c, locales.ShortcutGroupGit(), false)
+		a.settingsGroup(c, func() {
+			a.settingsRow(c, locales.SettingsInlineBlame(), "", func() {
+				if ui.Switch(c, &a.set.InlineBlame).Label(locales.SettingsInlineBlame()).Changed() {
+					a.l.saveSettings()
+				}
+			})
+			a.settingsRow(c, locales.SettingsGitDiffTarget(), "", func() {
+				options := []string{locales.SettingsGitDiffIndex(), locales.SettingsGitDiffHead()}
+				choice := options[0]
+				if a.set.GitDiffTarget == "head" {
+					choice = options[1]
+				}
+				if ui.Select(c, &choice, options).Width(prefsControlW).Label(locales.SettingsGitDiffTarget()).Changed() {
+					target := "index"
+					if slices.Index(options, choice) == 1 {
+						target = "head"
+					}
+					if a.set.GitDiffTarget != target {
+						a.set.GitDiffTarget = target
+						a.l.saveSettings()
+						for _, w := range a.l.wins {
+							w.reloadChanged()
+						}
+					}
+				}
+			})
+		})
+	})
+	ui.Column(c).FillWidth().Gap(10).Children(func() {
 		a.heading(c, locales.SettingsDiffLayout(), false)
 		ui.Grid(c).FillWidth().Columns(2).Gap(12).Children(func() {
 			for _, unified := range []bool{false, true} {
@@ -592,8 +671,10 @@ func (a *app) editorPage(c *ui.Context) {
 					name, picture = locales.CompareUnified(), unifiedPicture
 				}
 				a.choiceCard(c, name, a.set.DiffUnified == unified, func() {
-					a.set.DiffUnified = unified
-					a.l.saveSettings()
+					if a.set.DiffUnified != unified {
+						a.set.DiffUnified = unified
+						a.l.saveSettings()
+					}
 				}, func() {
 					ui.Box(c).FillWidth().Height(96).Center().Background(a.scheme.bg).Children(func() {
 						ui.Image(c, picture).TextColor(a.scheme.chrome().text)
