@@ -167,12 +167,7 @@ func encodingCommands() []command {
 				run: withDoc(func(a *app, d *doc) { a.reopen(d, e) })},
 			command{id: e.saveID(), caption: func(m locales.Messages) string { return m.CmdSaveWithEncoding(e.title(m)) },
 				run: withSource(func(a *app, d *doc) {
-					if d.path == "" {
-						d.enc = e
-						a.saveAs(d)
-						return
-					}
-					a.writeIn(d, d.path, e)
+					a.saveThen(d, e, nil)
 				})})
 	}
 	return c

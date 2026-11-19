@@ -13,6 +13,8 @@
   "buttonKeepBoth": "Keep Both",
   "buttonDiscard": "Discard",
   "buttonUncommit": "Uncommit",
+  "buttonOverwrite": "Overwrite",
+  "buttonReload": "Reload",
 
   "menuFile": "File",
   "menuNewFile": "New File",
@@ -320,6 +322,11 @@
   "@dialogSaveWindowChanges": {
     "placeholders": { "count": { "type": "int", "example": "3" } }
   },
+  "dialogChangedOnDisk": "{name} has changed on disk.",
+  "@dialogChangedOnDisk": {
+    "placeholders": { "name": { "type": "String", "example": "main.go" } }
+  },
+  "dialogChangedOnDiskDetail": "Saving overwrites the changes on disk.",
   "dialogDelete": "Delete {name}?",
   "@dialogDelete": {
     "placeholders": { "name": { "type": "String", "example": "src" } }

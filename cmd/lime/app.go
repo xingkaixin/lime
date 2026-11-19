@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"io"
 	"iter"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -55,15 +57,16 @@ type doc struct {
 	commit  *commitView // a commitDoc's
 	results *results    // a findDoc's
 	md      *mdPreview  // a mdDoc's
+	symbols symCacheEntry
 	// words are the text's words as wordList last found them, while
 	// scanning finds them again; asked is the completions last asked for.
-	symbols  symCacheEntry
-	words    *wordList
-	scanning bool
-	asked    editor.CompletionRequest
-	blame    *blaming // nil until it shows
-	caret    caretFx
-	rampage  rampageFx
+	words     *wordList
+	scanning  bool
+	asked     editor.CompletionRequest
+	blame     *blaming // nil until it shows
+	caret     caretFx
+	rampage   rampageFx
+	prompting bool // a save or close dialog is open for this doc
 }
 
 func (d *doc) name() string {
@@ -288,15 +291,17 @@ type lime struct {
 	// file until it does.
 	setErr error
 
-	themeSource mygo.ThemeSource
-	menuState   string
-	avatars     map[string]*ui.Bitmap // the pictures of commit authors, by email; nil while loading or for none
-	fonts       *fontLists            // listed as the font settings first show
-	sessionKey  string                // of the session last kept
-	sessionGen  uint64                // numbers the sessions taken to write
-	writing     sync.Mutex
-	written     uint64 // the number of the session last written
-	quitting    bool   // the session is kept and the windows close
+	themeSource   mygo.ThemeSource
+	menuState     string
+	avatars       map[string]*ui.Bitmap // the pictures of commit authors, by email; nil while loading or for none
+	fonts         *fontLists            // listed as the font settings first show
+	sessionMu     sync.Mutex
+	sessionKey    string // of the session last kept
+	sessionKeyGen uint64 // gen that recorded sessionKey
+	sessionGen    uint64 // numbers the sessions taken to write
+	writing       sync.Mutex
+	written       uint64 // the number of the session last written
+	quitting      bool   // the session is kept and the windows close
 }
 
 // app is a window: its groups of tabs, its project and its panels.
@@ -338,6 +343,9 @@ type app struct {
 	others  *tabWords // the other tabs' words, as complete last found them
 
 	reloading, reloadAgain bool
+	closingPrompt          bool
+	messageDialog          func(mygo.MessageOptions) (mygo.MessageResult, error)
+	saveDialog             func(mygo.SaveDialogOptions) (string, error)
 }
 
 func newLime(dir string) *lime {
@@ -501,6 +509,39 @@ func stampOf(path string) stamp {
 	return stamp{fi.ModTime(), fi.Size()}
 }
 
+func (d *doc) changedOnDisk() bool {
+	if d.path == "" {
+		return false
+	}
+	now := stampOf(d.path)
+	return now != (stamp{}) && now != d.disk
+}
+
+func (a *app) reloadFromDisk(d *doc) {
+	if d.path == "" {
+		return
+	}
+	raw, err := readText(d.path)
+	if err != nil {
+		go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(d.path)), err.Error())
+		return
+	}
+	text, enc := reopenText(raw, d.encoding(), a.set.FallbackEncoding)
+	text, ending := splitLines(text)
+	d.disk = stampOf(d.path)
+	d.enc = enc
+	d.st.Buffer.Set(text)
+	d.setLineEnding(ending)
+	d.savedEnding = ending
+	d.st.Buffer.MarkSaved()
+	d.saved = d.st.Buffer.Snapshot()
+	if d.base == "" || d.saved.Len() > largeFile {
+		d.diffDisk()
+	}
+	a.l.diskChanged(d)
+	a.readBases(d)
+}
+
 // reload is a tab's file as another app or git left it.
 type reload struct {
 	d         *doc
@@ -623,15 +664,14 @@ func (a *app) open(paths []string) {
 			a.show(d)
 			continue
 		}
-		// An image that is gone fails to read below, as a text file does.
-		if k := fileKind(p); k != textDoc && err == nil {
-			a.add(p, "").kind = k
-			files = append(files, p)
-			continue
-		}
-		raw, err := readText(p)
+		k, raw, err := readOpen(p)
 		if err != nil {
 			go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(p)), err.Error())
+			continue
+		}
+		if k != textDoc {
+			a.add(p, "").kind = k
+			files = append(files, p)
 			continue
 		}
 		text, enc := openText(raw, a.set.FallbackEncoding)
@@ -649,6 +689,42 @@ func (a *app) open(paths []string) {
 		a.readBases(added...)
 	}
 	a.l.addRecent(files, folders)
+}
+
+func readOpen(path string) (docKind, string, error) {
+	if slices.Contains(imageExts, strings.ToLower(filepath.Ext(path))) {
+		if _, err := os.Stat(path); err != nil {
+			return textDoc, "", err
+		}
+		return imageDoc, "", nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return textDoc, "", err
+	}
+	defer f.Close()
+	var head [8000]byte
+	n, err := io.ReadFull(f, head[:])
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return textDoc, "", err
+	}
+	prefix := head[:n]
+	if !bytes.HasPrefix(prefix, []byte("\xff\xfe")) && !bytes.HasPrefix(prefix, []byte("\xfe\xff")) && bytes.IndexByte(prefix, 0) >= 0 {
+		return binaryDoc, "", nil
+	}
+	var b strings.Builder
+	if fi, err := f.Stat(); err == nil && fi.Size() > int64(n) {
+		b.Grow(int(fi.Size()))
+	} else {
+		b.Grow(n)
+	}
+	b.Write(prefix)
+	if err == nil {
+		if _, err := io.Copy(&b, f); err != nil {
+			return textDoc, "", err
+		}
+	}
+	return textDoc, b.String(), nil
 }
 
 // readText reads the file at path as a string, without the copy that
@@ -670,12 +746,52 @@ func readText(path string) (string, error) {
 }
 
 func (a *app) docAt(path string) *doc {
-	for _, d := range a.allDocs() {
+	docs := a.allDocs()
+	for _, d := range docs {
 		if d.path == path {
 			return d
 		}
 	}
+	for _, d := range docs {
+		if sameOpenedPath(d.path, path) {
+			return d
+		}
+	}
 	return nil
+}
+
+func sameOpenedPath(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	if a == b {
+		return true
+	}
+	a, b = openedPathKey(a), openedPathKey(b)
+	if a == b {
+		return true
+	}
+	if !strings.EqualFold(a, b) {
+		return false
+	}
+	fa, ea := os.Stat(a)
+	fb, eb := os.Stat(b)
+	if ea == nil && eb == nil {
+		return os.SameFile(fa, fb)
+	}
+	return os.IsNotExist(ea) && os.IsNotExist(eb) && caseInsensitiveDir(filepath.Dir(a))
+}
+
+var caseInsensitiveDir = func(string) bool { return runtime.GOOS == "windows" }
+
+func openedPathKey(path string) string {
+	p := filepath.Clean(path)
+	if resolved, err := filepath.EvalSymlinks(p); err == nil {
+		p = resolved
+	} else if dir, err := filepath.EvalSymlinks(filepath.Dir(p)); err == nil {
+		p = filepath.Join(dir, filepath.Base(p))
+	}
+	return p
 }
 
 func (a *app) promptOpen() {
@@ -708,10 +824,7 @@ func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	if _, err := snap.WriteTo(&b); err != nil {
 		return err
 	}
-	mode, created := os.FileMode(0o644), true
-	if fi, err := os.Stat(path); err == nil {
-		mode, created = fi.Mode().Perm(), false
-	}
+	fi, _ := os.Stat(path)
 	out := b.Bytes()
 	if d.cr {
 		out = bytes.ReplaceAll(out, []byte("\n"), []byte("\r"))
@@ -724,7 +837,7 @@ func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	} else {
 		enc = utf8Encoding
 	}
-	if err := os.WriteFile(path, out, mode); err != nil {
+	if err := writeFileAtomic(path, out, fi); err != nil {
 		go mygo.Dialog.Error(locales.DialogUnableToSave(filepath.Base(path)), err.Error())
 		return err
 	}
@@ -747,7 +860,7 @@ func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	a.l.diskChanged(d)
 	d.disk = stampOf(path)
 	a.readBases(d)
-	if created && a.proj.holds(path) {
+	if fi == nil && a.proj.holds(path) {
 		a.refreshFolders()
 	} else if a.proj.holds(path) {
 		a.readMarks()
@@ -776,6 +889,57 @@ func (a *app) tidy(d *doc) {
 	})
 }
 
+var copySaveACL = func(src, dst *os.File) error { return nil }
+
+func writeFileAtomic(path string, data []byte, existing os.FileInfo) error {
+	// Resolve symlink targets so os.Rename updates the target instead of replacing the link.
+	if fi, err := os.Lstat(path); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		if target, err := filepath.EvalSymlinks(path); err == nil {
+			path = target
+		} else if link, err := os.Readlink(path); err == nil {
+			if !filepath.IsAbs(link) {
+				link = filepath.Join(filepath.Dir(path), link)
+			}
+			path = filepath.Clean(link)
+		}
+	}
+	mode := os.FileMode(0o644)
+	if existing != nil {
+		if !existing.Mode().IsRegular() {
+			return &os.PathError{Op: "save", Path: path, Err: os.ErrInvalid}
+		}
+		mode = existing.Mode().Perm()
+	}
+	tmp := filepath.Join(filepath.Dir(path), ".lime-"+rand.Text())
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp)
+	if _, err = f.Write(data); err == nil && existing != nil {
+		var target *os.File
+		target, err = os.OpenFile(path, os.O_WRONLY, 0)
+		if err == nil {
+			err = f.Chmod(mode)
+			if err == nil {
+				err = copySaveACL(target, f)
+			}
+			target.Close()
+		}
+	}
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return os.Rename(tmp, path)
+}
+
 // pickPath asks where to save d; "" when canceled. It blocks, so call it
 // off the main thread.
 func (a *app) pickPath(name, path string) string {
@@ -783,43 +947,135 @@ func (a *app) pickPath(name, path string) string {
 	if path != "" {
 		opts.DefaultPath = path
 	}
-	p, err := mygo.Dialog.Save(opts)
+	var p string
+	var err error
+	if a.saveDialog != nil {
+		p, err = a.saveDialog(opts)
+	} else {
+		p, err = mygo.Dialog.Save(opts)
+	}
 	if err != nil {
 		return ""
 	}
 	return p
 }
 
+func (a *app) askMessage(opts mygo.MessageOptions) (mygo.MessageResult, error) {
+	if a.messageDialog != nil {
+		return a.messageDialog(opts)
+	}
+	return mygo.Dialog.Message(opts)
+}
+
+var askSaveConflict = (*app).askMessage
+
 func (a *app) save(d *doc) {
-	if d.path == "" {
-		a.saveAs(d)
+	a.saveThen(d, d.encoding(), nil)
+}
+
+func (a *app) saveThen(d *doc, want *fileEncoding, done func(bool)) {
+	if d.prompting {
+		if done != nil {
+			done(false)
+		}
 		return
 	}
-	a.write(d, d.path)
-}
-
-func (a *app) saveAs(d *doc) {
-	name, path := d.name(), d.path
-	go func() {
-		if p := a.pickPath(name, path); p != "" {
-			a.win.Update(func() { a.write(d, p) })
-		}
-	}()
-}
-
-func (a *app) saveAll() {
-	docs := a.allDocs()
-	for _, d := range docs {
-		if d.dirty() && d.path != "" {
-			a.write(d, d.path)
-		}
+	if d.path == "" {
+		a.saveAsThen(d, want, done)
+		return
 	}
-	for _, d := range docs {
-		if d.dirty() && d.path == "" {
-			a.saveAs(d)
+	if !d.changedOnDisk() {
+		ok := a.writeIn(d, d.path, want) == nil
+		if done != nil {
+			done(ok)
+		}
+		return
+	}
+	d.prompting = true
+	name := d.name()
+	a.background(func() func() {
+		res, err := askSaveConflict(a, mygo.MessageOptions{
+			Parent:             a.win,
+			Type:               mygo.MessageWarning,
+			Message:            locales.DialogChangedOnDisk(name),
+			Detail:             locales.DialogChangedOnDiskDetail(),
+			Buttons:            []string{locales.ButtonOverwrite(), locales.ButtonReload(), locales.ButtonCancel()},
+			CancelButton:       2,
+			DefaultButton:      2,
+			DestructiveButtons: []int{0},
+		})
+		return func() {
+			d.prompting = false
+			owner := a.l.owner(d)
+			ok := false
+			if err == nil && owner != nil {
+				switch res.Button {
+				case 0:
+					ok = owner.writeIn(d, d.path, want) == nil
+				case 1:
+					owner.reloadFromDisk(d)
+				}
+			}
+			if done != nil {
+				done(ok)
+			}
+		}
+	})
+}
+
+func (a *app) saveAs(d *doc) { a.saveAsThen(d, d.encoding(), nil) }
+
+func (a *app) saveAsThen(d *doc, want *fileEncoding, done func(bool)) {
+	if d.prompting || (a.win == nil && a.saveDialog == nil) {
+		if done != nil {
+			done(false)
+		}
+		return
+	}
+	d.prompting = true
+	name, path := d.name(), d.path
+	a.background(func() func() {
+		p := a.pickPath(name, path)
+		return func() {
+			d.prompting = false
+			owner := a.l.owner(d)
+			ok := p != "" && owner != nil && owner.writeIn(d, p, want) == nil
+			if done != nil {
+				done(ok)
+			}
+		}
+	})
+}
+
+func (a *app) saveAll() { a.saveAllThen(nil) }
+
+func (a *app) saveAllThen(done func(bool)) {
+	docs := a.allDocs()
+	savedAll := true
+	var next func(int)
+	next = func(i int) {
+		for i < len(docs) {
+			d := docs[i]
+			i++
+			if gi, _ := a.locate(d); gi < 0 || !d.dirty() {
+				continue
+			}
+			if d.path == "" {
+				a.show(d)
+			}
+			a.saveThen(d, d.encoding(), func(ok bool) {
+				if !ok {
+					savedAll = false
+				}
+				next(i)
+			})
 			return
 		}
+		if done != nil {
+			done(savedAll)
+		}
 	}
+	next(0)
 }
 
 // closeDoc closes d's tab, asking first to save its changes.
@@ -828,30 +1084,37 @@ func (a *app) closeDoc(d *doc) {
 		a.remove(d)
 		return
 	}
-	name, path := d.name(), d.path
-	go func() {
-		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
-			Parent:  a.win,
-			Type:    mygo.MessageQuestion,
-			Message: locales.DialogSaveChanges(name),
-			Buttons: []string{locales.ButtonSave(), locales.ButtonDontSave(), locales.ButtonCancel()},
+	if d.prompting {
+		return
+	}
+	d.prompting = true
+	name := d.name()
+	a.background(func() func() {
+		res, err := a.askMessage(mygo.MessageOptions{
+			Parent:             a.win,
+			Type:               mygo.MessageQuestion,
+			Message:            locales.DialogSaveChanges(name),
+			Buttons:            []string{locales.ButtonSave(), locales.ButtonDontSave(), locales.ButtonCancel()},
+			CancelButton:       2,
+			DestructiveButtons: []int{1},
 		})
-		switch res.Button {
-		case 0:
-			if path == "" {
-				if path = a.pickPath(name, ""); path == "" {
-					return
-				}
+		return func() {
+			d.prompting = false
+			if gi, _ := a.locate(d); gi < 0 || err != nil {
+				return
 			}
-			a.win.Update(func() {
-				if a.write(d, path) == nil {
-					a.remove(d)
-				}
-			})
-		case 1:
-			a.win.Update(func() { a.remove(d) })
+			switch res.Button {
+			case 0:
+				a.saveThen(d, d.encoding(), func(ok bool) {
+					if owner := a.l.owner(d); ok && owner != nil {
+						owner.remove(d)
+					}
+				})
+			case 1:
+				a.remove(d)
+			}
 		}
-	}()
+	})
 }
 
 func (a *app) closeCurrent() {
@@ -1069,30 +1332,41 @@ func (a *app) closing(e *mygo.CloseEvent) {
 		return
 	}
 	e.PreventDefault()
-	go func() {
-		res, _ := mygo.Dialog.Message(mygo.MessageOptions{
-			Parent:  a.win,
-			Type:    mygo.MessageQuestion,
-			Message: locales.DialogSaveWindowChanges(n),
-			Buttons: []string{locales.ButtonSave(), locales.ButtonDontSave(), locales.ButtonCancel()},
+	if a.closingPrompt {
+		return
+	}
+	a.closingPrompt = true
+	a.background(func() func() {
+		res, err := a.askMessage(mygo.MessageOptions{
+			Parent:             a.win,
+			Type:               mygo.MessageQuestion,
+			Message:            locales.DialogSaveWindowChanges(n),
+			Buttons:            []string{locales.ButtonSave(), locales.ButtonDontSave(), locales.ButtonCancel()},
+			CancelButton:       2,
+			DestructiveButtons: []int{1},
 		})
-		switch res.Button {
-		case 0:
-			a.win.Update(func() {
-				a.saveAll()
-				if !slices.ContainsFunc(a.allDocs(), (*doc).dirty) {
-					a.win.Close()
-				}
-			})
-		case 1:
-			a.win.Update(func() {
+		return func() {
+			a.closingPrompt = false
+			if err != nil {
+				return
+			}
+			switch res.Button {
+			case 0:
+				a.saveAllThen(func(savedAll bool) {
+					if savedAll && !slices.ContainsFunc(a.allDocs(), (*doc).dirty) && a.win != nil {
+						a.win.Close()
+					}
+				})
+			case 1:
 				for _, d := range a.allDocs() {
 					a.remove(d)
 				}
-				a.win.Close()
-			})
+				if a.win != nil {
+					a.win.Close()
+				}
+			}
 		}
-	}()
+	})
 }
 
 // quit keeps the settings and the session of all windows, the unsaved

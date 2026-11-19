@@ -13,6 +13,8 @@
   "buttonKeepBoth": "保留两者",
   "buttonDiscard": "丢弃",
   "buttonUncommit": "撤销提交",
+  "buttonOverwrite": "覆盖",
+  "buttonReload": "重新加载",
 
   "menuFile": "文件",
   "menuNewFile": "新建文件",
@@ -250,6 +252,8 @@
   "dialogUnableToSaveProject": "无法保存项目",
   "dialogSaveChanges": "关闭前要保存对 {name} 的更改吗？",
   "dialogSaveWindowChanges": "{count, plural, other {关闭窗口前要保存对 # 个文件的更改吗？}}",
+  "dialogChangedOnDisk": "{name} 已在磁盘上被修改。",
+  "dialogChangedOnDiskDetail": "保存会覆盖磁盘上的更改。",
   "dialogDelete": "要删除 {name} 吗？",
   "dialogDeleteFolder": "文件夹及其中的内容会移到废纸篓。",
   "dialogUnsavedLost": "未保存的更改会丢失。",

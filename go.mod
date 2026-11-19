@@ -5,6 +5,7 @@ go 1.27.4
 tool github.com/egoist/mygo/cmd/mygo
 
 require (
+	github.com/ebitengine/purego v0.11.3
 	github.com/egoist/mygo v0.10.0
 	golang.org/x/text v0.44.0
 )
@@ -12,7 +13,6 @@ require (
 require (
 	github.com/ProtonMail/go-crypto v1.5.2 // indirect
 	github.com/cloudflare/circl v1.6.5 // indirect
-	github.com/ebitengine/purego v0.11.3 // indirect
 	github.com/go-text/typesetting v0.3.5 // indirect
 	github.com/klauspost/compress v1.20.4 // indirect
 	github.com/ulikunitz/xz v0.5.17 // indirect
