@@ -5,7 +5,10 @@ set -eu
 cd "$(dirname "$0")/.."
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-git clone -q --depth 1 https://github.com/pierrecomputer/vscode-icons.git "$work/pierre"
+revision=04a9028f0b227aaf820e9e73da2992af86ba0f26
+git init -q "$work/pierre"
+git -C "$work/pierre" fetch -q --depth 1 https://github.com/pierrecomputer/vscode-icons.git "$revision"
+git -C "$work/pierre" checkout -q --detach FETCH_HEAD
 node --input-type=module - "$work/pierre/scripts/themes" <<'JS' > "$work/pierre.json"
 import path from "node:path";
 import { pathToFileURL } from "node:url";
