@@ -37,7 +37,8 @@ type history struct {
 	github  bool   // a remote is on GitHub, which has its authors' avatars
 	commits []commit
 	paths   []string // file's path in each commit, as renames left it
-	gen     int      // counts the readings, for the last to win
+	list    ui.ListState
+	gen     int // counts the readings, for the last to win
 }
 
 // logFormat prints the fields of a commit that parseCommit reads.
@@ -95,6 +96,10 @@ func onGitHub(root string) bool {
 // commitChanges reads the files hash changes against its first parent.
 func commitChanges(root, hash string) []change {
 	out, _ := runGit(root, "diff-tree", "-r", "-z", "-M", "--name-status", "--root", "--no-commit-id", "--diff-merges=first-parent", hash)
+	return parseCommitChanges(out)
+}
+
+func parseCommitChanges(out string) []change {
 	var cs []change
 	f := strings.Split(out, "\x00")
 	for i := 0; i+1 < len(f); i += 2 {
@@ -103,6 +108,9 @@ func commitChanges(root, hash string) []change {
 		}
 		ch := change{status: f[i][0], path: f[i+1]}
 		if ch.status == 'R' || ch.status == 'C' {
+			if i+2 >= len(f) {
+				break
+			}
 			ch.status, ch.oldPath, ch.path = 'R', f[i+1], f[i+2]
 			i++
 		}
@@ -172,7 +180,7 @@ func (a *app) fileHistory(p string) {
 			if a.hist.root != root {
 				a.hist = history{root: root, gen: a.hist.gen}
 			}
-			a.hist.file, a.hist.commits, a.hist.paths = filepath.ToSlash(rel), nil, nil
+			a.hist.file, a.hist.commits, a.hist.paths, a.hist.list = filepath.ToSlash(rel), nil, nil, ui.ListState{}
 			a.gitTab = historyTab
 			if a.side != gitPanel {
 				a.showPanel(gitPanel)
@@ -216,17 +224,16 @@ func (a *app) historyView(c *ui.Context) {
 		a.fileHistoryBar(c)
 	}
 	now := time.Now()
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(0, c.Theme().Space(1)).Role(ui.RoleList).Children(func() {
-			for i, cm := range h.commits {
-				at := ""
-				if i < len(h.paths) {
-					at = h.paths[i]
-				}
-				a.historyRow(c, cm, at, cm.author+" · "+ago(cm.when, now)+" · "+cm.short, shown == cm.hash)
+	list := ui.List(c.Key("history"), &h.list, len(h.commits)).ItemKey(func(i int) any { return h.commits[i].hash }).
+		Rows(func(r ui.ListRow) {
+			cm := h.commits[r.Index]
+			at := ""
+			if r.Index < len(h.paths) {
+				at = h.paths[r.Index]
 			}
+			a.historyRow(r.Context, cm, at, cm.author+" · "+ago(cm.when, now)+" · "+cm.short, shown == cm.hash)
 		})
-	})
+	list.Grow(1).FillWidth().Padding(0, c.Theme().Space(1)).Label(locales.GitHistory())
 }
 
 // fileHistoryBar names the file whose commits alone show, with the button
@@ -244,7 +251,7 @@ func (a *app) fileHistoryBar(c *ui.Context) {
 		}
 		ui.Box(c).Grow(1)
 		a.barButton(c, closeIcon, locales.HistoryAllCommits(), false, func() {
-			a.hist.file, a.hist.commits, a.hist.paths = "", nil, nil
+			a.hist.file, a.hist.commits, a.hist.paths, a.hist.list = "", nil, nil, ui.ListState{}
 			a.readHistory()
 		})
 	})
@@ -253,8 +260,8 @@ func (a *app) fileHistoryBar(c *ui.Context) {
 func (a *app) historyRow(c *ui.Context, cm commit, at, detail string, selected bool) {
 	th := c.Theme()
 	ch := a.shell(c)
-	row := ui.Column(c.Key("commit "+cm.hash)).FillWidth().Padding(th.Space(1.5), th.Space(2)).Gap(th.Space(1)).Radius(th.Radius).
-		Role(ui.RoleListItem).Label(cm.subject).Selected(selected).Transition(colorFade).OnClick(func() { a.showCommit(cm).at = at })
+	row := ui.Column(c).FillWidth().Padding(th.Space(1.5), th.Space(2)).Gap(th.Space(1)).Radius(th.Radius).
+		Label(cm.subject).Selected(selected).Transition(colorFade).OnClick(func() { a.showCommit(cm).at = at })
 	text, muted := ch.text, ch.muted
 	switch {
 	case selected:
