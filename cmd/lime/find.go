@@ -56,9 +56,6 @@ func (a *app) showFind(replace bool) {
 
 func (a *app) syncFind(ed unsafe.Pointer) {
 	s := &a.find
-	if s.query == "" {
-		return
-	}
 	if *findQueryAt(ed) != s.query || *findCaseSensAt(ed) != s.caseSens ||
 		*findWholeWordAt(ed) != s.wholeWord || *findRegexAt(ed) != s.regex {
 		*findQueryAt(ed) = s.query
@@ -145,7 +142,7 @@ var (
 func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) {
 	s := &a.find
 	switch {
-	case d != a.current():
+	case d != a.current() || d.cmp != nil && f.Query() != findQueryAt(diffActiveEditor(&d.cmp.diff)):
 		// A panel left open in another group keeps its own.
 	case s.pending:
 		s.pending, s.seen = false, *f.Query()

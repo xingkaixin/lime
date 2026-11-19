@@ -47,8 +47,6 @@ func (a *app) view(c *ui.Context) {
 		c.Root().Background(ui.Transparent)
 	}
 	if a.chord {
-		p := ui.FocusedValue(c, &a.focused)
-		textFocused := p.d != nil && p.d.plain()
 		c.Root().ObserveInput(func(ev ui.InputEvent) {
 			if !a.chord {
 				return
@@ -57,11 +55,11 @@ func (a *app) view(c *ui.Context) {
 			case ui.InputPointerDown:
 				a.chord = false
 			case ui.InputKeyDown:
-				if textFocused || (ev.Key == ui.KeyUnknown && ev.PhysicalKey == ui.KeyUnknown) {
+				if ev.Key == ui.KeyUnknown && ev.PhysicalKey == ui.KeyUnknown {
 					return
 				}
 				if !a.isChordKey(ev.Mods, ev.Key) {
-					a.chord = false
+					a.endChord = true
 				}
 			}
 		})
@@ -448,7 +446,7 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, dir string, active, fo
 	case hovered:
 		bg = ch.hover
 	}
-	row.Background(bg).Label(d.name()).Tooltip(d.path).OnClick(func() { a.show(d) }).
+	row.Bind(&d.tabHandle).Background(bg).Label(d.name()).Tooltip(d.path).OnClick(func() { a.show(d) }).
 		ContextMenu(func(m *ui.Menu) { a.tabMenu(c, m, g, d) }).
 		HandleInput(func(ev ui.InputEvent) bool {
 			if ev.Button != 2 {
@@ -458,7 +456,8 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, dir string, active, fo
 			case ui.InputPointerDown:
 				return true
 			case ui.InputPointerUp:
-				if !ev.Canceled {
+				bounds := d.tabHandle.Bounds(c)
+				if !ev.Canceled && ev.X >= 0 && ev.Y >= 0 && ev.X < bounds.W && ev.Y < bounds.H {
 					a.closeDoc(d)
 				}
 				return true
@@ -681,6 +680,11 @@ func (a *app) isChordKey(mods ui.Modifiers, key ui.Key) bool {
 // chords after Cmd+K, which go before the editor's.
 func (a *app) shortcuts(c *ui.Context) {
 	keys := a.l.keys.window
+	if a.endChord {
+		// Keep normal shortcuts unbound for the frame routing the second key.
+		a.chord, a.endChord = false, false
+		return
+	}
 	if a.chord {
 		if !c.Root().FocusWithin() {
 			mods := c.Modifiers()

@@ -92,9 +92,10 @@ func currentRevertable(a *app) bool {
 
 func (a *app) closeOtherTabs(g *group, keep *doc) {
 	for _, d := range slices.Clone(g.docs) {
-		if d != keep {
-			a.closeDoc(d)
+		if d == keep || keep.cmp != nil && (keep.cmp.src == d || keep.cmp.old == d) || keep.md != nil && keep.md.src == d {
+			continue
 		}
+		a.closeDoc(d)
 	}
 }
 
@@ -102,6 +103,7 @@ func (a *app) revealInSideBar(path string) {
 	if path == "" || !a.proj.holds(path) {
 		return
 	}
+	a.revealPath = path
 	if a.side != filesPanel {
 		a.showPanel(filesPanel)
 	}
@@ -154,25 +156,33 @@ func (a *app) revertDoc(d *doc) {
 	if d == nil || d.kind != textDoc || d.path == "" {
 		return
 	}
-	raw, err := readText(d.path)
-	if err != nil {
-		go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(d.path)), err.Error())
-		return
-	}
-	text, enc := reopenText(raw, d.encoding(), a.set.FallbackEncoding)
-	text, ending := splitLines(text)
-	d.enc = enc
-	d.st.Buffer.Set(text)
-	d.setLineEnding(ending)
-	d.savedEnding = ending
-	d.st.Buffer.MarkSaved()
-	d.saved = d.st.Buffer.Snapshot()
-	if d.base == "" || d.saved.Len() > largeFile {
-		d.diffDisk()
-	}
-	a.l.diskChanged(d)
-	d.disk = stampOf(d.path)
-	a.readBases(d)
+	path, version, encoding, fallback := d.path, d.st.Buffer.Version(), d.encoding(), a.set.FallbackEncoding
+	a.background(func() func() {
+		disk := stampOf(path)
+		raw, err := readText(path)
+		if err != nil {
+			return func() { go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(path)), err.Error()) }
+		}
+		text, enc := reopenText(raw, encoding, fallback)
+		text, ending := splitLines(text)
+		return func() {
+			if a.l.owner(d) != a || d.path != path || d.st.Buffer.Version() != version {
+				return
+			}
+			d.enc = enc
+			d.st.Buffer.Set(text)
+			d.setLineEnding(ending)
+			d.savedEnding = ending
+			d.st.Buffer.MarkSaved()
+			d.saved = d.st.Buffer.Snapshot()
+			if d.base == "" || d.saved.Len() > largeFile {
+				d.diffDisk()
+			}
+			a.l.diskChanged(d)
+			d.disk = disk
+			a.readBases(d)
+		}
+	})
 }
 
 // convertCase runs cmd, which converts the case of the selections, on
