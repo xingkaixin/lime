@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -177,12 +176,12 @@ func TestHunkActionsUseCommitViewRoot(t *testing.T) {
 	os.WriteFile(filepath.Join(repoB, "a.txt"), []byte(strings.Join(modB, "\n")+"\n"), 0o644)
 
 	a := newApp("")
-	// Active repository in the side bar is repoB, while commitView belongs to repoA.
+	// The selected diff belongs to repoA while the project folder is repoB.
 	a.open([]string{repoB})
 	tt := ui.NewTester(a.view, 900, 600)
 	cv := a.showCommitIn(repoA, commit{hash: unstagedChanges})
 	tt.Frame()
-	if cv.root != repoA || a.git.root != repoB || len(cv.files) != 1 || len(cv.files[0].hunks) != 2 {
+	if cv.root != repoA || a.git.root != repoA || len(cv.files) != 1 || len(cv.files[0].hunks) != 2 {
 		t.Fatalf("setup: cv.root=%q a.git.root=%q files=%+v", cv.root, a.git.root, cv.files)
 	}
 
@@ -287,22 +286,39 @@ func TestReadCommitBoundedAndFallbackEncoding(t *testing.T) {
 	if cf := byName["huge.txt"]; cf == nil || !cf.folded || len(cf.new.lines) != 0 {
 		t.Fatalf("huge.txt should be folded and unread, got %+v", cf)
 	}
+	git("add", "huge.txt")
+	if err := os.WriteFile(big, []byte("small"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, files = readCommit(dir, unstagedChanges, "GBK")
+	for _, f := range files {
+		if f.path == "huge.txt" {
+			if !f.folded || len(f.old.lines) > 0 || len(f.hunks) > 0 {
+				t.Fatal("loaded oversized index version")
+			}
+			return
+		}
+	}
+	t.Fatal("oversized file missing from diff")
+
 }
 
 func TestRemoteDefaultNameAndRepoLock(t *testing.T) {
 	dir, git := newRepo(t)
-	ctx := context.Background()
-	if got := defaultRemote(ctx, dir); got != "origin" {
-		t.Fatalf("no remote: defaultRemote = %q, want origin", got)
-	}
-
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	upstream := t.TempDir()
 	if _, err := runGit(upstream, "init", "-q", "--bare", "-b", "main"); err != nil {
 		t.Fatal(err)
 	}
+	git("remote", "add", "aaa", filepath.Join(dir, "missing"))
 	git("remote", "add", "upstream", upstream)
-	if got := defaultRemote(ctx, dir); got != "upstream" {
-		t.Fatalf("with upstream remote: defaultRemote = %q, want upstream", got)
+	git("config", "remote.pushDefault", "upstream")
+	git("commit", "--allow-empty", "-m", "init")
+	a := newApp("")
+	a.git = readRepo(dir)
+	a.push()
+	if got, _ := runGit(dir, "rev-parse", "--abbrev-ref", "@{upstream}"); strings.TrimSpace(got) != "upstream/main" {
+		t.Fatalf("upstream=%q", got)
 	}
 
 	dir2 := t.TempDir()

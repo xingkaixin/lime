@@ -377,14 +377,14 @@ func (a *app) confirmDiscard(files []change) {
 	if slices.ContainsFunc(files, trashed) {
 		detail = append(detail, locales.DialogDiscardUntracked())
 	}
-	a.confirm(locales.DialogDiscardFiles(len(files)), strings.Join(detail, " "), locales.ButtonDiscard(), func() { a.discardFiles(files) })
+	root := a.changes.root
+	a.confirm(locales.DialogDiscardFiles(len(files)), strings.Join(detail, " "), locales.ButtonDiscard(), func() { a.discardFiles(root, files) })
 }
 
 // discardFiles discards the changes of files not staged: a tracked file
 // takes the index's text again, and a new one moves to the Trash, whence
 // it can come back.
-func (a *app) discardFiles(files []change) {
-	root := a.git.root
+func (a *app) discardFiles(root string, files []change) {
 	var tracked, added strings.Builder
 	var trash []string
 	for _, f := range files {
@@ -423,7 +423,7 @@ func (a *app) discardFiles(files []change) {
 				a.notifyError(msg)
 			}
 			if paths != "" {
-				a.gitRunWith(paths, nil, "--literal-pathspecs", "restore", "--pathspec-from-file=-", "--pathspec-file-nul")
+				a.gitRunIn(root, paths, nil, "--literal-pathspecs", "restore", "--pathspec-from-file=-", "--pathspec-file-nul")
 				return
 			}
 			a.refreshFolders()
@@ -612,7 +612,7 @@ func (a *app) uncommit() {
 			subject, _, _ := strings.Cut(body, "\n")
 			a.confirm(locales.DialogUncommit(subject), detail, locales.ButtonUncommit(), func() {
 				w := &a.changes
-				a.gitRunWith("", func() {
+				a.gitRunIn(root, "", func() {
 					if w.root == root && w.message == "" {
 						w.message = body
 					}

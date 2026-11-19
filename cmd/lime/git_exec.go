@@ -30,6 +30,9 @@ func gitWithContext(ctx context.Context, dir, input string, args ...string) (str
 	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0")
 	cmd.Stdin = strings.NewReader(input)
 	hideConsole(cmd)
+	if ctx.Done() != nil {
+		cancelGitTree(cmd)
+	}
 	var out, said bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &said
 	if err := cmd.Run(); err != nil {

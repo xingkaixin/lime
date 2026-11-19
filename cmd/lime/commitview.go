@@ -183,8 +183,18 @@ func readCommit(root, hash, fallback string) (string, []*commitFile) {
 		wg.Go(func() { body, _ = runGit(root, "show", "-s", "--format=%B", hash) })
 		wg.Go(func() { changes = commitChanges(root, hash) })
 	}
-	out, _ := runGit(root, args...)
 	wg.Wait()
+	var oversized map[string]bool
+	if hash == unstagedChanges {
+		oversized = largeWorktreeChanges(root, changes)
+		if len(oversized) > 0 {
+			args = append(args, "--")
+			for path := range oversized {
+				args = append(args, ":(top,exclude,literal)"+path)
+			}
+		}
+	}
+	out, _ := runGit(root, args...)
 	patches, _ := editor.ParsePatch(out)
 	byPath := map[string]editor.FilePatch{}
 	for _, p := range patches {
@@ -200,6 +210,11 @@ func readCommit(root, hash, fallback string) (string, []*commitFile) {
 		p, ok := byPath[ch.path]
 		f := &commitFile{change: ch, hunks: p.Hunks, binary: p.Binary, folded: p.Binary}
 		files = append(files, f)
+		if oversized[ch.path] {
+			f.folded = true
+			f.hunks = nil
+			continue
+		}
 		// The work tree's untracked files are in no diff.
 		if !ok && ch.status == '?' {
 			raw, oversized := readBoundedText(filepath.Join(root, filepath.FromSlash(ch.path)), largeFile)
@@ -227,7 +242,7 @@ func readCommit(root, hash, fallback string) (string, []*commitFile) {
 	}
 	texts := catFiles(root, specs)
 	for _, f := range files {
-		if _, ok := byPath[f.path]; !ok || f.binary {
+		if _, ok := byPath[f.path]; !ok || f.binary || oversized[f.path] {
 			continue
 		}
 		oldText, newText := texts[0], texts[1]
@@ -262,6 +277,47 @@ func readCommit(root, hash, fallback string) (string, []*commitFile) {
 		}
 	}
 	return strings.TrimSpace(body), files
+}
+
+// A patch can contain the entire old or new file, so check both before asking Git for it.
+func largeWorktreeChanges(root string, changes []change) map[string]bool {
+	large := map[string]bool{}
+	var specs strings.Builder
+	var paths []string
+	for _, ch := range changes {
+		if fi, err := os.Stat(filepath.Join(root, filepath.FromSlash(ch.path))); err == nil && fi.Size() > largeFile {
+			large[ch.path] = true
+		}
+		if ch.status == '?' {
+			continue
+		}
+		old := ch.oldPath
+		if old == "" {
+			old = ch.path
+		}
+		specs.WriteString(":" + old)
+		specs.WriteByte(0)
+		paths = append(paths, ch.path)
+	}
+	if len(paths) > 0 {
+		out, err := gitWith(root, specs.String(), "cat-file", "-Z", "--batch-check=%(objectsize)")
+		sizes := strings.Split(out, "\x00")
+		for i, path := range paths {
+			if err != nil || i >= len(sizes) {
+				large[path] = true
+				continue
+			}
+			if n, _ := strconv.ParseInt(sizes[i], 10, 64); n > largeFile {
+				large[path] = true
+			}
+		}
+	}
+	for _, ch := range changes {
+		if large[ch.path] && ch.oldPath != "" {
+			large[ch.oldPath] = true
+		}
+	}
+	return large
 }
 
 // readBoundedText reads up to limit bytes of path as a string. It reports

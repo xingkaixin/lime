@@ -93,11 +93,12 @@ func (l *lime) avatar(a *app, email string) *ui.Bitmap {
 		avatarSlots <- struct{}{}
 		defer func() { <-avatarSlots }()
 		bm := loadAvatar(dir, email)
+		if bm == nil {
+			return
+		}
 		a.win.Update(func() {
 			l.avatars[email] = bm
-			if bm != nil {
-				l.redraw()
-			}
+			l.redraw()
 		})
 	}()
 	return nil

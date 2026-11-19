@@ -63,6 +63,9 @@ func readRepo(dir string) gitRepo {
 // folder, or when a project has several, the one holding the active file,
 // falling back to the first.
 func (a *app) gitDir() string {
+	if d := a.current(); d != nil && d.commit != nil {
+		return d.commit.root
+	}
 	switch len(a.proj.folders) {
 	case 0:
 		return ""
@@ -286,7 +289,7 @@ func (a *app) showBranches() {
 		return func() {
 			var items []item
 			for _, name := range b.local {
-				it := item{label: name, pick: func() { a.gitRun("switch", name) }}
+				it := item{label: name, pick: func() { a.gitRunIn(root, "", nil, "switch", name) }}
 				switch tree, ok := b.elsewhere[name]; {
 				case name == cur:
 					it.hint, it.pick = locales.GitCurrent(), nil
@@ -298,12 +301,12 @@ func (a *app) showBranches() {
 			for _, name := range b.remote {
 				items = append(items, item{label: name, detail: locales.GitRemoteBranch(), pick: func() {
 					// The ref in full, which no tag of the same name shadows.
-					a.gitRun("switch", "--track", "refs/remotes/"+name)
+					a.gitRunIn(root, "", nil, "switch", "--track", "refs/remotes/"+name)
 				}})
 			}
 			for _, s := range ss {
 				items = append(items, item{label: s.subject, detail: s.ref, hint: locales.GitStash(), pick: func() {
-					a.gitRun("stash", "apply", s.ref)
+					a.gitRunIn(root, "", nil, "stash", "apply", s.ref)
 				}})
 			}
 			a.openPanel(&panel{placeholder: locales.GitBranchPlaceholder(), list: func(q string) []item { return ranked(items, byLabel(q)) }})
@@ -333,19 +336,20 @@ func realGit(caption func(locales.Messages) string) func(locales.Messages) strin
 
 // promptCreateBranch names a branch to make at HEAD and switch to.
 func (a *app) promptCreateBranch() {
+	root := a.git.root
 	a.openPanel(&panel{prompt: locales.PromptBranchName(), submit: func(name string) {
 		if name = strings.TrimSpace(name); name != "" {
-			a.gitRun("switch", "-c", name)
+			a.gitRunIn(root, "", nil, "switch", "-c", name)
 		}
 	}})
 }
 
 // promptRenameBranch renames the branch checked out.
 func (a *app) promptRenameBranch() {
-	old := a.git.branch
+	root, old := a.git.root, a.git.branch
 	a.openPanel(&panel{prompt: locales.PromptNewName(), query: old, submit: func(name string) {
 		if name = strings.TrimSpace(name); name != "" && name != old {
-			a.gitRun("branch", "-m", "--", name)
+			a.gitRunIn(root, "", nil, "branch", "-m", "--", name)
 		}
 	}})
 }
@@ -360,7 +364,7 @@ func (a *app) showDeleteBranch() {
 			var items []item
 			for _, name := range b.local {
 				it := item{label: name, pick: func() {
-					a.confirm(locales.DialogDelete(name), "", locales.ButtonDelete(), func() { a.deleteBranch(name, false) })
+					a.confirm(locales.DialogDelete(name), "", locales.ButtonDelete(), func() { a.deleteBranch(root, name, false) })
 				}}
 				switch tree, ok := b.elsewhere[name]; {
 				case name == cur:
@@ -377,8 +381,8 @@ func (a *app) showDeleteBranch() {
 
 // deleteBranch deletes the branch name. Unless force, git refuses one
 // not merged, which the user may then delete anyway.
-func (a *app) deleteBranch(name string, force bool) {
-	dir, flag := a.git.root, "-d"
+func (a *app) deleteBranch(root, name string, force bool) {
+	dir, flag := root, "-d"
 	if force {
 		flag = "-D"
 	}
@@ -395,7 +399,7 @@ func (a *app) deleteBranch(name string, force bool) {
 			// git advises -D, in any language, only for a branch not merged.
 			case !force && strings.Contains(err.Error(), "branch -D"):
 				a.confirm(locales.DialogBranchNotMerged(name), locales.DialogBranchCommitsLost(), locales.ButtonDelete(),
-					func() { a.deleteBranch(name, true) })
+					func() { a.deleteBranch(root, name, true) })
 			default:
 				msg, _, _ := strings.Cut(err.Error(), "\n")
 				a.notifyError(msg)

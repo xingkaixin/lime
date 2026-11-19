@@ -18,18 +18,6 @@ func (a *app) push()  { a.remoteRun(locales.StatusPushing(), "push") }
 func (a *app) pull()  { a.remoteRun(locales.StatusPulling(), "pull") }
 func (a *app) fetch() { a.remoteRun(locales.StatusFetching(), "fetch") }
 
-// defaultRemote returns the first configured remote in dir, falling back to
-// "origin" when none is listed.
-func defaultRemote(ctx context.Context, dir string) string {
-	out, err := gitWithContext(ctx, dir, "", "remote")
-	if err == nil {
-		if name, _, _ := strings.Cut(strings.TrimSpace(out), "\n"); name != "" {
-			return strings.TrimSpace(name)
-		}
-	}
-	return "origin"
-}
-
 // remoteRun runs git with the remote in the background, one at a time,
 // which the status bar tells of until it ends, and shows what git says
 // of a failure.
@@ -46,13 +34,7 @@ func (a *app) remoteRun(status, command string) {
 		defer cancel()
 		args := []string{command}
 		if command == "push" {
-			if head, err := gitWithContext(ctx, dir, "", "symbolic-ref", "--quiet", "HEAD"); err == nil {
-				branch := strings.TrimPrefix(strings.TrimSpace(head), "refs/heads/")
-				// Pruning the tracking ref can leave the upstream configured.
-				if _, err := gitWithContext(ctx, dir, "", "config", "--get", "branch."+branch+".merge"); err != nil {
-					args = append(args, "-u", defaultRemote(ctx, dir), "HEAD")
-				}
-			}
+			args = []string{"-c", "push.autoSetupRemote=true", "push"}
 		}
 		var err error
 		if lock {
