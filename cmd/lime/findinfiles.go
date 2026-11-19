@@ -534,12 +534,14 @@ func parseWhere(where string, folders []string) scope {
 		case p == "":
 		case p == openFolders:
 			sc.paths, placed = append(sc.paths, folders...), true
-		case p == openFiles, filepath.IsAbs(p):
+		case p == openFiles:
 			sc.paths, placed = append(sc.paths, p), true
+		case filepath.IsAbs(p):
+			sc.paths, placed = append(sc.paths, filepath.Clean(p)), true
 		case strings.HasPrefix(p, "-"):
-			sc.exclude = append(sc.exclude, strings.TrimSuffix(p[1:], "/"))
+			sc.exclude = append(sc.exclude, strings.TrimSuffix(filepath.ToSlash(p[1:]), "/"))
 		default:
-			sc.include = append(sc.include, p)
+			sc.include = append(sc.include, filepath.ToSlash(p))
 		}
 	}
 	switch {
@@ -552,8 +554,23 @@ func parseWhere(where string, folders []string) scope {
 	return sc
 }
 
-func (sc *scope) wants(name string) bool {
-	return !excluded(name, sc.exclude) && (len(sc.include) == 0 || excluded(name, sc.include))
+func fifMatchWhere(name, rel string, patterns []string) bool {
+	for _, pat := range patterns {
+		if strings.Contains(pat, "/") {
+			if rel != "" && fifMatchGlob(pat, rel) {
+				return true
+			}
+			continue
+		}
+		if fifMatchSegment(pat, name) {
+			return true
+		}
+	}
+	return false
+}
+
+func (sc *scope) wants(name, rel string) bool {
+	return !fifMatchWhere(name, rel, sc.exclude) && (len(sc.include) == 0 || fifMatchWhere(name, rel, sc.include))
 }
 
 // source is a file a search looks in: its tab's text when open.
@@ -875,12 +892,13 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source, fallb
 					if searchCtx.Err() != nil {
 						return
 					}
-					if sc.wants(filepath.Base(s.name)) && !dispatch(s, realPath(s.path)) {
+					if sc.wants(filepath.Base(s.name), filepath.ToSlash(s.path)) && !dispatch(s, realPath(s.path)) {
 						return
 					}
 				}
 				continue
 			}
+			p = filepath.Clean(p)
 			fi, err := os.Stat(p)
 			if err != nil {
 				continue
@@ -889,7 +907,7 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source, fallb
 			if !fi.IsDir() {
 				if fi.Mode().IsRegular() {
 					name := filepath.Base(p)
-					if sc.wants(name) && !excluded(name, fileExclude) && !excluded(name, binaryFiles) {
+					if sc.wants(name, "") && !excluded(name, fileExclude) && !excluded(name, binaryFiles) {
 						s, ok := byReal[root]
 						if !ok {
 							s = source{name: p, path: p}
@@ -910,15 +928,19 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source, fallb
 					return nil
 				}
 				ig.prune(path)
+				rel := ""
+				if path != p {
+					rel = filepath.ToSlash(strings.TrimPrefix(path[len(p):], string(filepath.Separator)))
+				}
 				switch name := e.Name(); {
 				case e.IsDir():
-					if path != p && (excluded(name, folderExclude) || excluded(name, sc.exclude) || ig.ignored(path, true)) {
+					if path != p && (excluded(name, folderExclude) || fifMatchWhere(name, rel, sc.exclude) || ig.ignored(path, true)) {
 						return filepath.SkipDir
 					}
 					ig.load(path)
 				case !regular(path, e.Type()):
-				case sc.wants(name) && !excluded(name, fileExclude) && !excluded(name, binaryFiles) && !ig.ignored(path, false):
-					real := root + path[len(p):]
+				case sc.wants(name, rel) && !excluded(name, fileExclude) && !excluded(name, binaryFiles) && !ig.ignored(path, false):
+					real := filepath.Join(root, path[len(p):])
 					if e.Type()&fs.ModeSymlink != 0 {
 						real = realPath(path)
 					}
@@ -1109,13 +1131,15 @@ func (a *app) replaceInFiles() {
 				return
 			}
 			go func() {
-				r, _ := mygo.Dialog.Message(mygo.MessageOptions{
-					Parent:  a.win,
-					Type:    mygo.MessageQuestion,
-					Message: locales.DialogReplaceInFiles(res.matches, len(res.files)),
-					Buttons: []string{locales.ButtonReplace(), locales.ButtonCancel()},
+				r, err := mygo.Dialog.Message(mygo.MessageOptions{
+					Parent:             a.win,
+					Type:               mygo.MessageQuestion,
+					Message:            locales.DialogReplaceInFiles(res.matches, len(res.files)),
+					Buttons:            []string{locales.ButtonReplace(), locales.ButtonCancel()},
+					CancelButton:       1,
+					DestructiveButtons: []int{0},
 				})
-				if r.Button == 0 {
+				if err == nil && r.Button == 0 {
 					a.win.Update(func() { a.replaceFound(m, with, res) })
 				}
 			}()
@@ -1204,8 +1228,9 @@ func formatResults(header string, res found) (string, []hit, [][2]int) {
 		for _, l := range f.lines {
 			prefix := fmt.Sprintf("%5d: ", l.line+1)
 			text := l.text
+			cut := len(text)
 			if len(text) > maxResultLine {
-				cut := maxResultLine
+				cut = maxResultLine
 				for !utf8.RuneStart(text[cut]) {
 					cut--
 				}
@@ -1213,8 +1238,8 @@ func formatResults(header string, res found) (string, []hit, [][2]int) {
 			}
 			at := b.Len() + len(prefix)
 			for _, sp := range l.spans {
-				if sp[0] < len(text) {
-					spans = append(spans, [2]int{at + sp[0], at + min(sp[1], len(text))})
+				if sp[0] < cut {
+					spans = append(spans, [2]int{at + sp[0], at + min(sp[1], cut)})
 				}
 			}
 			h := hit{row: row, head: head, path: f.src.path, line: l.line, start: l.spans[0][0], end: l.spans[0][1]}
@@ -1369,9 +1394,9 @@ func (a *app) findInFilesBar(c *ui.Context) {
 		return
 	}
 	sc, ch := a.scheme, a.scheme.chrome()
-	field := func(value *string, label string) ui.Element {
+	field := func(value *string, label string, submit func()) ui.Element {
 		return ui.TextInputBase(c, value).Grow(1).MinWidth(findQueryW).Height(24).Padding(0, 8).Placeholder(label).Label(label).
-			FontSize(13).Background(sc.bg).Border(1, ch.line).Radius(3).OnSubmit(a.searchInFiles)
+			FontSize(13).Background(sc.bg).Border(1, ch.line).Radius(3).OnSubmit(submit)
 	}
 	toggle := func(on *bool, label, tip string) {
 		b := ui.ToggleBase(c, on).Width(findToggleW).Height(24).Center().Radius(3).Transition(colorFade).Label(tip).Tooltip(tip).KeepFocus()
@@ -1406,12 +1431,12 @@ func (a *app) findInFilesBar(c *ui.Context) {
 				toggle(&f.caseSens, "Aa", locales.FindCaseSensitive())
 				toggle(&f.wholeWord, "ab", locales.FindWholeWord())
 			})
-			field(&f.query, locales.Find()).Bind(&f.input)
+			field(&f.query, locales.Find(), a.searchInFiles).Bind(&f.input)
 			button(locales.Find(), a.searchInFiles)
 		})
 		row(func() {
 			gap()
-			field(&f.where, locales.FindWhere())
+			field(&f.where, locales.FindWhere(), a.searchInFiles)
 			status := ""
 			if f.replacing.running() {
 				status = locales.FindSearching()
@@ -1420,7 +1445,7 @@ func (a *app) findInFilesBar(c *ui.Context) {
 		})
 		row(func() {
 			gap()
-			field(&f.replace, locales.Replace())
+			field(&f.replace, locales.Replace(), a.replaceInFiles)
 			if f.replacing.running() {
 				button(locales.ButtonCancel(), f.replacing.stop)
 			} else {

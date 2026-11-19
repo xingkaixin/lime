@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
@@ -365,5 +366,131 @@ func TestFindInFilesParallelOrderAndLimit(t *testing.T) {
 	// Last file must be trimmed to 1 match so total is exactly 15.
 	if got := len(res.files[7].lines[0].spans); got != 1 {
 		t.Fatalf("last file spans = %d, want 1", got)
+	}
+}
+
+func TestFindInFilesWhereTrailingSlash(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.go")
+	os.WriteFile(file, []byte("disk only\n"), 0o644)
+
+	a := newApp("")
+	a.open([]string{file})
+	a.current().st.Buffer.Set("unsaved_token\n")
+	a.fif.query = "unsaved_token"
+	a.fif.where = dir + string(filepath.Separator) + ", " + openFiles
+
+	m, sc, open, ctx := a.prepareSearch(&a.fif.finding)
+	res := searchFiles(ctx, m, sc, open, a.set.FallbackEncoding, maxResults)
+	if res.searched != 1 || res.matches != 1 || len(res.files) != 1 {
+		t.Fatalf("trailing slash Where: searched=%d matches=%d files=%d, want 1/1/1", res.searched, res.matches, len(res.files))
+	}
+}
+
+func TestFindInFilesWherePathGlobs(t *testing.T) {
+	dir := t.TempDir()
+	for _, rel := range []string{
+		"root.go",
+		"sub/keep.go",
+		"sub/skip.txt",
+		"sub/ignored_dir/nope.go",
+		"other/sub/nope.go",
+		"tests/fixtures/data.go",
+		"tests/unit_test.go",
+		"ignored_dir/nope.go",
+	} {
+		p := filepath.Join(dir, rel)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte("needle\n"), 0o644)
+	}
+
+	m, _ := newMatcher("needle", false, true, false)
+
+	// Include path glob + directory exclude.
+	sc1 := parseWhere(dir+", sub/*.go, -ignored_dir/", nil)
+	res1 := searchFiles(context.Background(), m, sc1, nil, defaultFallback, maxResults)
+	var got1 []string
+	for _, fh := range res1.files {
+		rel, _ := filepath.Rel(dir, fh.src.path)
+		got1 = append(got1, filepath.ToSlash(rel))
+	}
+	if !reflect.DeepEqual(got1, []string{"sub/keep.go"}) {
+		t.Fatalf("Where sub/*.go, -ignored_dir/: got %v, want [sub/keep.go]", got1)
+	}
+
+	// Exclude nested path glob and directory basename.
+	sc2 := parseWhere(dir+", -tests/fixtures, -ignored_dir/", nil)
+	res2 := searchFiles(context.Background(), m, sc2, nil, defaultFallback, maxResults)
+	var got2 []string
+	for _, fh := range res2.files {
+		rel, _ := filepath.Rel(dir, fh.src.path)
+		got2 = append(got2, filepath.ToSlash(rel))
+	}
+	want2 := []string{"other/sub/nope.go", "root.go", "sub/keep.go", "sub/skip.txt", "tests/unit_test.go"}
+	if !reflect.DeepEqual(got2, want2) {
+		t.Fatalf("Where -tests/fixtures, -ignored_dir/: got %v, want %v", got2, want2)
+	}
+}
+
+func TestFormatResultsUTF8TruncationSpans(t *testing.T) {
+	// Place a match straddling maxResultLine and another starting right at cut+1 (inside where "…" sits).
+	longLine := strings.Repeat("a", maxResultLine-2) + "needle" + strings.Repeat("x", 20)
+	res := found{
+		searched: 1,
+		matches:  3,
+		files: []fileHits{{
+			src: source{name: "long.txt", path: "/long.txt"},
+			lines: []lineHit{{
+				line: 0,
+				text: longLine,
+				spans: [][2]int{
+					{maxResultLine - 2, maxResultLine + 4},
+					{maxResultLine, maxResultLine + 2},
+					{maxResultLine + 1, maxResultLine + 3},
+				},
+			}},
+		}},
+	}
+	text, _, spans := formatResults("header", res)
+	if len(spans) != 1 {
+		t.Fatalf("got %d spans (%v), want 1 (only the span starting before cut)", len(spans), spans)
+	}
+	sp := spans[0]
+	if !utf8.RuneStart(text[sp[0]]) || (sp[1] < len(text) && !utf8.RuneStart(text[sp[1]])) {
+		t.Fatalf("span %v lands mid-rune in %q", sp, text[max(0, sp[0]-4):min(len(text), sp[1]+6)])
+	}
+	if got := text[sp[0]:sp[1]]; got != "ne" {
+		t.Fatalf("highlighted slice = %q, want %q (must not include ellipsis)", got, "ne")
+	}
+	if !strings.HasPrefix(text[sp[1]:], "…\n") {
+		t.Fatalf("expected ellipsis immediately after clamped span, got %q", text[sp[1]:min(len(text), sp[1]+6)])
+	}
+}
+
+func TestFindInFilesReplaceEnterSubmitsReplace(t *testing.T) {
+	a := newApp("")
+	a.newFile()
+	a.current().st.Buffer.Set("alpha\n")
+	tt := ui.NewTester(a.view, 900, 600)
+
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyF)
+	tt.Type("nomatch")
+	// Tab from Find -> Find button -> Where -> Replace.
+	tt.Key(0, ui.KeyTab)
+	tt.Key(0, ui.KeyTab)
+	tt.Key(0, ui.KeyTab)
+	tt.Type("replacement")
+	if a.fif.replace != "replacement" {
+		t.Fatalf("Replace field did not receive focus via Tab: replace=%q where=%q query=%q", a.fif.replace, a.fif.where, a.fif.query)
+	}
+	tt.Key(0, ui.KeyEnter)
+	if a.fif.tab != nil {
+		t.Fatalf("Enter in Replace field opened Find Results tab instead of running replaceInFiles")
+	}
+	if !a.fif.open {
+		t.Fatalf("Enter in Replace field closed panel (searchInFiles behavior) instead of running replaceInFiles")
+	}
+	if a.notice.text != locales.PanelNoMatches() {
+		t.Fatalf("notice = %q, want %q", a.notice.text, locales.PanelNoMatches())
 	}
 }
