@@ -54,6 +54,7 @@ type doc struct {
 	results   *results
 	md        *mdPreview
 	symbols   symCacheEntry
+	lex       lexCache
 	words     *wordList
 	scanning  bool
 	asked     editor.CompletionRequest
