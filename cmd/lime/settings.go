@@ -15,46 +15,31 @@ import (
 	"lime/locales"
 )
 
-// settings are what the app keeps between runs, in settings.json.
 type settings struct {
-	// Language is the tag of a language of the app's catalogs, as
-	// "zh-Hans", or followSystem.
-	Language string `json:"language"`
-	// Appearance is followSystem, lightMode or darkMode: whether the
-	// windows show LightTheme or DarkTheme.
-	Appearance   string  `json:"appearance"`
-	LightTheme   string  `json:"light_theme"`
-	DarkTheme    string  `json:"dark_theme"`
-	UIFont       string  `json:"ui_font"`      // "" is the system's
-	ContentFont  string  `json:"content_font"` // "" is the system's monospaced font
-	FontSize     float32 `json:"font_size"`
-	WordWrap     bool    `json:"word_wrap"`
-	SideBar      bool    `json:"side_bar"`
-	SideBarWidth float32 `json:"side_bar_width"`
-	TabSize      int     `json:"tab_size"`
-	// Rulers are the columns guides are drawn at.
-	Rulers           rulers     `json:"rulers"`
-	DrawWhiteSpace   whiteSpace `json:"draw_white_space"`
-	LineNumbers      bool       `json:"line_numbers"`
-	HighlightLine    bool       `json:"highlight_line"`
-	DrawIndentGuides bool       `json:"draw_indent_guides"`
-	ScrollPastEnd    pastEnd    `json:"scroll_past_end"`
-	// LayoutStyle is the name of a layoutStyle: how the groups sit in the
-	// window.
-	LayoutStyle string `json:"layout_style"`
-	// FileIcons is the name of a fileIconSet: which icons files and folders show.
-	FileIcons string `json:"file_icons"`
-	// ShowScrollBars draws the text's scroll bars.
-	ShowScrollBars bool `json:"show_scroll_bars"`
-	// CursorStyle is the name of a cursorStyle: how the carets look.
-	CursorStyle string `json:"cursor_style"`
-	// TypingMode is "normal", or "rampage" for bursts and trails at the
-	// carets as they type, delete and jump.
-	TypingMode string `json:"typing_mode"`
-	// LinePaddingTop and LinePaddingBottom add DIPs above and below each
-	// line.
-	LinePaddingTop    float32 `json:"line_padding_top"`
-	LinePaddingBottom float32 `json:"line_padding_bottom"`
+	Language          string     `json:"language"`
+	Appearance        string     `json:"appearance"`
+	LightTheme        string     `json:"light_theme"`
+	DarkTheme         string     `json:"dark_theme"`
+	UIFont            string     `json:"ui_font"`
+	ContentFont       string     `json:"content_font"`
+	FontSize          float32    `json:"font_size"`
+	WordWrap          bool       `json:"word_wrap"`
+	SideBar           bool       `json:"side_bar"`
+	SideBarWidth      float32    `json:"side_bar_width"`
+	TabSize           int        `json:"tab_size"`
+	Rulers            rulers     `json:"rulers"`
+	DrawWhiteSpace    whiteSpace `json:"draw_white_space"`
+	LineNumbers       bool       `json:"line_numbers"`
+	HighlightLine     bool       `json:"highlight_line"`
+	DrawIndentGuides  bool       `json:"draw_indent_guides"`
+	ScrollPastEnd     pastEnd    `json:"scroll_past_end"`
+	LayoutStyle       string     `json:"layout_style"`
+	FileIcons         string     `json:"file_icons"`
+	ShowScrollBars    bool       `json:"show_scroll_bars"`
+	CursorStyle       string     `json:"cursor_style"`
+	TypingMode        string     `json:"typing_mode"`
+	LinePaddingTop    float32    `json:"line_padding_top"`
+	LinePaddingBottom float32    `json:"line_padding_bottom"`
 	// FontOptions are Sublime Text's, of which the ligature ones count:
 	// "no_liga", "no_clig" and "no_calt".
 	FontOptions []string `json:"font_options"`
@@ -63,26 +48,15 @@ type settings struct {
 	TranslateTabsToSpaces        *bool `json:"translate_tabs_to_spaces,omitempty"`
 	TrimTrailingWhiteSpaceOnSave bool  `json:"trim_trailing_white_space_on_save"`
 	EnsureNewlineAtEOFOnSave     bool  `json:"ensure_newline_at_eof_on_save"`
-	// AutoComplete shows completions as words are typed.
-	AutoComplete bool `json:"auto_complete"`
-	// DetectIndentation has a file indent as its lines do as it opens,
-	// in place of TabSize and TranslateTabsToSpaces.
-	DetectIndentation bool `json:"detect_indentation"`
+	AutoComplete                 bool  `json:"auto_complete"`
+	DetectIndentation            bool  `json:"detect_indentation"`
 	// FallbackEncoding is the name of the encoding a file that isn't
 	// UTF-8 opens in, as Sublime Text's encodings are named.
 	FallbackEncoding string `json:"fallback_encoding"`
-	// DiffUnified lays commits' diffs out one over the other rather than
-	// side by side.
-	DiffUnified bool `json:"diff_unified"`
-	// GitTreeView shows the git panel's changes in the tree of their
-	// folders rather than as a list.
-	GitTreeView bool `json:"git_tree_view"`
-	// GitDiffTarget is the text in git that the gutter marks a file's
-	// changes against: "index", or "head" for the last commit's.
-	GitDiffTarget string `json:"git_diff_target"`
-	// InlineBlame shows who last changed the caret's line at its end, as
-	// Zed's inline blame does.
-	InlineBlame bool `json:"inline_blame"`
+	DiffUnified      bool   `json:"diff_unified"`
+	GitTreeView      bool   `json:"git_tree_view"`
+	GitDiffTarget    string `json:"git_diff_target"`
+	InlineBlame      bool   `json:"inline_blame"`
 	// FolderExcludePatterns and FileExcludePatterns override the default
 	// side bar and indexing exclude patterns when set.
 	FolderExcludePatterns []string `json:"folder_exclude_patterns,omitzero"`
@@ -104,7 +78,6 @@ const (
 
 const defaultFontSize = 13
 
-// dataDir is where the app keeps its settings and session.
 func dataDir() string {
 	dir, err := mygo.App.Path(mygo.PathUserData)
 	if err != nil {
@@ -115,8 +88,6 @@ func dataDir() string {
 
 func settingsPath(dir string) string { return filepath.Join(dir, "settings.json") }
 
-// loadSettings reads settings.json over the defaults, and returns the
-// error of a file that does not parse.
 func loadSettings(dir string) (settings, error) {
 	s := settings{
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
@@ -155,8 +126,6 @@ func (s *settings) migrate() {
 	}
 }
 
-// locale is the language App.SetLocale shows for Language: "" follows
-// the system.
 func (s *settings) locale() string {
 	if s.Language == followSystem {
 		return ""
@@ -164,8 +133,6 @@ func (s *settings) locale() string {
 	return i18n.Normalize(s.Language)
 }
 
-// layoutStyle is the style LayoutStyle names, compact for a name it
-// doesn't know.
 func (s *settings) layoutStyle() layoutStyle {
 	for _, l := range layoutStyles {
 		if l.name == s.LayoutStyle {
@@ -175,8 +142,6 @@ func (s *settings) layoutStyle() layoutStyle {
 	return layoutStyles[0]
 }
 
-// fileIcons is the icon set FileIcons names, file-icons for a name it
-// doesn't know.
 func (s *settings) fileIcons() fileIconSet {
 	for _, f := range fileIconSets {
 		if f.name == s.FileIcons {
@@ -186,8 +151,6 @@ func (s *settings) fileIcons() fileIconSet {
 	return fileIconSets[0]
 }
 
-// cursorStyle is the style CursorStyle names, bars for a name it doesn't
-// know.
 func (s *settings) cursorStyle() cursorStyle {
 	for _, c := range cursorStyles {
 		if c.name == s.CursorStyle {
@@ -204,14 +167,12 @@ const (
 
 func (s *settings) rampage() bool { return s.TypingMode == rampageTyping }
 
-// indent is what TranslateTabsToSpaces has indenting insert.
 func (s *settings) indent() editor.IndentStyle { return indentStyle(s.TranslateTabsToSpaces) }
 
 func (s *settings) setIndent(style editor.IndentStyle) {
 	s.TranslateTabsToSpaces = translateTabs(style)
 }
 
-// display shows the text of st as the settings say.
 func (s *settings) display(st *editor.State) {
 	st.WrapGuides, st.Whitespace = s.Rulers, s.DrawWhiteSpace.mode()
 	st.LineNumbers = editor.LineNumbersOn
@@ -261,7 +222,6 @@ func (p *pastEnd) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// font is the content font, as editors take it.
 func (s *settings) font() ui.Font {
 	var off []string
 	for _, o := range s.FontOptions {
@@ -273,7 +233,6 @@ func (s *settings) font() ui.Font {
 	return ui.Font{Family: s.ContentFont, Size: s.FontSize, Features: strings.Join(off, ",")}
 }
 
-// lineHeight is the height of lines as a multiple of the font's size.
 func (s *settings) lineHeight() float32 {
 	if s.FontSize <= 0 {
 		return 0
@@ -364,8 +323,6 @@ func (s *settings) fileExcludes() []string {
 	return fileExclude
 }
 
-// writeSettingsAtomic writes settings.json via a temp file and rename in dir
-// so an interrupted write leaves the previous file intact.
 func writeSettingsAtomic(dir string, data []byte) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -391,8 +348,6 @@ func (l *lime) saveSettings() {
 	}
 }
 
-// setLanguage shows the language of tag, or the system's for
-// followSystem, and keeps it.
 func (l *lime) setLanguage(tag string) {
 	l.set.Language = tag
 	l.saveSettings()
@@ -429,7 +384,6 @@ func (l *lime) reloadSettings() {
 	}
 }
 
-// redraw builds the windows anew, for a change they share.
 func (l *lime) redraw() {
 	for _, a := range l.wins {
 		if a.win != nil {

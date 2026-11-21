@@ -31,7 +31,6 @@ func focusGroup(i int) string  { return "focus_group " + strconv.Itoa(i) }
 func moveToGroup(i int) string { return "move_to_group " + strconv.Itoa(i) }
 func selectTab(i int) string   { return "select_by_index " + strconv.Itoa(i) }
 
-// withDoc runs fn on the current doc, when it shows text.
 func withDoc(fn func(a *app, d *doc)) func(a *app) {
 	return func(a *app) {
 		if d := a.current(); d != nil && d.kind == textDoc {
@@ -40,8 +39,6 @@ func withDoc(fn func(a *app, d *doc)) func(a *app) {
 	}
 }
 
-// withSource runs fn on the doc whose text the current tab edits, a diff
-// tab's new one.
 func withSource(fn func(a *app, d *doc)) func(a *app) {
 	return func(a *app) {
 		if d := a.current(); d != nil && d.source().kind == textDoc {
@@ -50,8 +47,6 @@ func withSource(fn func(a *app, d *doc)) func(a *app) {
 	}
 }
 
-// edit runs cmd in the current editor, or the side of a diff that has
-// the keyboard.
 func edit(id string, caption func(locales.Messages) string, cmd editor.Command) command {
 	return command{id: id, caption: caption, run: func(a *app) {
 		switch d := a.current(); {
@@ -64,7 +59,6 @@ func edit(id string, caption func(locales.Messages) string, cmd editor.Command) 
 	}, ed: cmd}
 }
 
-// currentTracked reports whether git has the current tab's file.
 func currentTracked(a *app) bool {
 	d := a.current()
 	return d != nil && a.tracked(d.path)
@@ -151,7 +145,6 @@ func (a *app) revert(d *doc) {
 	}()
 }
 
-// revertDoc reloads d's file from disk, discarding any unsaved changes.
 func (a *app) revertDoc(d *doc) {
 	if d == nil || d.kind != textDoc || d.path == "" {
 		return
@@ -610,8 +603,6 @@ func (a *app) formatJSON(st *editor.State, minify bool) {
 	}
 }
 
-// jsonError puts the caret where src, at offset at, fails to parse as
-// JSON, and tells why in the status bar.
 func (a *app) jsonError(st *editor.State, at int, src string, err error) {
 	var se *json.SyntaxError
 	if !errors.As(err, &se) {

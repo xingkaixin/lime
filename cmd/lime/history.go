@@ -13,7 +13,6 @@ import (
 	"lime/locales"
 )
 
-// maxCommits is how many commits the history lists.
 const maxCommits = 300
 
 type commit struct {
@@ -29,8 +28,6 @@ type change struct {
 	path, oldPath string // relative to the work tree's top, with slashes
 }
 
-// history is the side bar's list of the repository's commits, read for
-// root, or of file's alone, as File History shows them.
 type history struct {
 	root    string
 	file    string // relative to root, with slashes; "" for all the commits
@@ -41,7 +38,6 @@ type history struct {
 	gen     int // counts the readings, for the last to win
 }
 
-// logFormat prints the fields of a commit that parseCommit reads.
 const logFormat = "%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%at"
 
 func parseCommit(rec string) (commit, bool) {
@@ -64,8 +60,6 @@ func readCommits(root string) []commit {
 	return cs
 }
 
-// readFileCommits reads the commits that change file, across its renames,
-// with its path in each.
 func readFileCommits(root, file string) ([]commit, []string) {
 	out, _ := runGit(root, "--literal-pathspecs", "log", "--follow", "-n"+strconv.Itoa(maxCommits), "-z", "--name-only",
 		"--format=%x1e"+logFormat, "--", file)
@@ -87,13 +81,11 @@ func readFileCommits(root, file string) ([]commit, []string) {
 	return cs, paths
 }
 
-// onGitHub reports whether a remote of the repository is on GitHub.
 func onGitHub(root string) bool {
 	out, _ := runGit(root, "remote", "-v")
 	return strings.Contains(out, "github.com")
 }
 
-// commitChanges reads the files hash changes against its first parent.
 func commitChanges(root, hash string) []change {
 	out, _ := runGit(root, "diff-tree", "-r", "-z", "-M", "--name-status", "--root", "--no-commit-id", "--diff-merges=first-parent", hash)
 	return parseCommitChanges(out)
@@ -191,7 +183,6 @@ func (a *app) fileHistory(p string) {
 	})
 }
 
-// ago tells how long ago t was, as Zed's history does.
 func ago(t, now time.Time) string {
 	const day = 24 * time.Hour
 	switch d := now.Sub(t); {
@@ -212,8 +203,6 @@ func ago(t, now time.Time) string {
 	}
 }
 
-// historyView lists the commits, each of which opens in a tab of its own:
-// at the file's diff, under the file whose commits alone show.
 func (a *app) historyView(c *ui.Context) {
 	h := &a.hist
 	shown := ""
@@ -236,8 +225,6 @@ func (a *app) historyView(c *ui.Context) {
 	list.Grow(1).FillWidth().Padding(0, c.Theme().Space(1)).Label(locales.GitHistory())
 }
 
-// fileHistoryBar names the file whose commits alone show, with the button
-// that shows them all again.
 func (a *app) fileHistoryBar(c *ui.Context) {
 	th := c.Theme()
 	ch := a.shell(c)

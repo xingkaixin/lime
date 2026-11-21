@@ -54,7 +54,6 @@ func TestWalkFoldersGitignoreAndSidebarVisibility(t *testing.T) {
 		t.Fatalf("indexed files = %v, want %v", gotIndexed, wantIndexed)
 	}
 
-	// Sidebar still shows gitignored folders and files (dimmed by gitmarks).
 	entries := a.shownDir(dir)
 	var names []string
 	for _, e := range entries {
@@ -87,7 +86,6 @@ func TestCustomExcludePatterns(t *testing.T) {
 		}
 	}
 
-	// Backward compatibility: omitted patterns keep defaults (.git, *.pyc).
 	cfgDir := t.TempDir()
 	if err := os.WriteFile(settingsPath(cfgDir), []byte(`{"font_size": 14}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -102,8 +100,6 @@ func TestCustomExcludePatterns(t *testing.T) {
 		t.Fatalf("vendor/lib.go should be indexed under defaults: %v", a.proj.files)
 	}
 
-	// Custom folder_exclude_patterns and file_exclude_patterns apply to both
-	// sidebar listing and indexing.
 	a.set.FolderExcludePatterns = []string{"vendor", "build", ".git"}
 	a.set.FileExcludePatterns = []string{"*.bak", "secret.txt"}
 	a.refreshFolders()
@@ -239,7 +235,6 @@ func TestNestedCreateAndEscapeGuard(t *testing.T) {
 	a := newApp("")
 	a.addFolder(dir)
 
-	// Nested file creation creates parent directories and opens the file.
 	a.startCreate(dir, false)
 	a.proj.create.name = "a/b/c.go"
 	a.finishCreate()
@@ -260,7 +255,6 @@ func TestNestedCreateAndEscapeGuard(t *testing.T) {
 			t.Fatal("created through an escaping symlink")
 		}
 	}
-	// Nested folder creation creates parent directories too.
 	a.startCreate(dir, true)
 	a.proj.create.name = "x/y/z"
 	a.finishCreate()
@@ -268,7 +262,6 @@ func TestNestedCreateAndEscapeGuard(t *testing.T) {
 		t.Fatalf("nested folder not created: %v", err)
 	}
 
-	// Reject paths escaping cr.dir or absolute paths.
 	for _, bad := range []string{"../escape.go", "a/../../escape.go", "..", ".", "/abs/escape.go"} {
 		if _, err := projResolveCreate(dir, bad); err == nil {
 			t.Fatalf("projResolveCreate(%q) succeeded, want error", bad)
@@ -310,14 +303,12 @@ func TestMultiWindowRenamedAndDiscardViews(t *testing.T) {
 	d2 := w2.docAt(oldPath)
 	otherDoc := w2.docAt(otherPath)
 
-	// Attach a Markdown preview in w1 and a diff tab in w2 referencing the doc.
 	w1.openPreview(d1, false)
 	w2.compareDocs(d2, otherDoc)
 	if w1.docCount() != 2 || w2.docCount() != 3 {
 		t.Fatalf("unexpected initial tab counts: w1=%d w2=%d", w1.docCount(), w2.docCount())
 	}
 
-	// Rename updates tabs across both windows.
 	if err := os.Rename(oldPath, newPath); err != nil {
 		t.Fatal(err)
 	}
@@ -326,8 +317,6 @@ func TestMultiWindowRenamedAndDiscardViews(t *testing.T) {
 		t.Fatalf("multi-window rename: d1=%q d2=%q, want %q", d1.path, d2.path, newPath)
 	}
 
-	// Discard removes the file, closes matching tabs across all windows, and
-	// closes dependent preview and diff views so none remain orphaned.
 	if err := w1.discard(newPath); err != nil {
 		t.Fatalf("discard: %v", err)
 	}
@@ -370,8 +359,6 @@ func TestWatchBatchReindexAndReload(t *testing.T) {
 	a.proj.watchBatch = &projWatchBatch{}
 	batch := a.proj.watchBatch
 
-	// Prime sidebar cache, then add a new file externally and apply a
-	// structural watch batch.
 	_ = a.shownDir(dir)
 	addedPath := filepath.Join(dir, "added.go")
 	if err := os.WriteFile(addedPath, []byte("package main\n"), 0o644); err != nil {
@@ -385,8 +372,6 @@ func TestWatchBatchReindexAndReload(t *testing.T) {
 		t.Fatal("watch structural batch did not invalidate cached dir entries")
 	}
 
-	// Modify open file externally (advance mtime/size so stamp differs) and
-	// apply a write batch to trigger reloadChanged.
 	if err := os.WriteFile(filePath, []byte("v2 updated\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -411,7 +396,6 @@ func TestSettingsAtomicSaveAndUIControls(t *testing.T) {
 		t.Fatalf("unexpected files after atomic write: %v", entries)
 	}
 
-	// Writing into a path blocked by a regular file returns an error.
 	blocker := filepath.Join(t.TempDir(), "not-a-dir")
 	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
@@ -420,18 +404,15 @@ func TestSettingsAtomicSaveAndUIControls(t *testing.T) {
 		t.Fatal("expected error when settings dir is a file")
 	}
 
-	// Verify newly exposed controls render and toggle settings properly.
 	saveDir := t.TempDir()
 	a := newApp(saveDir)
 	a.showSettings()
 	tt := ui.NewTester(a.view, 900, 650)
 
-	// General page has Fallback Encoding.
 	if !tt.HasText("Fallback Encoding") {
 		t.Fatal("General settings page missing Fallback Encoding")
 	}
 
-	// Switch to Editor page and toggle exposed controls.
 	if err := tt.Click("Editor"); err != nil {
 		t.Fatal(err)
 	}
@@ -449,7 +430,6 @@ func TestSettingsAtomicSaveAndUIControls(t *testing.T) {
 		}
 	}
 
-	// Verify toggling bound switches (including pastEnd bool conversion) updates settings.
 	clickRole := func(role ui.Role, name string) {
 		t.Helper()
 		info, ok := tt.AccessByRole(role, name)
@@ -468,7 +448,6 @@ func TestSettingsAtomicSaveAndUIControls(t *testing.T) {
 		t.Fatalf("switches did not update settings: word_wrap=%v scroll_past_end=%v", a.set.WordWrap, a.set.ScrollPastEnd)
 	}
 
-	// Verify Rulers does not rewrite settings.json when parsed rulers don't change.
 	a.set.Rulers = rulers{80}
 	a.l.saveSettings()
 	tt.Frame()
@@ -490,7 +469,6 @@ func TestSettingsAtomicSaveAndUIControls(t *testing.T) {
 		t.Fatal("typing a trailing comma in Rulers rewrote settings.json even though parsed rulers did not change")
 	}
 
-	// Typing a new column value updates rulers and writes settings.json.
 	tt.Type(" 100")
 	tt.Frame()
 	if !slices.Equal(a.set.Rulers, rulers{80, 100}) {

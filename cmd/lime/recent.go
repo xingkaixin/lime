@@ -52,8 +52,6 @@ func (l *lime) addRecent(files, folders []string) {
 	}
 }
 
-// pushRecent puts p first in list, keeping n, and reports whether that
-// changed it.
 func pushRecent(list *[]string, p string, n int) bool {
 	if len(*list) > 0 && (*list)[0] == p {
 		return false
@@ -89,7 +87,6 @@ func (l *lime) clearRecent() {
 	}
 }
 
-// recentMenu is File > Open Recent, as Sublime Text's.
 func (l *lime) recentMenu() *mygo.MenuItem {
 	items := []*mygo.MenuItem{l.menuItem(locales.MenuReopenClosedFile(), "reopen_last_file"), mygo.Separator()}
 	for _, p := range l.recent.Files {
@@ -109,7 +106,6 @@ func (l *lime) recentMenu() *mygo.MenuItem {
 	return &mygo.MenuItem{Label: locales.MenuOpenRecent(), Submenu: items}
 }
 
-// recentItem runs fn in the focused window, as menuItem runs a command.
 func (l *lime) recentItem(label string, fn func(a *app)) *mygo.MenuItem {
 	return &mygo.MenuItem{Label: label, Click: func(_ *mygo.MenuItem, w *mygo.Window) {
 		if len(l.wins) == 0 {
@@ -121,8 +117,6 @@ func (l *lime) recentItem(label string, fn func(a *app)) *mygo.MenuItem {
 	}}
 }
 
-// showWorkspaces is Sublime Text's Quick Switch Project: the folders and
-// projects opened lately.
 func (a *app) showWorkspaces() {
 	var items []item
 	for _, p := range a.l.recent.Folders {

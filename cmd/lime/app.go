@@ -22,52 +22,45 @@ import (
 	"lime/locales"
 )
 
-// doc is a file open in a tab.
 type doc struct {
 	tabHandle ui.Handle
-	path      string // "" while untitled
+	path      string
 	st        *editor.State
-	columns   bool            // a column drag remapped from another press is going on
-	drag      ui.InputEvent   // the pointer's last move over the editor
-	sliding   bool            // a drag past the text's side is scrolling it (slide)
-	saved     editor.Snapshot // the text on disk
-	disk      stamp           // the file as saved was found on disk
-	// base is the id of the file's text in git that the gutter marks the
-	// changes against; "" while it marks them against the text on disk.
-	base    string
-	baseGen int
+	columns   bool
+	drag      ui.InputEvent
+	sliding   bool
+	saved     editor.Snapshot
+	disk      stamp
+	base      string
+	baseGen   int
 	// checked is the version modified was found for: dirty compares the
 	// text with saved once a version.
 	checked  uint64
 	modified bool
-	// tabSize and indent are the file's own indentation, as detected or
-	// set from View > Indentation; zero values follow the settings.
-	tabSize int
-	indent  editor.IndentStyle
+	tabSize  int
+	indent   editor.IndentStyle
 	// savedEnding is the line ending on disk, which the buffer changes
 	// without a new version. cr has the lines end in \r alone, which the
 	// buffer has as \n.
 	savedEnding string
 	cr          bool
-	enc         *fileEncoding // the file's; nil is UTF-8
+	enc         *fileEncoding
 
-	kind    docKind
-	img     *ui.Bitmap  // an imageDoc's image, once decoded
-	loading bool        // the image is decoding
-	cmp     *comparison // a diffDoc's
-	commit  *commitView // a commitDoc's
-	results *results    // a findDoc's
-	md      *mdPreview  // a mdDoc's
-	symbols symCacheEntry
-	// words are the text's words as wordList last found them, while
-	// scanning finds them again; asked is the completions last asked for.
+	kind      docKind
+	img       *ui.Bitmap
+	loading   bool
+	cmp       *comparison
+	commit    *commitView
+	results   *results
+	md        *mdPreview
+	symbols   symCacheEntry
 	words     *wordList
 	scanning  bool
 	asked     editor.CompletionRequest
-	blame     *blaming // nil until it shows
+	blame     *blaming
 	caret     caretFx
 	rampage   rampageFx
-	prompting bool // a save or close dialog is open for this doc
+	prompting bool
 }
 
 func (d *doc) name() string {
@@ -107,8 +100,6 @@ func tabDirs(docs []*doc) map[*doc]string {
 	return dirs
 }
 
-// shortestDir returns the fewest last folders of d's path that no other
-// of same has, or all of them.
 func shortestDir(d *doc, same []*doc) string {
 	sep := string(filepath.Separator)
 	parts := func(d *doc) []string { return strings.Split(filepath.Dir(d.path), sep) }
@@ -125,7 +116,6 @@ func shortestDir(d *doc, same []*doc) string {
 	return filepath.Dir(d.path)
 }
 
-// source is the doc whose text d edits: its own, or a diff tab's new one.
 func (d *doc) source() *doc {
 	if d.cmp != nil {
 		return d.cmp.src
@@ -133,13 +123,8 @@ func (d *doc) source() *doc {
 	return d
 }
 
-// plain reports whether d's tab shows its text in an editor: not a diff,
-// a commit or an image.
 func (d *doc) plain() bool { return d.kind == textDoc && d.cmp == nil && d.commit == nil }
 
-// dirty reports whether the text or its line ending differs from the
-// saved one, as Buffer.Modified does, which copies both texts out at
-// every call.
 func (d *doc) dirty() bool {
 	if d.lineEnding() != d.savedEnding {
 		return true
@@ -183,16 +168,15 @@ func sameText(a, b editor.Snapshot) bool {
 	return same
 }
 
-// group is a pane of the layout, with its own tabs.
 type group struct {
 	docs   []*doc
-	active int     // -1 while empty
-	bar    ui.Rect // the tab bar as the last frame laid it out, in the window
-	tabW   float32 // the width of its tabs, all the same
-	scroll float32 // how far its tabs are scrolled left, when they do not fit
-	shown  *doc    // the tab last scrolled into view
-	at     int     // where it was
-	blank  *doc    // the editor shown without tabs, which typing makes a tab
+	active int
+	bar    ui.Rect
+	tabW   float32
+	scroll float32
+	shown  *doc
+	at     int
+	blank  *doc
 }
 
 func (g *group) current() *doc {
@@ -212,7 +196,6 @@ func (g *group) placeholder() *doc {
 	return g.blank
 }
 
-// adopt makes the placeholder of g a tab once it has been typed in.
 func (a *app) adopt(g *group) {
 	b := g.blank
 	if b == nil || b.st.Buffer.Version() == 0 {
@@ -275,18 +258,16 @@ func layoutOf(cols, rows int) layout {
 	return layouts[0]
 }
 
-// lime is what the windows share: the settings, the menu and the session.
 type lime struct {
-	dir  string // keeps the settings and the session; "" keeps none, as in tests
-	set  settings
-	wins []*app
-	last *app // the window last focused, which the menu goes to
-	menu *mygo.Menu
-	keys *keymap
-	// recent is what Open Recent and Quick Switch Project list.
+	dir    string // keeps the settings and the session; "" keeps none, as in tests
+	set    settings
+	wins   []*app
+	last   *app // the window last focused, which the menu goes to
+	menu   *mygo.Menu
+	keys   *keymap
 	recent recentList
 
-	menuPaused bool // while a key is recorded
+	menuPaused bool
 
 	// setErr is why settings.json does not parse: nothing writes over the
 	// file until it does.
@@ -294,56 +275,55 @@ type lime struct {
 
 	themeSource   mygo.ThemeSource
 	menuState     string
-	avatars       map[string]*ui.Bitmap // the pictures of commit authors, by email; nil while loading or for none
-	fonts         *fontLists            // listed as the font settings first show
+	avatars       map[string]*ui.Bitmap
+	fonts         *fontLists
 	sessionMu     sync.Mutex
-	sessionKey    string // of the session last kept
-	sessionKeyGen uint64 // gen that recorded sessionKey
-	sessionGen    uint64 // numbers the sessions taken to write
+	sessionKey    string
+	sessionKeyGen uint64
+	sessionGen    uint64
 	writing       sync.Mutex
-	written       uint64 // the number of the session last written
-	quitting      bool   // the session is kept and the windows close
+	written       uint64
+	quitting      bool
 }
 
-// app is a window: its groups of tabs, its project and its panels.
 type app struct {
 	l   *lime
 	win *mygo.Window
-	set *settings // the windows' own, l.set
+	set *settings
 
 	groups     []*group
 	layout     layout
-	cols       []float32 // where the dividers between the groups are, as SplitPercent has them
+	cols       []float32
 	rows       []float32
-	focus      int   // the focused group
-	focused    place // bound with FocusBind
+	focus      int
+	focused    place
 	mru        []*doc
-	cycle      []*doc // mru as Ctrl+Tab began, while Ctrl is held
+	cycle      []*doc
 	cycleAt    int
 	closed     []string
 	chordKeyUp ui.Key
 	revealPath string
-	chord      bool // Cmd+K was pressed, waiting for the chord's second key
+	chord      bool
 	title      string
 	scheme     *scheme
 	panel      *panel
-	scroll     *peek // what a closed panel scrolls back to (scrollBack)
+	scroll     *peek
 	jumps      jumps
 	find       finding
 	fif        findInFiles
 	proj       project
-	marks      gitMarks // what git says of the side bar's files
+	marks      gitMarks
 	git        gitRepo
 	hist       history
 	changes    changes
-	gitTab     int            // the git panel's: changesTab or historyTab
-	remote     string         // what the git with the remote running does, as Pushing…
-	side       sidePanel      // what the side bar shows
-	bounds     mygo.Rectangle // where the window opens, when restored
+	gitTab     int
+	remote     string
+	side       sidePanel
+	bounds     mygo.Rectangle
 	drag       *tabDrag
 	prefs      prefs
 	notice     notice
-	others     *tabWords // the other tabs' words, as complete last found them
+	others     *tabWords
 
 	reloading, reloadAgain bool
 	closingPrompt          bool
@@ -358,10 +338,8 @@ func newLime(dir string) *lime {
 	return l
 }
 
-// newApp makes the app with one window, without opening it.
 func newApp(dir string) *app { return newLime(dir).newWindow() }
 
-// newWindow adds a window, which makeWindow opens.
 func (l *lime) newWindow() *app {
 	a := &app{l: l, set: &l.set, layout: layouts[0], groups: []*group{{active: -1}}}
 	a.scheme = l.set.scheme(true)
@@ -375,7 +353,6 @@ func (l *lime) newWindow() *app {
 	return a
 }
 
-// at is the window of w, or the one last focused.
 func (l *lime) at(w *mygo.Window) *app {
 	for _, a := range l.wins {
 		if w != nil && a.win == w {
@@ -385,7 +362,6 @@ func (l *lime) at(w *mygo.Window) *app {
 	return l.last
 }
 
-// owner is the window with d in a tab.
 func (l *lime) owner(d *doc) *app {
 	for _, a := range l.wins {
 		if gi, _ := a.locate(d); gi >= 0 {
@@ -415,7 +391,6 @@ func (a *app) locate(d *doc) (gi, i int) {
 	return -1, -1
 }
 
-// show makes d its group's tab and gives it the focus.
 func (a *app) show(d *doc) {
 	gi, i := a.locate(d)
 	if gi < 0 {
@@ -428,7 +403,6 @@ func (a *app) show(d *doc) {
 	}
 }
 
-// focusGroup gives the focus to the group at gi.
 func (a *app) focusGroup(gi int) {
 	if gi < 0 || gi >= len(a.groups) {
 		return
@@ -441,13 +415,10 @@ func (a *app) focusGroup(gi int) {
 	a.focus, a.focused = gi, place{g, g.placeholder()}
 }
 
-// touch puts d first in the order tabs were last used.
 func (a *app) touch(d *doc) {
 	a.mru = append([]*doc{d}, slices.DeleteFunc(a.mru, func(x *doc) bool { return x == d })...)
 }
 
-// syncFocus follows the focus the user moved, and ends a Ctrl+Tab cycle
-// as Ctrl is let go.
 func (a *app) syncFocus(ctrlHeld bool) {
 	if a.cycle != nil && !ctrlHeld {
 		a.cycle = nil
@@ -483,7 +454,6 @@ func (a *app) cycleTabs(step int) {
 	a.show(a.cycle[a.cycleAt])
 }
 
-// newDoc makes a tab of the file at path holding text, its text on disk.
 func newDoc(path, text string) *doc {
 	text, ending := splitLines(text)
 	buf := editor.NewBuffer(text)
@@ -545,7 +515,6 @@ func (a *app) reloadFromDisk(d *doc) {
 	a.readBases(d)
 }
 
-// reload is a tab's file as another app or git left it.
 type reload struct {
 	d         *doc
 	path      string
@@ -571,9 +540,6 @@ func changedOnDisk(docs []*doc, paths []string, stamps []stamp, encs []*fileEnco
 	return rs
 }
 
-// reloadChanged shows the files of the window's tabs as they are on
-// disk now, as the window comes to the front or git changes them. A tab
-// with unsaved changes keeps them, which saving writes over the file.
 func (a *app) reloadChanged() {
 	if a.reloading {
 		a.reloadAgain = true
@@ -650,8 +616,6 @@ func (a *app) add(path, text string) *doc {
 
 func (a *app) newFile() { a.add("", "") }
 
-// open shows files in tabs, or the tabs already showing them, and adds
-// folders to the project.
 func (a *app) open(paths []string) {
 	var files, folders []string
 	var added []*doc
@@ -818,8 +782,6 @@ func (a *app) reopenClosed() {
 // write saves d to path, on the main thread.
 func (a *app) write(d *doc, path string) error { return a.writeIn(d, path, d.encoding()) }
 
-// writeIn saves d to path in want, which becomes d's encoding once the
-// file is written.
 func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	a.tidy(d)
 	snap := d.st.Buffer.Snapshot()
@@ -943,8 +905,6 @@ func writeFileAtomic(path string, data []byte, existing os.FileInfo) error {
 	return os.Rename(tmp, path)
 }
 
-// pickPath asks where to save d; "" when canceled. It blocks, so call it
-// off the main thread.
 func (a *app) pickPath(name, path string) string {
 	opts := mygo.SaveDialogOptions{Parent: a.win, DefaultPath: name}
 	if path != "" {
@@ -1081,7 +1041,6 @@ func (a *app) saveAllThen(done func(bool)) {
 	next(0)
 }
 
-// closeDoc closes d's tab, asking first to save its changes.
 func (a *app) closeDoc(d *doc) {
 	if !d.dirty() {
 		a.remove(d)
@@ -1165,14 +1124,12 @@ func release(docs ...*doc) {
 	}
 }
 
-// take takes d out of the window.
 func (a *app) take(d *doc) bool {
 	a.mru = slices.DeleteFunc(a.mru, func(x *doc) bool { return x == d })
 	a.jumps.forget(d)
 	return a.detach(d)
 }
 
-// detach takes d out of its group, the tab beside it taking its place.
 func (a *app) detach(d *doc) bool {
 	gi, i := a.locate(d)
 	if gi < 0 {
@@ -1192,8 +1149,6 @@ func (a *app) detach(d *doc) bool {
 	return true
 }
 
-// selectTab moves to the tab at i of the focused group, from the end when
-// negative, wrapping.
 func (a *app) selectTab(i int) {
 	g := a.group()
 	if n := len(g.docs); n > 0 {
@@ -1224,7 +1179,6 @@ func (a *app) setLayout(l layout) {
 	}
 }
 
-// moveToGroup moves the focused tab to the group at gi.
 func (a *app) moveToGroup(gi int) {
 	d := a.current()
 	if d == nil || gi < 0 || gi >= len(a.groups) || gi == a.focus {
@@ -1241,7 +1195,6 @@ func (a *app) neighbor(step int) int {
 	return ((a.focus+step)%n + n) % n
 }
 
-// newPane adds a group after the others and moves the focused tab to it.
 func (a *app) newPane() {
 	l := a.layout
 	switch {
@@ -1256,8 +1209,6 @@ func (a *app) newPane() {
 	a.moveToGroup(len(a.groups) - 1)
 }
 
-// closePane takes the focused group away, its tabs going to the group
-// before it.
 func (a *app) closePane() {
 	l := a.layout
 	if len(a.groups) == 1 || l.cols > 1 && l.rows > 1 {
@@ -1279,8 +1230,6 @@ func (a *app) closePane() {
 	a.focusGroup(max(a.focus-1, 0))
 }
 
-// moveTab puts d at i of the group at gi, from where it is, in this
-// window or another. A window left without tabs closes.
 func (a *app) moveTab(d *doc, gi, i int) {
 	from := a.l.owner(d)
 	if from == nil || gi >= len(a.groups) {
@@ -1299,8 +1248,6 @@ func (a *app) moveTab(d *doc, gi, i int) {
 	}
 }
 
-// openWindow opens a window with an untitled tab, a little below and to
-// the right of this one.
 func (a *app) openWindow() {
 	b := a.l.newWindow()
 	b.newFile()

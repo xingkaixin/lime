@@ -7,10 +7,6 @@ import (
 	"testing"
 )
 
-// The gutter marks a tracked file's changes against the index, or HEAD,
-// which saving leaves as they are, and an untracked file's against the
-// text on disk. Show Unsaved Changes compares with the text on disk, as
-// saving leaves it.
 func TestMiniDiff(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("no git")

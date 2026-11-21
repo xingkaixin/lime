@@ -20,10 +20,6 @@ import (
 	"lime/locales"
 )
 
-// Find in Files looks in the open folders, in a tab's unsaved text rather
-// than its file, past binary files and the names Where leaves out. Its
-// matched lines go to one Find Results tab, from which Enter and F4 go to
-// the matches.
 func TestFindInFiles(t *testing.T) {
 	dir := t.TempDir()
 	for name, text := range map[string]string{
@@ -77,9 +73,6 @@ func TestFindInFiles(t *testing.T) {
 	}
 }
 
-// A file on disk matches a regular expression as its tab would, \r\n
-// read as \n, and a link to a file is the file: its tab's text is searched
-// once.
 func TestFindInLinkedFiles(t *testing.T) {
 	dir := t.TempDir()
 	agents, claude := filepath.Join(dir, "AGENTS.md"), filepath.Join(dir, "CLAUDE.md")
@@ -103,8 +96,6 @@ func TestFindInLinkedFiles(t *testing.T) {
 	}
 }
 
-// Replace in Files replaces in the tabs' text, a regular expression's $1
-// expanded, opening the files not open, and saves none.
 func TestReplaceInFiles(t *testing.T) {
 	dir := t.TempDir()
 	one, two := filepath.Join(dir, "one.go"), filepath.Join(dir, "two.go")
@@ -135,9 +126,6 @@ func TestReplaceInFiles(t *testing.T) {
 	}
 }
 
-// Replacing in a file and a link to it replaces in the file's tab once,
-// with its unsaved text, and opens no second tab that Save All would
-// write over it with.
 func TestReplaceInLinkedFile(t *testing.T) {
 	dir := t.TempDir()
 	agents := filepath.Join(dir, "AGENTS.md")
@@ -281,7 +269,6 @@ func TestFindInFilesGitignore(t *testing.T) {
 		t.Fatalf("gitignore matched files:\n got  %v\n want %v", got, want)
 	}
 
-	// Explicit file path and <open files> remain searchable even if ignored.
 	skipLog := filepath.Join(dir, "skip.log")
 	resExplicit := searchFiles(context.Background(), m, scope{paths: []string{skipLog}}, nil, defaultFallback, maxResults)
 	if resExplicit.matches != 1 || len(resExplicit.files) != 1 {
@@ -337,7 +324,6 @@ func TestFindInFilesEncodingsAndLimits(t *testing.T) {
 	if res.searched != 4 || res.matches != 4 || len(res.files) != 4 {
 		t.Fatalf("encoding search: searched=%d matches=%d files=%d, want 4/4/4", res.searched, res.matches, len(res.files))
 	}
-	// Verify classic Mac CR line number is line 1 (0-based), not line 0.
 	if gotLine := res.files[3].lines[0].line; gotLine != 1 {
 		t.Fatalf("CR file line = %d, want 1", gotLine)
 	}
@@ -363,7 +349,6 @@ func TestFindInFilesParallelOrderAndLimit(t *testing.T) {
 			t.Fatalf("file[%d] = %q, want %q", i, filepath.Base(fh.src.path), want)
 		}
 	}
-	// Last file must be trimmed to 1 match so total is exactly 15.
 	if got := len(res.files[7].lines[0].spans); got != 1 {
 		t.Fatalf("last file spans = %d, want 1", got)
 	}
@@ -406,7 +391,6 @@ func TestFindInFilesWherePathGlobs(t *testing.T) {
 
 	m, _ := newMatcher("needle", false, true, false)
 
-	// Include path glob + directory exclude.
 	sc1 := parseWhere(dir+", sub/*.go, -ignored_dir/", nil)
 	res1 := searchFiles(context.Background(), m, sc1, nil, defaultFallback, maxResults)
 	var got1 []string
@@ -418,7 +402,6 @@ func TestFindInFilesWherePathGlobs(t *testing.T) {
 		t.Fatalf("Where sub/*.go, -ignored_dir/: got %v, want [sub/keep.go]", got1)
 	}
 
-	// Exclude nested path glob and directory basename.
 	sc2 := parseWhere(dir+", -tests/fixtures, -ignored_dir/", nil)
 	res2 := searchFiles(context.Background(), m, sc2, nil, defaultFallback, maxResults)
 	var got2 []string
@@ -433,7 +416,6 @@ func TestFindInFilesWherePathGlobs(t *testing.T) {
 }
 
 func TestFormatResultsUTF8TruncationSpans(t *testing.T) {
-	// Place a match straddling maxResultLine and another starting right at cut+1 (inside where "…" sits).
 	longLine := strings.Repeat("a", maxResultLine-2) + "needle" + strings.Repeat("x", 20)
 	res := found{
 		searched: 1,
@@ -475,7 +457,6 @@ func TestFindInFilesReplaceEnterSubmitsReplace(t *testing.T) {
 
 	tt.Key(ui.Cmd|ui.Shift, ui.KeyF)
 	tt.Type("nomatch")
-	// Tab from Find -> Find button -> Where -> Replace.
 	tt.Key(0, ui.KeyTab)
 	tt.Key(0, ui.KeyTab)
 	tt.Key(0, ui.KeyTab)

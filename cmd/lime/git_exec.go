@@ -15,12 +15,10 @@ import (
 // hideConsole keeps git from opening a console window on Windows.
 var hideConsole = func(*exec.Cmd) {}
 
-// gitWith runs git as runGit does, with input on its standard input.
 func gitWith(dir, input string, args ...string) (string, error) {
 	return gitWithContext(context.Background(), dir, input, args...)
 }
 
-// gitWithContext runs git in dir with ctx and input on its standard input.
 func gitWithContext(ctx context.Context, dir, input string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
 	cmd.WaitDelay = 2 * time.Second

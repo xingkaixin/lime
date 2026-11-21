@@ -38,10 +38,10 @@ var fileIconSets = []fileIconSet{
 var fileIconFonts embed.FS
 
 type fileIconRule struct {
-	icon, dark, light string // the colours, for dark and light themes
+	icon, dark, light string
 	pattern           string
 	priority          float64
-	matchPath         bool // matches the path rather than the name
+	matchPath         bool
 }
 
 type fileIconGlyph struct {
@@ -49,17 +49,14 @@ type fileIconGlyph struct {
 	size       float64 // in CSS pixels, of a 16 pixel row
 }
 
-// rowIcon is the icon of a side bar row: an SVG, or a glyph of an icon
-// font, and its colour, zero for the muted one.
 type rowIcon struct {
 	svg        *ui.SVG
 	dual       *ui.SVG // two-colour SVG; falls back to monochrome svg when overridden by selection tint
 	font, char string
-	scale      float32 // of the row's size
+	scale      float32
 	color      ui.Color
 }
 
-// tint is the icon's colour, or else fallback.
 func (ic rowIcon) tint(fallback ui.Color) ui.Color {
 	if ic.color == (ui.Color{}) {
 		return fallback
@@ -116,7 +113,6 @@ var (
 	templateSuffix = regexp.MustCompile(`(?i)^([^.]*\.[^.]+)\.(?:inc?|dist|tm?pl|te?mp|ti?dy)$`)
 )
 
-// fileIconRuleOf caches the rule of each path, -1 for none.
 var fileIconRuleOf = map[string]int{}
 
 // matchFileIcon returns the rule of the file at p, as file-icons' path
@@ -149,9 +145,6 @@ func matchFileIcon(p string) int {
 	return i
 }
 
-// fileIcon returns the icon of the file at p, coloured for a dark theme or
-// a light one: a page of text where no rule matches, as file-icons falls
-// back to, or for no path.
 func fileIcon(p string, dark bool) rowIcon {
 	name, colour := "text", ""
 	if i := matchFileIcon(filepath.ToSlash(p)); p != "" && i >= 0 {

@@ -13,7 +13,6 @@ import (
 
 func tabWidth(n int) string { return "set_setting tab_size " + strconv.Itoa(n) }
 
-// indentCommands are those of Sublime Text's View > Indentation menu.
 func indentCommands() []command {
 	c := []command{
 		{id: "toggle_setting translate_tabs_to_spaces", caption: locales.Messages.CmdIndentUsingSpaces, run: withDoc(func(a *app, d *doc) {
@@ -34,22 +33,16 @@ func indentCommands() []command {
 	return c
 }
 
-// applyIndent has d's editor indent as the file does, or as the settings
-// say where the file has no indentation of its own.
 func (a *app) applyIndent(d *doc) {
 	// A tab_size of 0 in settings.json is the editor's default.
 	d.st.TabSize, d.st.Indent = cmp.Or(d.tabSize, a.set.TabSize, 4), cmp.Or(d.indent, a.set.indent())
 }
 
-// indentOf is the width of a tab in d, and whether indenting inserts
-// spaces.
 func (a *app) indentOf(d *doc) (size int, spaces bool) {
 	a.applyIndent(d)
 	return d.st.TabSize, indentUnit(d.st) != "\t"
 }
 
-// indentButton shows how d indents, and changes it from the menu of
-// View > Indentation, as Sublime Text's status bar does.
 func (a *app) indentButton(c *ui.Context, d *doc) {
 	size, spaces := a.indentOf(d)
 	text := locales.StatusTabSize(size)
@@ -127,7 +120,6 @@ func guessIndent(t editor.Snapshot) (size int, style editor.IndentStyle) {
 	return size, editor.IndentSpaces
 }
 
-// guessIndent has d indent as its text does, where the text tells.
 func (d *doc) guessIndent() {
 	size, style := guessIndent(d.st.Buffer.Snapshot())
 	if style == editor.IndentAuto {
@@ -139,9 +131,6 @@ func (d *doc) guessIndent() {
 	}
 }
 
-// convertIndent rewrites the indentation of d's lines as spaces, or as
-// tabs and the spaces short of a tab, as Sublime Text's expand_tabs and
-// unexpand_tabs do, and has d indent so from then on.
 func (a *app) convertIndent(d *doc, spaces bool) {
 	size, _ := a.indentOf(d)
 	t := d.st.Buffer.Snapshot()
@@ -173,8 +162,6 @@ func (a *app) convertIndent(d *doc, spaces bool) {
 	}
 }
 
-// translateTabs is TranslateTabsToSpaces of style, and indentStyle the
-// style of one.
 func translateTabs(style editor.IndentStyle) *bool {
 	if style == editor.IndentAuto {
 		return nil

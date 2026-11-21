@@ -92,16 +92,12 @@ func (a *app) view(c *ui.Context) {
 
 const tabBarHeight = 34
 
-// tabMinW is the width tabs shrink to before they no longer fit.
 const tabMinW = 92
 
 const tabIcon = 14
 
-// controlsGap is the room left after the window controls.
 const controlsGap = 12
 
-// cardGap is the room between the groups of a comfortable layout, and
-// around them; cardRadius rounds their corners.
 const cardGap, cardRadius = 6, 8
 
 // titleBand is the height of the band along the window's top that the
@@ -114,8 +110,6 @@ func titleBand(c *ui.Context) float32 {
 	return 0
 }
 
-// themeSource is the appearance of the window's title bar for an
-// appearance of the settings.
 func themeSource(appearance string) mygo.ThemeSource {
 	switch appearance {
 	case lightMode:
@@ -158,10 +152,6 @@ func (a *app) groupsView(c *ui.Context) {
 
 func (a *app) comfortable() bool { return a.set.LayoutStyle == comfortableLayout }
 
-// dividers returns hide, which has the splits built after it draw no line
-// between their panes in a comfortable layout, where room parts them, and
-// show, which their panes build after: a split draws its line in the theme
-// it was built in.
 func (a *app) dividers(c *ui.Context) (hide, show func()) {
 	if !a.comfortable() {
 		return func() {}, func() {}
@@ -182,8 +172,6 @@ func even(n int) []float32 {
 	return p
 }
 
-// splits lays out len(p)+1 panes, the ones after the first in the second
-// pane of a split with the first, as dividers' hide and show have them.
 func splits(c *ui.Context, p []float32, vertical bool, hide, show func(), pane func(i int)) {
 	var from func(i int)
 	from = func(i int) {
@@ -225,7 +213,6 @@ func (a *app) groupView(c *ui.Context, gi int) {
 	})
 }
 
-// groupContent shows the current tab of g, the group at gi.
 func (a *app) groupContent(c *ui.Context, g *group, gi int) {
 	s := a.scheme
 	d := g.current()
@@ -302,8 +289,6 @@ func (a *app) groupContent(c *ui.Context, g *group, gi int) {
 	})
 }
 
-// tabBar shows the tabs of g, the group at gi, which the pointer drags
-// (dragTab).
 func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 	a.makeWay(g)
 	var band float32
@@ -408,11 +393,8 @@ func (a *app) newTabButton(c *ui.Context, gi int) {
 	})
 }
 
-// colorFade fades a control's colors as the pointer comes and goes.
 var colorFade = ui.ElementTransition{Colors: true}
 
-// tabMotion slides and resizes the tabs that make way for one dragged,
-// opened or closed, which grows in or collapses away.
 var tabMotion = ui.ElementTransition{
 	Position: true,
 	Size:     true,
@@ -482,23 +464,17 @@ func (a *app) tab(c *ui.Context, g *group, i int, d *doc, dir string, active, fo
 	})
 }
 
-// tabTitle shows d's name, then dir, dimmed, in the room the name
-// leaves.
 func tabTitle(c *ui.Context, d *doc, dir string, fg ui.Color) {
 	name := ui.Text(c, d.name()).FontSize(12).TextColor(fg).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
 	if dir == "" {
 		name.Grow(1)
 		return
 	}
-	// Text with no room still draws its ellipsis, or all of it with no
-	// width at all, past the close button: the box clips it.
 	ui.Box(c).Basis(0).Grow(1).MinWidth(0).ClipX().Children(func() {
 		ui.Text(c, dir).FontSize(12).TextColor(fg.Alpha(0.6)).SingleLine().Ellipsis("…")
 	})
 }
 
-// tabIcon is the icon of d's file, as the side bar shows it, or of its
-// commit, tinted fg where it has no colour.
 func (a *app) tabIcon(c *ui.Context, d *doc, fg ui.Color) {
 	ic := rowIcon{svg: commitIcon}
 	if d.commit == nil {
@@ -568,18 +544,14 @@ func (a *app) statusBar(c *ui.Context) {
 	})
 }
 
-// noticeTime is how long the status bar shows a notice.
 const noticeTime = 4 * time.Second
 
-// notice is a message of the status bar, as why a command failed.
 type notice struct {
 	text string
 	err  bool
 	n    int // counts the notices, so that only the last one's timer clears it
 }
 
-// notify shows text in the status bar for noticeTime, as Sublime Text
-// shows its status messages.
 func (a *app) notify(text string) {
 	a.notice.n++
 	a.notice.text, a.notice.err = text, false
@@ -597,14 +569,11 @@ func (a *app) notify(text string) {
 	})
 }
 
-// notifyError shows text as notify does, as what went wrong.
 func (a *app) notifyError(text string) {
 	a.notify(text)
 	a.notice.err = true
 }
 
-// syntaxButton shows the syntax of d and changes it from a menu, as
-// Sublime Text's status bar does.
 func (a *app) syntaxButton(c *ui.Context, d *doc) {
 	lang := d.st.Buffer.Language()
 	a.statusMenu(c, syntaxName(lang), locales.StatusSyntax(syntaxName(lang)), func(m *ui.Menu) {
@@ -619,8 +588,6 @@ func (a *app) syntaxButton(c *ui.Context, d *doc) {
 	})
 }
 
-// statusMenu is a button of the status bar showing text, which opens
-// menu. Its text ends in an ellipsis where it is narrower than the text.
 func (a *app) statusMenu(c *ui.Context, text, label string, menu func(m *ui.Menu)) ui.Element {
 	ch := a.shell(c)
 	btn := ui.ButtonBase(c).Height(20).Padding(0, 8).Radius(4).Transition(colorFade).Label(label)
@@ -723,7 +690,6 @@ func (a *app) shortcuts(c *ui.Context) {
 	}
 }
 
-// syncTitle shows the current file in the window's title.
 func (a *app) syncTitle() {
 	title := "Lime"
 	if d := a.current(); d != nil {

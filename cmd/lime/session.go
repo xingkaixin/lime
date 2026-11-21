@@ -47,7 +47,7 @@ type sessionGroup struct {
 
 type sessionDoc struct {
 	Path   string   `json:"path,omitempty"`
-	Text   *string  `json:"text,omitempty"` // the unsaved text, when there is some
+	Text   *string  `json:"text,omitempty"`
 	Syntax string   `json:"syntax"`
 	Sels   [][2]int `json:"sels,omitempty"`
 	// Raw is the unsaved text in place of Text when it isn't UTF-8, as of
@@ -55,11 +55,9 @@ type sessionDoc struct {
 	Raw []byte `json:"raw,omitempty"`
 	// TabSize and TranslateTabsToSpaces are the file's own indentation,
 	// unset where it follows the settings.
-	TabSize               int   `json:"tab_size,omitempty"`
-	TranslateTabsToSpaces *bool `json:"translate_tabs_to_spaces,omitempty"`
-	// LineEnding is the type of the line ending not saved, when there is
-	// one: "windows", "unix" or "cr".
-	LineEnding string `json:"line_ending,omitempty"`
+	TabSize               int    `json:"tab_size,omitempty"`
+	TranslateTabsToSpaces *bool  `json:"translate_tabs_to_spaces,omitempty"`
+	LineEnding            string `json:"line_ending,omitempty"`
 	// Encoding is the name of the file's encoding, as Sublime Text names
 	// it; sessions before encodings have none.
 	Encoding string `json:"encoding,omitempty"`
@@ -118,7 +116,6 @@ func (a *app) session() sessionWindow {
 	return s
 }
 
-// saveSession writes the session now, as on quitting.
 func (l *lime) saveSession() error {
 	l.sessionGen++
 	return l.writeSession(l.session(), l.sessionGen)
@@ -212,7 +209,6 @@ func (l *lime) autosave() {
 	}
 }
 
-// restoreSession brings back the windows the last run kept.
 func (l *lime) restoreSession() {
 	p := l.sessionPath()
 	if p == "" {

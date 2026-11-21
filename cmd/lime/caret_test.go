@@ -7,8 +7,6 @@ import (
 	"github.com/egoist/mygo/ui/editor"
 )
 
-// TestCaretRects guards caretRects' link into MyGo's editor: the bars it
-// paints are where caretRects has them.
 func TestCaretRects(t *testing.T) {
 	a := newApp("")
 	a.add("", "alpha\nbeta gamma\n")

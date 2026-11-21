@@ -218,8 +218,6 @@ var schemes = []*scheme{
 	},
 }
 
-// tokens reads styles written as "#rrggbb", with "/i" for italic and
-// "/b" for bold.
 func tokens(m map[editor.TokenKind]string) map[editor.TokenKind]editor.TokenStyle {
 	out := make(map[editor.TokenKind]editor.TokenStyle, len(m))
 	for k, s := range m {
@@ -237,14 +235,10 @@ func schemeNamed(name string) *scheme {
 	return nil
 }
 
-// scheme returns the scheme the windows show: the theme of the
-// appearance, systemDark choosing while it follows the system.
 func (s *settings) scheme(systemDark bool) *scheme {
 	return s.theme(s.Appearance == darkMode || s.Appearance != lightMode && systemDark)
 }
 
-// theme returns the theme of the dark or the light appearance. A theme
-// that is not one of the schemes of its appearance gives way to GitHub's.
 func (s *settings) theme(dark bool) *scheme {
 	name, fallback := s.LightTheme, "GitHub Light"
 	if dark {
@@ -258,11 +252,8 @@ func (s *settings) theme(dark bool) *scheme {
 
 var black = ui.RGB(0, 0, 0)
 
-// danger is the color of what went wrong, as a key two commands have.
 func (s *scheme) danger() ui.Color { return s.tokens[editor.TokenDeleted].Color }
 
-// chrome holds the colors around the editor: tab bars, the side bar, the
-// status bar, the quick panel. tab is the active tab's background.
 type chrome struct {
 	bg, hover, line, panel, tab ui.Color
 	text, muted                 ui.Color
@@ -295,8 +286,6 @@ func (a *app) shell(c *ui.Context) chrome {
 	return ch
 }
 
-// uiTheme is the window's theme for the scheme: the widgets of the side
-// bar, the find bar and the quick panel.
 func (s *scheme) uiTheme(base *ui.Theme) *ui.Theme {
 	t := *base
 	ch := s.chrome()
@@ -308,7 +297,6 @@ func (s *scheme) uiTheme(base *ui.Theme) *ui.Theme {
 	return &t
 }
 
-// editorTheme is the editor's theme for the scheme.
 func (s *scheme) editorTheme() *editor.Theme {
 	if s.code != nil {
 		return s.code
@@ -341,8 +329,6 @@ func (s *scheme) editorTheme() *editor.Theme {
 func (s *scheme) caretlessTheme() *editor.Theme {
 	if s.caretless == nil {
 		th := *s.editorTheme()
-		// The editor takes a zero color for its default: this one is clear,
-		// but not zero.
 		th.Cursor = s.caret.Alpha(0)
 		s.caretless = &th
 	}

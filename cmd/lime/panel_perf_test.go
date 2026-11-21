@@ -49,7 +49,6 @@ func TestParseGotoLocAndJump(t *testing.T) {
 	a.addFolder(dir)
 	tt := ui.NewTester(a.view, 900, 600)
 
-	// :line:col in current tab.
 	a.showGoto(":2:8")
 	tt.Frame()
 	tt.Key(0, ui.KeyEnter)
@@ -57,7 +56,6 @@ func TestParseGotoLocAndJump(t *testing.T) {
 		t.Fatalf(":2:8 placed caret at %+v, want {Line:1 Col:7}", got)
 	}
 
-	// Column past end of line clamps to line length.
 	a.showGoto(":1:99")
 	tt.Frame()
 	tt.Key(0, ui.KeyEnter)
@@ -65,7 +63,6 @@ func TestParseGotoLocAndJump(t *testing.T) {
 		t.Fatalf(":1:99 placed caret at %+v, want {Line:0 Col:%d}", got, len("first"))
 	}
 
-	// file:line:col opens the file and jumps to (line-1, col-1).
 	a.showGoto("app.go:3:6")
 	tt.Frame()
 	tt.Key(0, ui.KeyEnter)
@@ -76,7 +73,6 @@ func TestParseGotoLocAndJump(t *testing.T) {
 }
 
 func TestFuzzyContiguousAndUnicode(t *testing.T) {
-	// Contiguous boundary "app" in "a/path/to/app.go" must outrank scattered matches.
 	contig, ok1 := fuzzy("app", "a/path/to/app.go")
 	scattered, ok2 := fuzzy("app", "a/path/top/x.go")
 	if !ok1 || !ok2 {
@@ -85,13 +81,11 @@ func TestFuzzyContiguousAndUnicode(t *testing.T) {
 	if contig <= scattered {
 		t.Fatalf("contiguous boundary score %d should beat scattered score %d", contig, scattered)
 	}
-	// Exact optimal score: boundary 'a'(+4) + 'p'(+5) + 'p'(+5) = 14 -> 1400 - len.
 	want := 14*100 - len("a/path/to/app.go")
 	if contig != want {
 		t.Fatalf("fuzzy(\"app\", \"a/path/to/app.go\") = %d, want %d", contig, want)
 	}
 
-	// Unicode case folding.
 	if _, ok := fuzzy("über", "Über.txt"); !ok {
 		t.Fatal("fuzzy should match Unicode case-insensitively (über vs Über.txt)")
 	}
@@ -133,7 +127,7 @@ func TestRankedTopKParity(t *testing.T) {
 	scores := make([]int, total)
 	for i := range total {
 		items[i] = item{label: strconv.Itoa(i)}
-		scores[i] = (i * 37) % 23 // many ties
+		scores[i] = (i * 37) % 23
 	}
 	scoreFn := func(it *item) (int, bool) {
 		idx, _ := strconv.Atoi(it.label)
@@ -213,13 +207,11 @@ func helper() {}
 		t.Fatalf("Go grouped symbols = %v, want %v", names, want)
 	}
 
-	// Cache hit returns the same cached slice without rescanning.
 	syms2 := cachedSymbols(d)
 	if len(syms2) != len(syms) || (len(syms) > 0 && &syms2[0] != &syms[0]) {
 		t.Fatal("docSymbols did not reuse cached symbol slice for unchanged doc")
 	}
 
-	// Editing invalidates the cache.
 	end := d.st.Buffer.Len()
 	d.st.Buffer.Edit(editor.Edit{Start: end, End: end, Text: "\nfunc added() {}\n"})
 	syms3 := cachedSymbols(d)
@@ -241,7 +233,6 @@ func TestCompletionWordListCacheAndCaretExclusion(t *testing.T) {
 	d := a.add("", "alpha beta alpha\n")
 	d.st.Buffer.SetLanguage(editor.LanguageNamed("Go"))
 
-	// Moving caret must reuse the exact same *wordList pointer.
 	d.st.Select(0, 0)
 	w1 := a.wordList(d)
 	d.st.Select(6, 6)
@@ -253,7 +244,6 @@ func TestCompletionWordListCacheAndCaretExclusion(t *testing.T) {
 		t.Fatalf("unexpected word counts: %v", w1.counts)
 	}
 
-	// Single-occurrence word at caret is excluded; multi-occurrence word is kept.
 	if w1.has("beta", "beta") {
 		t.Fatal("single-occurrence word at caret should be excluded")
 	}
@@ -261,7 +251,6 @@ func TestCompletionWordListCacheAndCaretExclusion(t *testing.T) {
 		t.Fatal("multi-occurrence word at caret should remain available")
 	}
 
-	// Pre-filter matches ASCII and Unicode subsequences case-insensitively.
 	if !matchesPrefix("ab", "AlphaBeta") || matchesPrefix("az", "AlphaBeta") {
 		t.Fatal("matchesPrefix ASCII check failed")
 	}
@@ -269,8 +258,6 @@ func TestCompletionWordListCacheAndCaretExclusion(t *testing.T) {
 		t.Fatal("matchesPrefix Unicode check failed")
 	}
 
-	// End-to-end: a word typed for the first time does not complete to itself,
-	// while a word appearing elsewhere in the buffer does suppress completions on exact match.
 	st := a.add("", "uniqueOther\n").st
 	st.Buffer.SetLanguage(editor.LanguageNamed("Go"))
 	st.Select(st.Buffer.Len(), st.Buffer.Len())

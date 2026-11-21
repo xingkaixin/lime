@@ -13,18 +13,16 @@ import (
 	"lime/locales"
 )
 
-// docKind is what a doc shows: its text in the editor, or else a file
-// that is no text.
 type docKind int
 
 const (
-	textDoc   docKind = iota
-	imageDoc          // shown as an image
-	binaryDoc         // shown as a note that it is binary
-	diffDoc           // shown as the changes between two texts, cmp's
-	commitDoc         // shown as the changes of a commit, commit's
-	findDoc           // shown as the matches of a search, results'
-	mdDoc             // shown as the Markdown of another tab, md's
+	textDoc docKind = iota
+	imageDoc
+	binaryDoc
+	diffDoc
+	commitDoc
+	findDoc
+	mdDoc
 )
 
 // imageExts are the images DecodeBitmap reads.
@@ -53,8 +51,6 @@ func fileKind(path string) docKind {
 	return textDoc
 }
 
-// loadImage decodes the image of d off the main thread, once. One that
-// does not decode shows as binary.
 func (a *app) loadImage(d *doc) {
 	if d.img != nil || d.loading || a.win == nil {
 		return
@@ -79,8 +75,6 @@ func (a *app) loadImage(d *doc) {
 	}()
 }
 
-// preview shows d, a file that is no text, in place of the editor of the
-// group at gi.
 func (a *app) preview(c *ui.Context, gi int, d *doc) {
 	s := a.scheme
 	box := ui.Column(c.Key(key(d))).Grow(1).FillWidth().MinHeight(0).Padding(24).Center().Background(s.bg).

@@ -6,9 +6,6 @@ import (
 	"testing"
 )
 
-// Changing a file's line endings leaves its tab unsaved, which the buffer
-// alone would not tell, and saving writes them. Lines ending in \r alone
-// show as lines.
 func TestLineEndings(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "a.txt")

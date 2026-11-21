@@ -8,9 +8,6 @@ import (
 	"github.com/egoist/mygo/ui/editor"
 )
 
-// Typing completes the words of the tabs, but not in comments, nor to the
-// word typed, nor at carets after different words: Enter makes a new
-// line there. Ctrl+Space shows them all.
 func TestWordCompletion(t *testing.T) {
 	a := newApp("")
 	a.add("", "alpaca\n")

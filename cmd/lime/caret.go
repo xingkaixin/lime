@@ -13,10 +13,6 @@ import (
 	"lime/locales"
 )
 
-// MyGo tells no caret's place, which drawings at the carets need: the
-// editor's own caretRect gives it in the content, linked as the input is
-// (input.go). TestCaretRects guards the link across MyGo upgrades.
-//
 //go:linkname editorCaretRect github.com/egoist/mygo/ui/editor.(*editor).caretRect
 func editorCaretRect(ed unsafe.Pointer, off int) (ui.Rect, bool)
 
@@ -53,14 +49,11 @@ func caretRects(st *editor.State) []ui.Rect {
 	return out
 }
 
-// caretOrigin is where the content's origin is in the window.
 func caretOrigin(st *editor.State) ui.Point {
 	box := *editorBox(st)
 	return ui.Point{X: box.X + *textLeft(st) - *scrollLeft(st), Y: box.Y - float32(st.ScrollY())}
 }
 
-// cursorStyle is cursor_style: a shape of the editor's carets, or a
-// drawing of them over it.
 type cursorStyle struct {
 	name  string
 	label func(locales.Messages) string
@@ -79,11 +72,8 @@ var cursorStyles = []cursorStyle{
 	{name: "smooth", label: locales.Messages.CursorSmooth, draw: (*caretFx).smooth},
 }
 
-// caretFx is what a drawn cursor style of a tab keeps between frames.
 type caretFx struct {
-	last time.Time
-	// at is where the carets were drawn, from caretOrigin; seen is where
-	// the editor had them. Moving, they glide from from since moved.
+	last           time.Time
 	at, seen, from []ui.Rect
 	moved          time.Time
 	sparks         []spark
@@ -94,8 +84,8 @@ type caretFx struct {
 const glideTime = 120 * time.Millisecond
 
 type spark struct {
-	x, y, vx, vy float32 // from caretOrigin, and DIPs a second
-	age, life    float32 // seconds
+	x, y, vx, vy float32
+	age, life    float32
 }
 
 // drawCarets draws the carets of d, focused, in the cursor style; the
@@ -112,8 +102,6 @@ func (a *app) drawCarets(p *ui.Painter, d *doc) {
 	fx.last = now
 }
 
-// textArea is the editor's box in the window past its gutter, where the
-// carets can be.
 func textArea(st *editor.State) ui.Rect {
 	r := *editorBox(st)
 	r.X += *textLeft(st) - 2
@@ -137,8 +125,6 @@ func (fx *caretFx) glow(p *ui.Painter, st *editor.State, c ui.Color) {
 	}
 }
 
-// spark draws bars that send up a few sparks as they move, typing
-// sending them on.
 func (fx *caretFx) spark(p *ui.Painter, st *editor.State, c ui.Color) {
 	o, rs, dt := caretOrigin(st), caretRects(st), fx.elapsed(p)
 	live := fx.sparks[:0]

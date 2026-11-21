@@ -21,13 +21,13 @@ import (
 type prefs struct {
 	open    bool
 	page    string
-	offset  ui.Point // where its title band dragged it, from the window's center
+	offset  ui.Point
 	preview *editor.State
-	rulers  string // the rulers' columns as typed
+	rulers  string
 	ruler   ui.Handle
 
-	query     string // searches the commands of the shortcuts
-	conflicts bool   // lists the keys of two commands or more alone
+	query     string
+	conflicts bool
 	rec       recording
 }
 
@@ -169,8 +169,6 @@ func (a *app) settingsView(c *ui.Context) {
 	})
 }
 
-// dragBand makes e the band along the top of the dialog, by which the
-// pointer drags it.
 func (a *app) dragBand(e ui.Element) ui.Element {
 	if dx, dy, ok := e.Dragged(); ok {
 		a.prefs.offset.X += dx
@@ -193,14 +191,12 @@ func (a *app) pageTitle() string {
 	return locales.SettingsGeneral()
 }
 
-// settingsGroup holds rows of settings in a box, lines between them.
 func (a *app) settingsGroup(c *ui.Context, rows func()) {
 	ch := a.scheme.chrome()
 	ui.Column(c).FillWidth().Gap(1).Radius(8).Border(1, ch.line).Background(ch.panel.Mix(ch.text, 0.02)).
 		Dividers(1, ch.line).Clip().Children(rows)
 }
 
-// settingsRow is a setting: its label and what it does, and its control.
 func (a *app) settingsRow(c *ui.Context, label, detail string, control func()) {
 	ch := a.scheme.chrome()
 	ui.Row(c).FillWidth().MinHeight(52).Padding(10, 14).Gap(16).AlignItems(ui.Center).Children(func() {
@@ -223,7 +219,6 @@ func (a *app) heading(c *ui.Context, title string, inUse bool) {
 	})
 }
 
-// tag marks a heading or a row, as the theme in use.
 func (a *app) tag(c *ui.Context, text string) {
 	ui.Text(c, text).FontSize(11).Padding(1, 6).Radius(4).Background(a.scheme.accent.Alpha(0.16)).TextColor(a.scheme.chrome().text).Shrink(0)
 }
@@ -354,8 +349,6 @@ func (a *app) appearancePage(c *ui.Context) {
 	a.themes(c, true)
 }
 
-// themes lists the schemes of the dark or the light appearance, to choose
-// its theme from.
 func (a *app) themes(c *ui.Context, dark bool) {
 	title := locales.SettingsLightTheme()
 	if dark {
@@ -385,8 +378,6 @@ func (a *app) themes(c *ui.Context, dark bool) {
 	})
 }
 
-// choiceCard is an option to choose: its picture over its name, ringed
-// and checked while chosen.
 func (a *app) choiceCard(c *ui.Context, name string, on bool, choose func(), picture func()) {
 	ch := a.scheme.chrome()
 	card := ui.ButtonBase(c.Key(name)).Column().Radius(8).Border(1, ch.line).Background(ch.panel).Clip().
@@ -407,7 +398,6 @@ func (a *app) choiceCard(c *ui.Context, name string, on bool, choose func(), pic
 	})
 }
 
-// themePicture draws sc as lines of code in its colors.
 func themePicture(c *ui.Context, sc *scheme) {
 	tok := func(k editor.TokenKind) ui.Color { return sc.tokens[k].Color }
 	lines := [][]struct {
@@ -460,8 +450,6 @@ func (a *app) fontsPage(c *ui.Context) {
 	})
 }
 
-// fontChoice chooses the family *family names among the system's, ""
-// being the system's font, which system names.
 func (a *app) fontChoice(c *ui.Context, family *string, label, system string, monoFirst bool) {
 	names := a.l.fontNames(monoFirst)
 	names[0] = system
@@ -478,8 +466,6 @@ func (a *app) fontChoice(c *ui.Context, family *string, label, system string, mo
 	}
 }
 
-// stepper shows value between buttons that step it down and up, by
-// calling step with -1 and 1.
 func (a *app) stepper(c *ui.Context, value, less, more string, step func(by int)) {
 	ch := a.scheme.chrome()
 	button := func(ic *ui.SVG, label string, by int) {
@@ -501,7 +487,6 @@ func (a *app) stepper(c *ui.Context, value, less, more string, step func(by int)
 
 var indentStyles = []editor.IndentStyle{editor.IndentAuto, editor.IndentTabs, editor.IndentSpaces}
 
-// whiteSpaces are the choices of draw_white_space the dialog offers.
 var whiteSpaces = []whiteSpace{{}, {"selection"}, {"trailing", "isolated"}, {"all"}}
 
 func (a *app) editorPage(c *ui.Context) {
@@ -693,7 +678,6 @@ func formatRulers(cols []int) string {
 	return strings.Join(s, ", ")
 }
 
-// parseRulers reads the columns of rulers typed apart by commas or spaces.
 func parseRulers(s string) []int {
 	cols := []int{}
 	for _, f := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || unicode.IsSpace(r) }) {
@@ -704,8 +688,6 @@ func parseRulers(s string) []int {
 	return cols
 }
 
-// splitPicture and unifiedPicture are a diff laid out side by side and
-// unified, in the colors of the text and of lines deleted and added.
 var (
 	splitPicture = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="176" height="76" viewBox="0 0 176 76">
 	<rect x="4" y="6" width="6" height="3" rx="1.5" fill="currentColor" fill-opacity=".3"/>

@@ -23,23 +23,21 @@ const (
 	unstaged
 )
 
-// changes is the side bar's Changes tab: the work tree's changes, read
-// for root, by section.
 type changes struct {
 	root     string
 	files    [3][]change
 	gen      int // counts the readings, for the last to win
 	list     ui.ListState
 	sel      ui.Selection[changeKey]
-	cur      int // the row chosen last, -1 for none
+	cur      int
 	rows     []changeRow
 	rowsGen  int // dataGen reflected in rows; 0 means unbuilt
-	dataGen  int // bumped whenever files or closed changes
+	dataGen  int
 	rowsTree bool
-	closed   map[changeKey]bool // the folders closed in the tree
-	message  string             // of the commit to make
-	amend    bool               // the commit replaces HEAD
-	draft    string             // the message typed before amend loaded HEAD's
+	closed   map[changeKey]bool
+	message  string
+	amend    bool
+	draft    string
 
 	amendGen    int
 	amendLoaded bool
@@ -53,11 +51,10 @@ type changeKey struct {
 	path string
 }
 
-// changeRow is a row of the Changes tab: a header, a folder or a file.
 type changeRow struct {
 	key   changeKey
-	file  *change // a file's
-	dir   string  // a folder's path, in the tree
+	file  *change
+	dir   string
 	depth int
 }
 
@@ -148,8 +145,6 @@ func (a *app) readChanges() {
 	})
 }
 
-// readWorktree reads the work tree's changes again: the Changes tab's,
-// while it shows, and the tabs of their diffs.
 func (a *app) readWorktree() {
 	if a.side == gitPanel {
 		a.readChanges()
@@ -161,7 +156,6 @@ func (a *app) readWorktree() {
 	}
 }
 
-// ensureRows rebuilds w.rows only when files, closed folders, or tree mode changed.
 func (w *changes) ensureRows(tree bool) {
 	if w.rowsGen != 0 && w.rowsGen == w.dataGen && w.rowsTree == tree {
 		return
@@ -169,9 +163,6 @@ func (w *changes) ensureRows(tree bool) {
 	w.layRows(tree)
 }
 
-// layRows lays the Changes tab out: each section with its files under
-// its header, as a list, or in the tree of their folders, folders first,
-// whose rows a closed folder hides.
 func (w *changes) layRows(tree bool) {
 	w.rows = w.rows[:0]
 	for _, sec := range []section{conflicted, staged, unstaged} {
@@ -213,7 +204,6 @@ func (w *changes) layRows(tree bool) {
 	w.rowsGen, w.rowsTree = w.dataGen, tree
 }
 
-// addRow adds r unless a folder it is in is closed.
 func (w *changes) addRow(r changeRow) {
 	p := r.dir
 	if r.file != nil {
@@ -227,8 +217,6 @@ func (w *changes) addRow(r changeRow) {
 	w.rows = append(w.rows, r)
 }
 
-// treeCompare orders paths as the tree shows them: in each folder, its
-// folders before its files, each by name.
 func treeCompare(a, b string) int {
 	as, bs := strings.Split(a, "/"), strings.Split(b, "/")
 	for i := 0; i < len(as) && i < len(bs); i++ {
@@ -246,7 +234,6 @@ func treeCompare(a, b string) int {
 	return len(as) - len(bs)
 }
 
-// under returns the files of sec in the folder dir.
 func (w *changes) under(sec section, dir string) []change {
 	var files []change
 	for _, f := range w.files[sec] {
@@ -257,8 +244,6 @@ func (w *changes) under(sec section, dir string) []change {
 	return files
 }
 
-// stageFiles stages files, or unstages them, as their paths name them
-// literally.
 func (a *app) stageFiles(files []change, unstage bool) {
 	if len(files) == 0 {
 		return
@@ -297,7 +282,6 @@ func (w *changes) chosen(sec section) []change {
 	return files
 }
 
-// toggle opens the folder of k, or closes it.
 func (w *changes) toggle(k changeKey, open bool) {
 	if w.closed == nil {
 		w.closed = map[changeKey]bool{}
@@ -323,7 +307,6 @@ func (a *app) stageChosen() {
 	a.stageFiles(w.chosen(unstaged), false)
 }
 
-// changeMenu is the menu of the rows chosen.
 func (a *app) changeMenu(m *ui.Menu) {
 	w := &a.changes
 	toStage, toUnstage := w.chosen(unstaged), w.chosen(staged)
@@ -343,8 +326,6 @@ func (a *app) changeMenu(m *ui.Menu) {
 	}
 }
 
-// confirm asks before what can't be undone, and runs yes if the user
-// goes ahead.
 func (a *app) confirm(message, detail, button string, yes func()) {
 	a.confirmOr(message, detail, button, yes, nil)
 }
@@ -436,8 +417,6 @@ func (a *app) discardFiles(root string, files []change) {
 	})
 }
 
-// showChange shows the change of r: the diffs of its section, at its
-// file, or a file in conflict itself.
 func (a *app) showChange(r changeRow) {
 	if r.file == nil {
 		return
@@ -452,14 +431,11 @@ func (a *app) showChange(r changeRow) {
 	}
 }
 
-// The side bar's git panel shows the tab at gitTab.
 const (
 	changesTab = iota
 	historyTab
 )
 
-// gitTabs switches the git panel between its Changes and History, as
-// Zed's does, with the button that shows the changes as a tree.
 func (a *app) gitTabs(c *ui.Context) {
 	ch := a.shell(c)
 	labels := []string{locales.GitChanges(), locales.GitHistory()}
@@ -498,8 +474,6 @@ var treeViewIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/sv
 	<path fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round" d="M2.5 3.5h11M7.5 8h6M7.5 12.5h6M4.5 4v8.5h1M4.5 8h1" />
 </svg>`))
 
-// changesView lists the work tree's changes by section, each file of
-// which shows its diff, over the message of the commit to make.
 func (a *app) changesView(c *ui.Context) {
 	a.changesList(c)
 	a.commitBox(c)
@@ -714,9 +688,6 @@ func (a *app) commitBox(c *ui.Context) {
 	})
 }
 
-// stageBox is the check box of a file of sec, or of all of them: checked
-// in Staged, where a click unstages, and unchecked elsewhere, where it
-// stages.
 func (a *app) stageBox(c *ui.Context, sec section, files []change, all bool) {
 	on := sec == staged
 	var label string
@@ -733,9 +704,6 @@ func (a *app) stageBox(c *ui.Context, sec section, files []change, all bool) {
 	ui.Checkbox(c, &on, "").Shrink(0).Label(label).Tooltip(label).OnClick(func() { a.stageFiles(files, sec == staged) })
 }
 
-// changeRow is a section's header, a folder, or a file with its name,
-// its folder in the list and the letter of its change, tinted as the
-// editor's gutter tints it.
 func (a *app) changeRow(c *ui.Context, r changeRow, selected bool, added, deleted, modified ui.Color) {
 	th := c.Theme()
 	ch := a.shell(c)

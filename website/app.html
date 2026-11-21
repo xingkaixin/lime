@@ -64,11 +64,6 @@ globalThis.limePress = (keys) => {
   }
 }
 
-// The page scrolls on where Lime has nothing left to scroll. MyGo draws
-// only what changed, so a wheel that moves nothing in Lime asks for no
-// frame; the page then takes it. A scroll of the page that the demo comes
-// under goes on scrolling the page while the wheel turns, as browsers
-// latch a scroll to where it began.
 if (parent !== window) {
   let frame = null, id = 0, requested = false, busy = false, pageUntil = 0
   const raf = requestAnimationFrame.bind(window), caf = cancelAnimationFrame.bind(window)
@@ -99,10 +94,6 @@ if (parent !== window) {
       toPage(e)
       return
     }
-    // MyGo asks for no frame while one is pending: the frame a caret's
-    // blink or the pointer asked for draws now, so that what this wheel
-    // asks for is its own. A frame that asks for the next, as an
-    // animation does, leaves it unknown.
     if (frame) {
       const fn = frame
       frame = null
@@ -117,8 +108,6 @@ if (parent !== window) {
   }, { passive: true })
 }
 
-// fetchWasm fetches Lime, telling the page how much of it came: size()
-// is its size, once demo.json tells it.
 async function fetchWasm(size) {
   const res = await fetch("lime.wasm", { cache: "no-cache" })
   if (!res.ok) throw new Error(`lime.wasm: ${res.status}`)

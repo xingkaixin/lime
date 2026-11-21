@@ -16,19 +16,15 @@ import (
 type tabDrag struct {
 	d     *doc
 	g     *group
-	grab  ui.Point // where the pointer took the tab, from its top left
-	start ui.Point // where the press was, in the window
-	at    ui.Point // the pointer, in the window
-	on    bool     // the pointer moved far enough to drag
-	out   bool     // pulled out of the tab bar
+	grab  ui.Point
+	start ui.Point
+	at    ui.Point
+	on    bool
+	out   bool
 	off   mygo.Point
-	// edge is when the tab, held at an end of the tabs, last scrolled them
-	// (dragScroll); zero while it is not.
-	edge time.Time
+	edge  time.Time
 }
 
-// dragTab follows the pointer pressing row, the tab of d at i of g, and
-// reports whether it drags it.
 func (a *app) dragTab(row ui.Element, g *group, i int, d *doc) bool {
 	t := a.drag
 	if t != nil && t.d != d {
@@ -71,16 +67,13 @@ func (a *app) dragTab(row ui.Element, g *group, i int, d *doc) bool {
 		a.win.SetPosition(p.X-t.off.X, p.Y-t.off.Y)
 		return false
 	}
-	// Out of the tab bar by half a tab's height, the tab comes away.
 	b := g.bar
 	t.out = t.at.Y < b.Y-b.H/2 || t.at.Y > b.Y+b.H*3/2 || t.at.X < b.X || t.at.X > b.X+b.W
 	return true
 }
 
-// alone reports whether the window shows one tab, which moves the window.
 func (a *app) alone() bool { return a.win != nil && a.docCount() == 1 }
 
-// makeWay moves the tab dragged along g's tab bar to where its middle is.
 func (a *app) makeWay(g *group) {
 	t := a.drag
 	if t == nil || !t.on || t.out || t.g != g || g.tabW <= 0 {
@@ -103,16 +96,11 @@ func (a *app) makeWay(g *group) {
 	g.at = g.active
 }
 
-// dragEdge is how near an end of the tabs that do not fit the pointer
-// holds the tab dragged to scroll them, and dragSpeed how fast, in DIPs a
-// second.
 const (
 	dragEdge  = 40
 	dragSpeed = 600
 )
 
-// dragScroll scrolls the tabs of g, over DIPs wider than room, while the
-// tab dragged along them is held at either end of the room.
 func (a *app) dragScroll(c *ui.Context, g *group, room, over float32) {
 	t := a.drag
 	if t == nil || t.g != g {
@@ -140,8 +128,6 @@ func (a *app) dragScroll(c *ui.Context, g *group, room, over float32) {
 	c.Invalidate()
 }
 
-// draggedTab shows the tab dragged under the pointer: in its tab bar
-// while along it, else where the pointer is.
 func (a *app) draggedTab(c *ui.Context) {
 	t := a.drag
 	if t == nil || !t.on || a.alone() {
@@ -164,9 +150,6 @@ func (a *app) draggedTab(c *ui.Context) {
 	})
 }
 
-// dropTab puts the tab let go out of its tab bar into the tab bar under
-// the pointer, of this window or another, or else into a window of its
-// own there.
 func (a *app) dropTab(t *tabDrag) {
 	alone := a.alone()
 	if a.win == nil || !t.out && !alone {
@@ -203,8 +186,6 @@ func (a *app) dropTab(t *tabDrag) {
 	b.makeWindow(mygo.Rectangle{X: p.X - int(t.grab.X), Y: p.Y - int(t.grab.Y) - (cb.Y - r.Y), Width: r.Width, Height: r.Height})
 }
 
-// barAt finds the tab bar at x, y in the window, and where in it a tab
-// let go there goes.
 func (a *app) barAt(x, y float32) (gi, i int, ok bool) {
 	for gi, g := range a.groups {
 		if b := g.bar; x >= b.X && x < b.X+b.W && y >= b.Y && y < b.Y+b.H {

@@ -18,29 +18,23 @@ import (
 // mdPreview is what a Markdown preview tab shows, as Zed's: the text of
 // another tab as it reads, following its edits, saved or not.
 type mdPreview struct {
-	src  *doc
-	text string
-	ver  uint64 // the version of src's text that text is
-	// seen is the version of src's text the preview last saw, at at: it
-	// shows it once it has stayed for previewPause.
-	seen uint64
-	at   time.Time
-	// doc is text parsed, once it is cut in parts.
-	doc   *parser.Document
-	parts []mdPart
-	opts  *markdown.Options
-	dir   string // the folder of src's file, which opts loads images from
-	theme markdown.Theme
-	list  ui.ListState
-	// anchor is the heading a link asked for, by its slug, which the next
-	// build pass scrolls to as heading.
+	src             *doc
+	text            string
+	ver             uint64
+	seen            uint64
+	at              time.Time
+	doc             *parser.Document
+	parts           []mdPart
+	opts            *markdown.Options
+	dir             string
+	theme           markdown.Theme
+	list            ui.ListState
 	anchor, heading string
 }
 
-// mdPart is a part of a preview's text, which a row of its list shows.
 type mdPart struct {
 	text string
-	head int // the heading the part starts with, a block of doc, or 0
+	head int
 	key  partKey
 }
 
@@ -67,8 +61,6 @@ const (
 	previewPart  = 4 << 10
 )
 
-// markdown reports whether d's tab shows Markdown in an editor, which
-// a preview can show.
 func (d *doc) markdown() bool {
 	l := d.st.Buffer.Language()
 	return d.plain() && l != nil && l.Name == "Markdown"
@@ -108,8 +100,6 @@ func (a *app) openPreview(src *doc, side bool) {
 	a.show(src)
 }
 
-// refresh takes the text of p's tab once it has stayed for previewPause
-// since it changed.
 func (p *mdPreview) refresh(c *ui.Context) {
 	b := p.src.st.Buffer
 	v := b.Version()
@@ -188,8 +178,6 @@ func (p *mdPreview) show(text string, ver uint64) {
 	}
 }
 
-// previewOptions are how p shows: in the colors of the scheme, its images
-// loaded from beside its file, its links followed by followLink.
 func (a *app) previewOptions(c *ui.Context, p *mdPreview) *markdown.Options {
 	dir := ""
 	if p.src.path != "" {
@@ -240,7 +228,6 @@ func localFile(dir, path string) (string, bool) {
 	return path, err == nil && fi.Mode().IsRegular()
 }
 
-// isHeading reports whether block i of d is the heading of anchor slug.
 func isHeading(d *parser.Document, i int, slug string) bool {
 	return d.Block(i).Kind == parser.Heading && markdown.Slug(parser.PlainText(d.Inlines(i))) == strings.ToLower(slug)
 }
@@ -249,8 +236,6 @@ func isHeading(d *parser.Document, i int, slug string) bool {
 // it does in a browser, before the heading is built.
 func (p *mdPreview) scrollToAnchor(c *ui.Context, d *parser.Document, i int) bool {
 	if p.heading != "" && isHeading(d, i, p.heading) {
-		// ScrollIntoView scrolls as little as shows a box: one as high as
-		// the view, from the heading's top, shows from there.
 		ui.Box(c).Absolute().Top(0).Size(1, p.list.Bounds(c).H).ScrollIntoView()
 		p.heading = ""
 	}
@@ -289,7 +274,6 @@ func (a *app) followLink(services ui.Services, p *mdPreview, link string) {
 	}
 }
 
-// previewTab shows the preview tab d in place of the editor of its group.
 func (a *app) previewTab(c *ui.Context, d *doc) {
 	p := d.md
 	p.refresh(c)

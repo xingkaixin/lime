@@ -26,15 +26,13 @@ import (
 // file's encoding.
 type fileEncoding struct {
 	name  string
-	label func(locales.Messages) string // nil shows name
-	enc   encoding.Encoding             // nil for UTF-8
+	label func(locales.Messages) string
+	enc   encoding.Encoding
 	bom   string
 }
 
 var utf8Encoding = &fileEncoding{name: "UTF-8"}
 
-// encodings are the ones of Sublime Text's that the files of most
-// languages are in.
 var encodings = []*fileEncoding{
 	utf8Encoding,
 	{name: "UTF-8 with BOM", bom: "\xef\xbb\xbf"},
@@ -64,7 +62,6 @@ func (e *fileEncoding) title(m locales.Messages) string {
 func (e *fileEncoding) reopenID() string { return "reopen " + e.name }
 func (e *fileEncoding) saveID() string   { return "save " + e.name }
 
-// encodingNamed is the encoding of name, nil for none.
 func encodingNamed(name string) *fileEncoding {
 	for _, e := range encodings {
 		if strings.EqualFold(e.name, name) {
@@ -74,8 +71,6 @@ func encodingNamed(name string) *fileEncoding {
 	return nil
 }
 
-// detectEncoding is the encoding of raw, a file's bytes: the one its BOM
-// says, else UTF-8 where raw is UTF-8, else the fallback named.
 func detectEncoding(raw, fallback string) *fileEncoding {
 	for _, e := range encodings {
 		if e.bom != "" && strings.HasPrefix(raw, e.bom) {
@@ -156,7 +151,6 @@ func (e *fileEncoding) encode(text []byte) ([]byte, error) {
 	return append([]byte(e.bom), text...), nil
 }
 
-// encoding is the encoding of d's file, UTF-8 for a new one.
 func (d *doc) encoding() *fileEncoding { return cmp.Or(d.enc, utf8Encoding) }
 
 func encodingCommands() []command {
@@ -178,7 +172,6 @@ func encodingCommands() []command {
 // lose them.
 func reopenable(d *doc) bool { return d.kind == textDoc && d.path != "" && !d.dirty() }
 
-// reopen reads d's file again in e.
 func (a *app) reopen(d *doc, e *fileEncoding) {
 	if !reopenable(d) {
 		if d.path != "" {
@@ -208,8 +201,6 @@ func (a *app) reopen(d *doc, e *fileEncoding) {
 	a.readBases(d)
 }
 
-// encodingButton shows d's encoding, and reopens or saves d in another
-// from a menu, as Sublime Text's status bar does.
 func (a *app) encodingButton(c *ui.Context, d *doc) {
 	tx := locales.In(i18n.Locale())
 	name := d.encoding().title(tx)

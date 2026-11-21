@@ -18,9 +18,6 @@ func (a *app) push()  { a.remoteRun(locales.StatusPushing(), "push") }
 func (a *app) pull()  { a.remoteRun(locales.StatusPulling(), "pull") }
 func (a *app) fetch() { a.remoteRun(locales.StatusFetching(), "fetch") }
 
-// remoteRun runs git with the remote in the background, one at a time,
-// which the status bar tells of until it ends, and shows what git says
-// of a failure.
 func (a *app) remoteRun(status, command string) {
 	if a.remote != "" {
 		return

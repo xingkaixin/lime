@@ -23,12 +23,10 @@ var definers = map[string]bool{
 	"union": true,
 }
 
-// symbol is a name a definition defines, or a Markdown heading's text, at
-// its offset in the text.
 type symbol struct {
 	name  string
 	at    int
-	level int // a heading's, from 1; 0 for a definition
+	level int
 }
 
 // symbols lists the definitions of text in language l: the name after a
@@ -138,7 +136,6 @@ func heading(line string, toks []editor.Token) (symbol, bool) {
 	level := len(t) - len(strings.TrimLeft(t, "#"))
 	rest := strings.TrimLeft(t[level:], " \t")
 	text := strings.TrimRight(rest, " \t")
-	// The #s that may close it, as in "## Title ##".
 	if s := strings.TrimRight(text, "#"); s == "" || strings.HasSuffix(s, " ") || strings.HasSuffix(s, "\t") {
 		text = strings.TrimRight(s, " \t")
 	}
@@ -196,7 +193,6 @@ func wordEnd(s string, i int, chars string) int {
 	return i
 }
 
-// wordAt is the word of text at offset i, before or after it.
 func wordAt(text string, i int, chars string) string {
 	start := i
 	for start > 0 {
@@ -224,7 +220,6 @@ func cachedSymbols(d *doc) []symbol {
 	return d.symbols.syms
 }
 
-// definition is where a symbol is defined.
 type definition struct {
 	d  *doc
 	at int

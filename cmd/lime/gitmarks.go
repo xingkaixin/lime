@@ -28,19 +28,15 @@ const (
 	gitConflict
 )
 
-// gitMarks is what git says of the files of the side bar's folders.
 type gitMarks struct {
-	folders []string           // the folders read; nil reads them again as the side bar shows them
-	bases   map[string]gitBase // by the folder of the side bar the files of a work tree are under
+	folders []string // the folders read; nil reads them again as the side bar shows them
+	bases   map[string]gitBase
 	// One reading runs at a time; again reads once more after it, for
 	// what changed meanwhile, as a Save All or many changes on disk ask
 	// for one each.
 	reading, again bool
 }
 
-// gitBase is the files of a work tree from a folder of the side bar:
-// their marks by path from the work tree's top, and the folder's path
-// from there.
 type gitBase struct {
 	marks  map[string]gitMark
 	prefix string // "" or ending in a slash
@@ -96,7 +92,6 @@ func readGitBases(folders []string) map[string]gitBase {
 
 	bases := map[string]gitBase{}
 	read := map[string]treeStatus{}
-	// Each level reads the repositories the one before shows as one entry.
 	for len(level) > 0 {
 		var tops []string
 		for _, p := range level {
@@ -128,9 +123,6 @@ func readGitBases(folders []string) map[string]gitBase {
 	return bases
 }
 
-// treeStatus is what git status says of a work tree: the marks of its
-// files and the folders they are in, by path from its top, and the
-// repositories in it that it shows as one entry, with changes.
 type treeStatus struct {
 	marks map[string]gitMark
 	repos []string
@@ -197,7 +189,6 @@ func readTreeStatus(top string) treeStatus {
 	return s
 }
 
-// changeMark is the mark of the letter git status gives a change.
 func changeMark(c byte) gitMark {
 	switch statusKind(c) {
 	case '.':
@@ -287,7 +278,6 @@ func (s *scheme) computeGitTint(m gitMark) ui.Color {
 	return tint
 }
 
-// contrast is the contrast ratio of a and b, as WCAG has it.
 func contrast(a, b ui.Color) float64 {
 	la, lb := luminance(a), luminance(b)
 	return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)

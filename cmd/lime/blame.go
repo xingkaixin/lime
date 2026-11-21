@@ -27,45 +27,37 @@ import (
 // each, and its output parses whole.
 const maxBlameLines = 50000
 
-// blameDelay is how long the caret rests on a line before its blame shows.
 const blameDelay = 500 * time.Millisecond
 
-// uncommitted is the hash git blame gives the lines no commit has.
 const uncommitted = "0000000000000000000000000000000000000000"
 
-// blamed is a commit git blame names, with the file's path in it.
 type blamed struct {
 	commit
 	path string
 }
 
-// blaming is what a doc keeps of its blame.
 type blaming struct {
-	shown bool // the column shows, as Toggle Blame left it
+	shown bool
 
-	root    string    // the top of the file's repository
-	lines   []*blamed // by line of the saved text, nil for none
-	saved   uint64    // the version of the saved text lines are of
-	read    bool      // lines are of saved
-	stale   bool      // git may have changed them: read them again
+	root    string
+	lines   []*blamed
+	saved   uint64
+	read    bool
+	stale   bool
 	reading bool
 
-	// diff compares the saved text, its Old, with the text now, whose
-	// edits are hunks as of version now.
 	diff   *editor.DiffState
-	diffOf uint64 // the version of the saved text in diff
+	diffOf uint64
 	now    uint64
 	mapped bool
 	hunks  []editor.DiffHunk
 
-	// The caret rests at offset at, of version ver, since since; inline is
-	// set once its line shows its blame, or has no room for it.
 	at     int
 	ver    uint64
 	since  time.Time
 	inline bool
 
-	width float32 // the editor's, as the last frame laid it out
+	width float32
 }
 
 // blameable reports whether d's file shows its blame: a text git has,
@@ -74,13 +66,11 @@ func (d *doc) blameable() bool {
 	return runtime.GOOS != "js" && d.plain() && d.path != "" && d.base != "" && !d.cr && d.saved.LineCount() <= maxBlameLines
 }
 
-// currentBlameable reports whether the current tab shows its blame.
 func currentBlameable(a *app) bool {
 	d := a.current()
 	return d != nil && d.blameable()
 }
 
-// toggleBlame shows or hides the column of the current tab's blame.
 func (a *app) toggleBlame() {
 	d := a.current()
 	if d == nil || !d.blameable() {
@@ -92,8 +82,6 @@ func (a *app) toggleBlame() {
 	d.blame.shown = !d.blame.shown
 }
 
-// syncBlame reads d's blame where it shows, and shows it at the end of the
-// caret's line once the caret rests there.
 func (a *app) syncBlame(c *ui.Context, d *doc) {
 	inline := a.set.InlineBlame && d == a.current()
 	b := d.blame
@@ -116,8 +104,6 @@ func (a *app) syncBlame(c *ui.Context, d *doc) {
 	a.restBlame(c, d, inline)
 }
 
-// readBlame has git blame d's file as saved, unless it has since git last
-// changed.
 func (a *app) readBlame(d *doc) {
 	b := d.blame
 	v := d.saved.Version()
@@ -196,7 +182,6 @@ func parseBlame(out string) []*blamed {
 			continue
 		}
 		key, val, _ := strings.Cut(line, " ")
-		// The head of a line: its commit, its line there and here.
 		if f := strings.Fields(line); len(f) >= 3 && isHash(key) {
 			final, err := strconv.Atoi(f[2])
 			if err != nil || final < 1 {
@@ -238,7 +223,6 @@ func parseBlame(out string) []*blamed {
 	return lines
 }
 
-// isHash reports whether s is a commit's full hash, of SHA-1 or SHA-256.
 func isHash(s string) bool {
 	if len(s) != 40 && len(s) != 64 {
 		return false
@@ -251,8 +235,6 @@ func isHash(s string) bool {
 	return true
 }
 
-// mapLines finds the lines edited since the text was saved, as it is
-// edited.
 func (b *blaming) mapLines(d *doc) {
 	v := d.st.Buffer.Version()
 	if !b.read || b.saved != d.saved.Version() || b.mapped && b.now == v {
@@ -268,8 +250,6 @@ func (b *blaming) mapLines(d *doc) {
 	b.hunks = b.diff.Hunks()
 }
 
-// lineOf is the commit of a line of the text now: nil for a line edited
-// since the text was saved, or one git has no commit for yet.
 func (b *blaming) lineOf(d *doc, line int) *blamed {
 	if !b.read || !b.mapped || b.saved != d.saved.Version() || b.now != d.st.Buffer.Version() {
 		return nil
@@ -290,9 +270,6 @@ func (b *blaming) lineOf(d *doc, line int) *blamed {
 	return b.lines[s]
 }
 
-// restBlame shows the blame of the caret's line at its end once the caret
-// rests there, as a suggestion: the editor drops it as the caret moves or
-// the text changes, and shows the caret before it.
 func (a *app) restBlame(c *ui.Context, d *doc, inline bool) {
 	b, st := d.blame, d.st
 	sel := st.Selection()
@@ -328,21 +305,15 @@ func (a *app) restBlame(c *ui.Context, d *doc, inline bool) {
 	b.inline = true
 }
 
-// rowColumns is how many columns a row of d's editor holds before it
-// wraps, as the last frame laid it out, or 0 for no end.
 func (a *app) rowColumns(c *ui.Context, d *doc) int {
 	if !d.st.SoftWrap || d.blame.width <= 0 {
 		return 0
 	}
 	cw, _ := c.MeasureText(0, ui.Span{Text: "0", Font: a.codeFont(), Size: a.set.FontSize})
-	// The gutter's fold marks and change bars, its padding and the scroll
-	// bar take some eight columns besides the line numbers; two spare.
 	digits := len(strconv.Itoa(d.st.Buffer.LineCount()))
 	return max(int(d.blame.width/cw)-digits-10, 1)
 }
 
-// columns is how many columns s takes, with tabs to stops of tab: two for
-// each character from U+1100 on, as wide as CJK's, to err toward too many.
 func columns(s string, tab int) int {
 	n := 0
 	for _, r := range s {
@@ -365,8 +336,6 @@ func (b *blaming) hideInline(st *editor.State) {
 	}
 }
 
-// blameKey keeps Tab, which accepts a suggestion, from inserting the blame
-// shown as one.
 func blameKey(d *doc, ev ui.InputEvent) {
 	if d.blame != nil && ev.Kind == ui.InputKeyDown && ev.Key == ui.KeyTab {
 		d.blame.hideInline(d.st)
@@ -403,11 +372,8 @@ func inlineBlame(bl *blamed, now time.Time, room int) string {
 	return who + sep + string(subject)
 }
 
-// blameAuthor is how many characters of an author's name the column shows.
 const blameAuthor = 12
 
-// blameLabel is what the column shows of a block's commit: its hash,
-// author and date, in columns.
 func blameLabel(bl *blamed) string {
 	if bl.hash == uncommitted {
 		return locales.BlameNotCommitted()
@@ -463,8 +429,6 @@ func (a *app) withBlame(c *ui.Context, d *doc, view func() ui.Element) {
 	})
 }
 
-// paint labels the first line in view of each block of lines of a
-// commit, in the column r.
 func (b *blaming) paint(p *ui.Painter, r ui.Rect, d *doc, style ui.Span, pad float32) {
 	scroll := d.st.ScrollY()
 	b.eachBlock(d, func(top float64, bl *blamed) {
@@ -474,8 +438,6 @@ func (b *blaming) paint(p *ui.Painter, r ui.Rect, d *doc, style ui.Span, pad flo
 	})
 }
 
-// eachBlock calls fn with the commit of each block of lines in view and
-// the top of its first line.
 func (b *blaming) eachBlock(d *doc, fn func(top float64, bl *blamed)) {
 	st := d.st
 	first, last := st.VisibleLines()
@@ -495,7 +457,6 @@ func (b *blaming) eachBlock(d *doc, fn func(top float64, bl *blamed)) {
 	}
 }
 
-// lineAt is the line in view at y, from the editor's top.
 func lineAt(st *editor.State, y float64) int {
 	first, last := st.VisibleLines()
 	y += st.ScrollY()

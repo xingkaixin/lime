@@ -10,10 +10,6 @@ import (
 	"github.com/egoist/mygo/ui/editor"
 )
 
-// Blame tells the commit of each line of the file as saved: the lines
-// edited since show none, and the others keep theirs where they moved.
-// The caret's line shows its blame once the caret rests there, which Tab
-// does not insert, and a click on the column opens the commit.
 func TestBlame(t *testing.T) {
 	dir, git := newRepo(t)
 	file := filepath.Join(dir, "a.txt")
@@ -90,8 +86,6 @@ func TestBlame(t *testing.T) {
 	}
 }
 
-// The column labels a fold's lines by the line after them, which a click
-// there opens, not by the first line the fold hides.
 func TestBlameFolds(t *testing.T) {
 	dir, git := newRepo(t)
 	file := filepath.Join(dir, "a.txt")

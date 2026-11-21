@@ -33,26 +33,22 @@ const (
 	openFiles   = "<open files>"
 )
 
-// maxResults bounds the matches a search finds: it stops at as many.
 const maxResults = 10000
 
 // maxResultLine is how much of a matched line the results show, for a
 // minified file all on one line.
 const maxResultLine = 500
 
-// findInFiles is Sublime Text's Find in Files panel, along the bottom of
-// the window, and the search it runs.
 type findInFiles struct {
 	open                       bool
 	query, where, replace      string
 	caseSens, wholeWord, regex bool
-	focus                      bool // the query takes the focus as the panel next shows
+	focus                      bool
 	input                      ui.Handle
-	tab                        *doc // the Find Results tab, which each search fills anew
-	finding, replacing         job  // Find's search going on, and Replace's
+	tab                        *doc
+	finding, replacing         job
 }
 
-// job is a search going on, which the next one of its kind stops.
 type job struct{ cancel context.CancelFunc }
 
 func (j *job) start() context.Context {
@@ -71,8 +67,6 @@ func (j *job) stop() {
 
 func (j *job) running() bool { return j.cancel != nil }
 
-// finish ends the search of ctx, reporting whether it is the job's, which
-// nothing stopped.
 func (j *job) finish(ctx context.Context) bool {
 	if ctx.Err() != nil {
 		return false
@@ -81,9 +75,6 @@ func (j *job) finish(ctx context.Context) bool {
 	return true
 }
 
-// showFindInFiles opens the panel, looking in where when given. The query
-// is the selection on one line, else the last one, and the options are
-// the find panel's.
 func (a *app) showFindInFiles(where string) {
 	f := &a.fif
 	if !f.open {
@@ -114,7 +105,6 @@ func (a *app) closeFindInFiles() {
 	a.focusGroup(a.focus)
 }
 
-// matcher finds the query of the find panels, with their options.
 type matcher struct {
 	re               *regexp.Regexp
 	fullContext      bool
@@ -261,15 +251,12 @@ func (m *matcher) replace(b *editor.Buffer, with string) int {
 	return len(edits)
 }
 
-// lineHit is a line of a file with matches: their bytes in it, the first
-// one's where the results go to.
 type lineHit struct {
 	line  int
 	text  string
 	spans [][2]int
 }
 
-// find returns the matches of m in text, at most limit of them.
 func (m *matcher) find(text string, limit int) [][]int {
 	if limit <= 0 {
 		return nil
@@ -420,13 +407,9 @@ func (m *matcher) findRegex(text string, limit int) [][]int {
 	return kept
 }
 
-// lines finds the lines of text with matches, at most limit matches,
-// going through text once.
 func (m *matcher) lines(text string, limit int) ([]lineHit, int) {
 	var hits []lineHit
 	found := m.find(text, limit)
-	// The line of the last match is from start to end; at is where its
-	// newlines were counted to.
 	line, start, end, at := 0, 0, -1, 0
 	for _, sub := range found {
 		a, b := sub[0], sub[1]
@@ -447,8 +430,6 @@ func (m *matcher) lines(text string, limit int) ([]lineHit, int) {
 	return hits, len(found)
 }
 
-// wholeWordAt reports whether text from a to b is no part of a longer
-// word.
 func wholeWordAt(text string, a, b int) bool {
 	if r, _ := utf8.DecodeLastRuneInString(text[:a]); a > 0 && isWordRune(r, "") {
 		return false
@@ -459,8 +440,6 @@ func wholeWordAt(text string, a, b int) bool {
 	return true
 }
 
-// scope is where a search looks, as the Where field has it: folders and
-// files, the open files, and patterns of the names to look in, or not.
 type scope struct {
 	paths, folders   []string
 	include, exclude []string
@@ -559,7 +538,6 @@ func (sc *scope) wantsOpen(s source) bool {
 	return sc.wants(filepath.Base(s.name), rel)
 }
 
-// source is a file a search looks in: its tab's text when open.
 type source struct {
 	name, path string
 	d          *doc
@@ -571,8 +549,6 @@ type fileHits struct {
 	lines []lineHit
 }
 
-// found is what a search found: the files with matches, and how many
-// files it looked in and matches it found.
 type found struct {
 	files    []fileHits
 	searched int
@@ -1049,7 +1025,6 @@ collect:
 	return res
 }
 
-// realPath is path with its links followed.
 func realPath(path string) string {
 	if r, err := filepath.EvalSymlinks(path); err == nil {
 		return r
@@ -1107,9 +1082,6 @@ func readSearched(path, fallback string) (string, bool) {
 	return strings.ReplaceAll(text, "\r", "\n"), true
 }
 
-// prepareSearch makes the matcher of the panel's query and the sources of
-// its Where, and starts j anew; nil when the query is none, or no regular
-// expression.
 func (a *app) prepareSearch(j *job) (*matcher, scope, []source, context.Context) {
 	f := &a.fif
 	if f.query == "" {
@@ -1133,8 +1105,6 @@ func (a *app) prepareSearch(j *job) (*matcher, scope, []source, context.Context)
 	return m, parseWhere(f.where, a.proj.folders), open, j.start()
 }
 
-// searchInFiles runs the panel's search into the Find Results tab, off
-// the main thread in the app, stopping the one going on.
 func (a *app) searchInFiles() {
 	f := &a.fif
 	m, sc, open, ctx := a.prepareSearch(&f.finding)
@@ -1235,8 +1205,6 @@ func (a *app) tabOf(path string) *doc {
 	return nil
 }
 
-// searchOptions follows the first line of a search's results, as Sublime
-// Text names the options there.
 func searchOptions(f *findInFiles) string {
 	var opts []string
 	if f.regex {
@@ -1254,8 +1222,6 @@ func searchOptions(f *findInFiles) string {
 	return " (" + strings.Join(opts, ", ") + ")"
 }
 
-// formatResults writes what a search found as Sublime Text's Find
-// Results: the matched lines of each file under its path, numbered.
 func formatResults(header string, res found) (string, []hit, [][2]int) {
 	var b strings.Builder
 	var hits []hit
@@ -1304,25 +1270,21 @@ func formatResults(header string, res found) (string, []hit, [][2]int) {
 	return b.String(), hits, spans
 }
 
-// results is what a Find Results tab shows: a search's matched lines,
-// each a hit to go to.
 type results struct {
 	hits    []hit
-	spans   [][2]int // the matches in the text
+	spans   [][2]int
 	marks   []editor.TextBackground
-	color   ui.Color // of marks
-	at      int      // the hit next_result went to last, -1 before the first
-	clicked bool     // a double click is going on, which goes to its hit as it ends
+	color   ui.Color
+	at      int
+	clicked bool
 }
 
-// hit is a matched line of the results: its row, under its file's at
-// head, and where its first match is in the file.
 type hit struct {
 	row, head  int
 	path       string
-	d          *doc // the tab of a file never saved
+	d          *doc
 	line       int
-	start, end int // bytes of the line
+	start, end int
 }
 
 func (r *results) show(d *doc, text string, hits []hit, spans [][2]int) {
@@ -1332,8 +1294,6 @@ func (r *results) show(d *doc, text string, hits []hit, spans [][2]int) {
 	r.hits, r.spans, r.marks, r.color, r.at = hits, spans, nil, ui.Color{}, -1
 }
 
-// resultsTab shows the Find Results tab, made in the focused group when
-// there is none.
 func (a *app) resultsTab() *doc {
 	d := a.fif.tab
 	if gi, _ := a.locate(d); d == nil || gi < 0 {
@@ -1348,8 +1308,6 @@ func (a *app) resultsTab() *doc {
 	return d
 }
 
-// resultsView shows the Find Results tab d of g, its matches highlighted.
-// Enter or a double click on a line goes to its match.
 func (a *app) resultsView(c *ui.Context, g *group, d *doc) {
 	r := d.results
 	if col := a.scheme.find.Alpha(0.3); col != r.color {
@@ -1376,8 +1334,6 @@ func (a *app) resultsView(c *ui.Context, g *group, d *doc) {
 	*noScrollBars(d.st) = !a.set.ShowScrollBars
 }
 
-// openResult goes to the hit of the row of the results d, or to the first
-// of a file's on its path's row.
 func (a *app) openResult(d *doc, row int) {
 	r := d.results
 	i, _ := slices.BinarySearchFunc(r.hits, row, func(h hit, row int) int { return h.row - row })
@@ -1388,8 +1344,6 @@ func (a *app) openResult(d *doc, row int) {
 	a.openHit(r.hits[i])
 }
 
-// stepResult is Sublime Text's next_result, or prev_result: it goes to
-// the next hit of the Find Results, wrapping, and puts their caret on it.
 func (a *app) stepResult(step int) {
 	d := a.fif.tab
 	if gi, _ := a.locate(d); d == nil || gi < 0 || len(d.results.hits) == 0 {
@@ -1410,8 +1364,6 @@ func (a *app) stepResult(step int) {
 	a.openHit(h)
 }
 
-// openHit shows the file of h with its match selected, as the file has
-// it now.
 func (a *app) openHit(h hit) {
 	d := h.d
 	if h.path != "" {
@@ -1432,8 +1384,6 @@ func (a *app) openHit(h hit) {
 	d.st.Select(min(from+h.start, to), min(from+h.end, to))
 }
 
-// findInFilesBar builds the Find in Files panel as Sublime Text's: the
-// options, the query and the button, and where to look below the query.
 func (a *app) findInFilesBar(c *ui.Context) {
 	f := &a.fif
 	if !f.open {

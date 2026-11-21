@@ -21,11 +21,9 @@ import (
 	"strings"
 )
 
-// rule is an entry of file-icons' compiled table of file icons, in the
-// order it tries them.
 type rule struct {
 	Icon   string     `json:"icon"`
-	Colour [2]*string `json:"colour"` // for dark themes, then light ones
+	Colour [2]*string `json:"colour"`
 	Match  struct {
 		Source string `json:"source"`
 		Flags  string `json:"flags"`
@@ -34,15 +32,12 @@ type rule struct {
 	MatchPath bool    `json:"matchPath"`
 }
 
-// glyph is how icons.less draws an icon: a character of an icon font.
 type glyph struct {
 	font string
 	char string
-	size float64 // in CSS pixels, for a 16 pixel row
+	size float64
 }
 
-// The fonts of icons.less: their families, and the size their glyphs
-// take unless one says otherwise.
 var fonts = map[string]glyph{
 	"octicons": {font: "octicons", size: 16},
 	"fa":       {font: "fontawesome", size: 13},
@@ -192,8 +187,6 @@ func parseGlyphs(less string) map[string]glyph {
 	return glyphs
 }
 
-// cssString unescapes a CSS string's escapes: \ and up to six hex digits
-// for a code point, or \ and a character for that character.
 func cssString(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {
@@ -222,7 +215,6 @@ func cssString(s string) string {
 
 var jsUnicode = regexp.MustCompile(`\\u([0-9a-fA-F]{4})|\\u\{([0-9a-fA-F]+)\}`)
 
-// goRegexp turns a JavaScript pattern into one Go compiles, where it can.
 func goRegexp(source, flags string) (string, error) {
 	p := jsUnicode.ReplaceAllStringFunc(source, func(m string) string {
 		sub := jsUnicode.FindStringSubmatch(m)

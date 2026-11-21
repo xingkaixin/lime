@@ -13,15 +13,11 @@ import (
 	"github.com/egoist/mygo/ui/markdown/parser"
 )
 
-// Cmd+K V opens a preview beside the Markdown tab, which keeps the
-// keyboard; the preview follows the tab's edits once typing pauses,
-// follows its links, and closes with the tab.
 func TestMarkdownPreview(t *testing.T) {
 	dir := t.TempDir()
 	readme, guide := filepath.Join(dir, "README.md"), filepath.Join(dir, "docs", "my guide.md")
 	os.MkdirAll(filepath.Dir(guide), 0o755)
 	os.WriteFile(guide, []byte("# Guide\n"), 0o644)
-	// Long enough to show in parts.
 	text := "# Title\n\nSee [the guide](docs/my%20guide.md), [the site](https://example.com) and [the end](#the-end).\n\n" +
 		strings.Repeat("Text.\n\n", 3000) + "## The End\n\n" + strings.Repeat("Text.\n\n", 50)
 	os.WriteFile(readme, []byte(text), 0o644)
@@ -90,8 +86,6 @@ func TestMarkdownPreview(t *testing.T) {
 	}
 }
 
-// A long text shows in parts that read as it does whole, its link
-// reference definitions, between blocks and at the end, in every part.
 func TestPreviewParts(t *testing.T) {
 	var b strings.Builder
 	b.WriteString("# Parts\n\nSee [the start][mid] and [the end][end].\n\n[mid]: https://example.com/mid\n\n")

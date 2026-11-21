@@ -18,7 +18,6 @@ import (
 // Permalinks link to lines of a file on GitHub, at the commit HEAD names,
 // as Zed's Copy Permalink to Line and Open Permalink to Line do.
 
-// errNoGitHub is the error of a repository without a remote on GitHub.
 var errNoGitHub = errors.New("no remote on GitHub")
 
 // linkable reports whether d's file has a permalink: a file git has. The
@@ -32,8 +31,6 @@ func currentLinkable(a *app) bool {
 	return d != nil && d.linkable()
 }
 
-// permalink copies the link on GitHub to the lines of d's selection, or of
-// its caret, or opens it.
 func (a *app) permalink(d *doc, open bool) {
 	if d == nil || !d.linkable() {
 		return
@@ -69,7 +66,6 @@ func (a *app) permalink(d *doc, open bool) {
 	})
 }
 
-// permalinkMenu adds the items of d's permalink to m.
 func (a *app) permalinkMenu(m *ui.Menu, d *doc) {
 	if m.Item(locales.MenuCopyPermalink()).Disabled(!d.linkable()).Chosen() {
 		a.permalink(d, false)
@@ -161,15 +157,11 @@ func githubRepo(dir string) (web, remote string) {
 	return web, remote
 }
 
-// githubWeb reads the web address of a repository on GitHub from the URL
-// of a remote: https://github.com/owner/repo, ssh://git@github.com/owner/repo
-// or git@github.com:owner/repo, with .git or not.
 func githubWeb(remote string) (string, bool) {
 	var host, p string
 	if u, err := url.Parse(remote); err == nil && u.Scheme != "" && u.Host != "" {
 		host, p = u.Hostname(), u.Path
 	} else if at, rest, ok := strings.Cut(remote, ":"); ok && !strings.Contains(at, "/") {
-		// scp's form: [user@]host:path.
 		host, p = at[strings.LastIndex(at, "@")+1:], rest
 	}
 	if !strings.EqualFold(host, "github.com") {

@@ -22,25 +22,22 @@ import (
 type item struct {
 	label, alias, detail, hint string
 	pick                       func()
-	preview                    func() // as the row is selected, a color scheme's
-	// The file of a Goto Anything row: its tab, or else its path.
-	tab  *doc
-	path string
+	preview                    func()
+	tab                        *doc
+	path                       string
 }
 
-// panel is Sublime Text's quick panel: Goto Anything, the command
-// palette and the lists they open.
 type panel struct {
 	query       string
 	placeholder string
 	list        func(query string) []item
-	cancel      func() // on Escape or a press outside
+	cancel      func()
 	shown       []item
 	listed      string
 	loading     bool
-	stale       bool // the items changed: list them again
+	stale       bool
 	sel         int
-	start       int // the row selected first
+	start       int
 	reveal      bool
 	// submit makes the panel Sublime Text's input panel, without a list:
 	// Enter gives it the query, which prompt captions.
@@ -51,7 +48,6 @@ type panel struct {
 	peek *peek
 }
 
-// peek is a tab's selections and scroll.
 type peek struct {
 	d    *doc
 	sels []editor.Selection
@@ -104,8 +100,6 @@ func (a *app) movePanel(step int) {
 	}
 }
 
-// unpeek puts back the selections the rows of p moved, and their scroll
-// once the editor has scrolled to them (scrollBack).
 func (a *app) unpeek(p *panel) {
 	if k := p.peek; k != nil {
 		k.d.st.SetSelections(k.sels...)
@@ -441,7 +435,6 @@ type rankedHit struct {
 	score int
 }
 
-// worseHit reports whether a ranks lower than b in stable descending score order.
 func worseHit(a, b rankedHit) bool {
 	return a.score < b.score || a.score == b.score && a.idx > b.idx
 }
@@ -465,8 +458,6 @@ func siftDownHit(h []rankedHit, i int) {
 	}
 }
 
-// rankTop keeps at most limit items matching score, best first, preserving
-// original order on ties.
 func rankTop[T any](items []T, limit int, score func(*T) (int, bool)) []T {
 	if limit <= 0 || len(items) == 0 {
 		return nil
@@ -510,7 +501,6 @@ func rankTop[T any](items []T, limit int, score func(*T) (int, bool)) []T {
 	return out
 }
 
-// ranked keeps the items score matches, best first.
 func ranked(items []item, score func(it *item) (int, bool)) []item {
 	return rankTop(items, maxShown, score)
 }
@@ -683,8 +673,6 @@ func (a *app) gotoItem(f gotoFile, line, col int) item {
 	}}
 }
 
-// symbolFile is the file Goto Symbol last listed the symbols of, kept
-// while the panel is open: a tab's, or a project file's read from disk.
 type symbolFile struct {
 	d       *doc
 	path    string
@@ -781,8 +769,6 @@ func (a *app) symbolList(name, query string, f *symbolFile, cache *gotoCache) []
 	return ranked(items, byLabel(query))
 }
 
-// readSymbols reads the file at path for its symbols, when it has a
-// language and is not large.
 func readSymbols(path string) *editor.Buffer {
 	l := editor.LanguageFor(path)
 	if fi, err := os.Stat(path); err != nil || fi.Size() > largeFile || l == nil || fileKind(path) != textDoc {
@@ -797,8 +783,6 @@ func readSymbols(path string) *editor.Buffer {
 	return buf
 }
 
-// selectSymbol selects the n bytes of a symbol's name at p in d, in the
-// middle of the editor.
 func selectSymbol(d *doc, p editor.Pos, n int) {
 	d.st.GoTo(p)
 	at := d.st.Cursor()
@@ -816,8 +800,6 @@ func scoreByName(name, label, detail string) (int, bool) {
 	return fuzzy(name, detail)
 }
 
-// byName scores files for name, matched in their names, or else across
-// their paths, the details.
 func byName(name string) func(it *item) (int, bool) {
 	return func(it *item) (int, bool) {
 		return scoreByName(name, it.label, it.detail)
@@ -856,7 +838,6 @@ func (a *app) showCommandPalette() {
 	a.openPanel(&panel{placeholder: tx.PanelCommandPalette(), list: func(q string) []item { return ranked(items, byLabel(q)) }})
 }
 
-// showSchemes lists the color schemes, each showing as it is selected.
 func (a *app) showSchemes() {
 	before := *a.set
 	var items []item
@@ -887,7 +868,6 @@ func (a *app) setScheme(sc *scheme) {
 	a.l.saveSettings()
 }
 
-// syntaxes are Plain Text, as nil, and the editor's languages.
 func syntaxes() []*editor.Language { return append([]*editor.Language{nil}, editor.Languages()...) }
 
 func syntaxName(l *editor.Language) string {

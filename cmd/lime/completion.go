@@ -19,8 +19,6 @@ const completeSizeLimit = 4 << 20
 // background, and its words as last found serve meanwhile.
 const syncScanLimit = 128 << 10
 
-// wordList is the words of a doc's text at a version, each once in the
-// order they first come, with their occurrence counts.
 type wordList struct {
 	version uint64
 	chars   string
@@ -74,8 +72,6 @@ func scanWords(s editor.Snapshot, chars string) *wordList {
 	return w
 }
 
-// wordList returns the words of d's text, scanning it again only once
-// its version or word characters changed.
 func (a *app) wordList(d *doc) *wordList {
 	s := d.st.Buffer.Snapshot()
 	chars := wordChars(d.st.Buffer)
@@ -104,8 +100,6 @@ func (a *app) wordList(d *doc) *wordList {
 	return w
 }
 
-// tabWords is the words of the window's tabs but the current one, each
-// once, from their lists.
 type tabWords struct {
 	lists []*wordList
 	words []string
@@ -265,8 +259,6 @@ func completesTyping(b *editor.Buffer) bool {
 	return l != nil && l.Name != "Markdown" && b.Len() <= completeSizeLimit
 }
 
-// inComment reports whether the text before p is a comment, as far as its
-// line tells: a comment opened on a line above is not seen.
 func inComment(b *editor.Buffer, p editor.Pos) bool {
 	l := b.Language()
 	if l == nil || l.Tokenizer == nil || p.Col == 0 {
