@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"cmp"
-	"math"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -56,8 +55,6 @@ type blaming struct {
 	ver    uint64
 	since  time.Time
 	inline bool
-
-	width float32
 }
 
 // blameable reports whether d's file shows its blame: a text git has,
@@ -83,7 +80,7 @@ func (a *app) toggleBlame() {
 }
 
 func (a *app) syncBlame(c *ui.Context, d *doc) {
-	inline := a.set.InlineBlame && d == a.current()
+	inline := a.set.InlineBlame && d == a.current() && d.editorHandle.Focused(c)
 	b := d.blame
 	if b == nil {
 		if !inline || !d.blameable() {
@@ -121,6 +118,7 @@ func (a *app) readBlame(d *doc) {
 				return
 			}
 			b.root, b.lines, b.saved, b.read, b.mapped = root, lines, v, true, false
+			b.hideInline(d.st)
 		}
 	})
 }
@@ -295,79 +293,38 @@ func (a *app) restBlame(c *ui.Context, d *doc, inline bool) {
 	if bl == nil {
 		return
 	}
-	room := math.MaxInt
-	if cols := a.rowColumns(c, d); cols > 0 {
-		room = max(cols-columns(t.Slice(t.LineStart(line), t.LineEnd(line)), st.TabSize), 0)
-	}
-	if text := inlineBlame(bl, time.Now(), room); text != "" {
-		st.SetSuggestion(t.LineEnd(line), text)
-	}
+	st.SetInlays([]editor.Inlay{{
+		Offset:   t.LineEnd(line),
+		Text:     inlineBlame(bl, time.Now()),
+		Trailing: true,
+		Ellipsis: "…",
+	}})
 	b.inline = true
-}
-
-func (a *app) rowColumns(c *ui.Context, d *doc) int {
-	if !d.st.SoftWrap || d.blame.width <= 0 {
-		return 0
-	}
-	cw, _ := c.MeasureText(0, ui.Span{Text: "0", Font: a.codeFont(), Size: a.set.FontSize})
-	digits := len(strconv.Itoa(d.st.Buffer.LineCount()))
-	return max(int(d.blame.width/cw)-digits-10, 1)
-}
-
-func columns(s string, tab int) int {
-	n := 0
-	for _, r := range s {
-		switch {
-		case r == '\t':
-			n += tab - n%tab
-		case r >= 0x1100:
-			n += 2
-		default:
-			n++
-		}
-	}
-	return n
 }
 
 func (b *blaming) hideInline(st *editor.State) {
 	if b.inline {
-		st.SetSuggestion(0, "")
+		st.SetInlays(nil)
 		b.inline = false
 	}
 }
 
-func blameKey(d *doc, ev ui.InputEvent) {
-	if d.blame != nil && ev.Kind == ui.InputKeyDown && ev.Key == ui.KeyTab {
-		d.blame.hideInline(d.st)
-	}
-}
+const blameSubject = 60
 
 // inlineBlame is what shows at the end of a line: who changed it, when and
-// why, as Zed shows it, in room columns and 60 of the subject at most; ""
-// when who and when don't fit.
-func inlineBlame(bl *blamed, now time.Time, room int) string {
+// why, as Zed shows it, with at most 60 runes of the subject.
+func inlineBlame(bl *blamed, now time.Time) string {
 	const gap, sep = "      ", " • "
-	who := gap + locales.BlameNotCommitted()
-	if bl.hash != uncommitted {
-		who = gap + bl.author + ", " + ago(bl.when, now)
-	}
-	if columns(who, 1) > room {
-		return ""
-	}
 	if bl.hash == uncommitted {
+		return gap + locales.BlameNotCommitted()
+	}
+	who := gap + bl.author + ", " + ago(bl.when, now)
+	subject := []rune(bl.subject)
+	if len(subject) == 0 {
 		return who
 	}
-	subject := []rune(bl.subject)
-	n := min(room-columns(who, 1)-columns(sep, 1), 60)
-	if columns(bl.subject, 1) > n {
-		// Too few columns for a word or two of it.
-		if n < 10 {
-			return who
-		}
-		for columns(string(subject), 1) > n-1 {
-			subject = subject[:len(subject)-1]
-		}
-		subject = append(subject, '…')
+	if len(subject) > blameSubject {
+		subject = append(subject[:blameSubject-1], '…')
 	}
 	return who + sep + string(subject)
 }
@@ -388,13 +345,10 @@ func blameLabel(bl *blamed) string {
 // withBlame builds d's editor with view, after the column of its blame
 // while Toggle Blame shows it. The column paints after the editor, which
 // scrolls its lines as it paints.
-func (a *app) withBlame(c *ui.Context, d *doc, view func() ui.Element) {
+func (a *app) withBlame(c *ui.Context, d *doc, view func()) {
 	b := d.blame
 	if b == nil || !b.shown {
-		e := view()
-		if b != nil {
-			b.width = e.LayoutBounds().W
-		}
+		view()
 		return
 	}
 	st := d.st
@@ -425,7 +379,7 @@ func (a *app) withBlame(c *ui.Context, d *doc, view func() ui.Element) {
 			}
 			return false
 		})
-		ui.Column(c).Grow(1).MinWidth(0).Children(func() { b.width = view().LayoutBounds().W })
+		ui.Column(c).Grow(1).MinWidth(0).Children(view)
 	})
 }
 
