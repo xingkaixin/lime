@@ -108,3 +108,26 @@ func TestPreviewParts(t *testing.T) {
 		t.Fatalf("the parts read\n%s\nthe text\n%s", got.String(), want)
 	}
 }
+
+func TestPreviewAnchorScroll(t *testing.T) {
+	dir := t.TempDir()
+	readme := filepath.Join(dir, "README.md")
+	text := "# Title\n\nSee [the end](#the-end).\n\n" +
+		strings.Repeat("Text.\n\n", 80) + "## The End\n\n" + strings.Repeat("Text.\n\n", 80)
+	os.WriteFile(readme, []byte(text), 0o644)
+	a := newApp("")
+	a.open([]string{readme})
+	a.openPreview(a.current(), false)
+	tt := ui.NewTester(a.view, 900, 600)
+
+	p := a.current().md
+	if len(p.parts) != 1 || p.parts[0].head != 0 {
+		t.Fatalf("expected unsplit preview, got %d parts", len(p.parts))
+	}
+	if err := tt.Click("the end"); err != nil {
+		t.Fatal(err)
+	}
+	if r, ok := tt.Find("The End"); !ok || r.H <= 0 || r.Y < 0 || r.Y > 100 {
+		t.Fatalf("the end's link left its heading at %v, shown %v", r, ok)
+	}
+}
