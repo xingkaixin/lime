@@ -104,10 +104,9 @@ func editorField[T any](names ...string) func(*editor.State) *T {
 }
 
 var (
-	dragging     = editorField[bool]("gesture", "active")
-	textLeft     = editorField[float32]("textX")
-	editorBox    = editorField[ui.Rect]("r")
-	noScrollBars = editorField[bool]("o", "noScrollbar")
+	dragging  = editorField[bool]("gesture", "active")
+	textLeft  = editorField[float32]("textX")
+	editorBox = editorField[ui.Rect]("r")
 
 	findQueryAt     = editorFieldAt[string]("find", "query")
 	findCaseSensAt  = editorFieldAt[bool]("find", "caseSens")
