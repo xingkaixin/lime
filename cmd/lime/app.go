@@ -23,16 +23,17 @@ import (
 )
 
 type doc struct {
-	tabHandle ui.Handle
-	path      string
-	st        *editor.State
-	columns   bool
-	drag      ui.InputEvent
-	sliding   bool
-	saved     editor.Snapshot
-	disk      stamp
-	base      string
-	baseGen   int
+	tabHandle    ui.Handle
+	editorHandle ui.Handle
+	path         string
+	st           *editor.State
+	columns      bool
+	drag         ui.InputEvent
+	sliding      bool
+	saved        editor.Snapshot
+	disk         stamp
+	base         string
+	baseGen      int
 	// checked is the version modified was found for: dirty compares the
 	// text with saved once a version.
 	checked  uint64

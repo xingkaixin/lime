@@ -92,7 +92,7 @@ Design decisions, execution invariants, and UI conventions for Lime's Git featur
 - **Trailing-newline line count**: Unlike `editor.Snapshot.LineCount()`, `git blame` does not count an empty trailing line after a final newline (or in an empty file), so `gitLineCount` subtracts 1 to match Git (`cmd/lime/blame.go`).
 - **Porcelain metadata sharing**: `git blame --porcelain` emits author and summary metadata only on the first line of each commit, so `parseBlame` shares and mutates `*blamed` pointers keyed by commit hash (`cmd/lime/blame.go`).
 - **Async staleness recovery**: If a document is saved again or renamed while `blameFile` runs in the background, returning early without updating `b.saved`/`b.read` suffices because the next frame's `syncBlame` automatically re-triggers `readBlame` (`cmd/lime/blame.go`).
-- **Inline blame formatting and width thresholds**: Following Zed, `inlineBlame` shows author, relative time, and up to 60 columns of commit subject within available `room` columns, returning `""` when author and time do not fit; if fewer than 10 columns (`n < 10`) remain for the subject, the subject is omitted rather than showing an unreadable stub (`cmd/lime/blame.go`).
+- **Inline blame formatting and trailing inlays**: Following Zed, `inlineBlame` shows author, relative time, and up to 60 runes of commit subject (or a not-committed label for uncommitted lines), rendered via MyGo's trailing `editor.Inlay` with `Ellipsis: "…"` so the editor handles layout-accurate elision on wrapped lines and never accepts the blame text on `Tab`; `restBlame` clears the inlay when the caret moves, text changes, focus leaves the editor, or `inline_blame` is turned off (`cmd/lime/blame.go`).
 
 ## Sidebar Git Marks
 

@@ -264,7 +264,6 @@ func (a *app) groupContent(c *ui.Context, g *group, gi int) {
 			return true
 		}
 		a.typing(d, ev)
-		blameKey(d, ev)
 		return false
 	}
 	d.st.ContextMenu = nil
@@ -272,9 +271,9 @@ func (a *app) groupContent(c *ui.Context, g *group, gi int) {
 		d.st.ContextMenu = func(m *ui.Menu) { a.permalinkMenu(m, d) }
 	}
 	a.syncBlame(c, d)
-	a.withBlame(c, d, func() ui.Element {
+	a.withBlame(c, d, func() {
 		d.st.NoScrollbars = !a.set.ShowScrollBars
-		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
+		e := editor.View(c.Key(key(d)), d.st).Bind(&d.editorHandle).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
 		e.DrawOver(func(p *ui.Painter, _ ui.Rect) {
 			a.drawRampage(p, d)
 			a.drawCarets(p, d)
@@ -285,7 +284,6 @@ func (a *app) groupContent(c *ui.Context, g *group, gi int) {
 			e.AutoFocus()
 		}
 		a.input(e, d, c.Services())
-		return e
 	})
 }
 
