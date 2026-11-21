@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"slices"
 	"strings"
-	"time"
 	"unsafe"
 
 	"github.com/egoist/mygo/ui"
@@ -104,7 +103,6 @@ func editorField[T any](names ...string) func(*editor.State) *T {
 }
 
 var (
-	dragging  = editorField[bool]("gesture", "active")
 	textLeft  = editorField[float32]("textX")
 	editorBox = editorField[ui.Rect]("r")
 
@@ -114,16 +112,6 @@ var (
 	findRegexAt     = editorFieldAt[bool]("find", "regex")
 	findStaleAt     = editorFieldAt[bool]("find", "stale")
 )
-
-func pastSide(st *editor.State, x float32) float32 {
-	switch l, r := *textLeft(st), editorBox(st).W; {
-	case x < l:
-		return x - l
-	case x > r:
-		return x - r
-	}
-	return 0
-}
 
 // input takes the input of the editor element e of d, as Sublime Text's
 // mousemap has it, and ends a chord whose second key is not one.
@@ -163,12 +151,6 @@ func (a *app) input(e ui.Element, d *doc, services ui.Services) {
 		ok := editorInput(ed, ev)
 		if ev.Kind == ui.InputPointerDown && ev.Button == 1 {
 			splitPaste(st, services)
-		}
-		if ev.Kind == ui.InputPointerMove {
-			d.drag = ev
-			if !d.sliding && a.win != nil && *dragging(st) && pastSide(st, ev.X) != 0 {
-				a.slide(d, ed)
-			}
 		}
 		return ok
 	})
@@ -218,49 +200,6 @@ func splitPaste(st *editor.State, services ui.Services) {
 		return
 	}
 	editorClip.text, editorClip.pieces, editorClip.lines = text, lines, make([]bool, n)
-}
-
-func (a *app) slide(d *doc, ed unsafe.Pointer) {
-	d.sliding = true
-	win := a.win
-	go func() {
-		ticker := time.NewTicker(time.Second / 60)
-		defer ticker.Stop()
-		for {
-			<-ticker.C
-			if win == nil || win.IsDestroyed() {
-				return
-			}
-			ch := make(chan bool, 1)
-			win.Update(func() { ch <- a.slideStep(d, ed) })
-			timeout := time.NewTimer(500 * time.Millisecond)
-			select {
-			case more := <-ch:
-				timeout.Stop()
-				if !more {
-					return
-				}
-			case <-timeout.C:
-				if !win.IsDestroyed() {
-					win.Update(func() { d.sliding = false })
-				}
-				return
-			}
-		}
-	}()
-}
-
-func (a *app) slideStep(d *doc, ed unsafe.Pointer) bool {
-	st, ev := d.st, d.drag
-	dx := pastSide(st, ev.X)
-	ev.Time = time.Now()
-	scroll := ui.InputEvent{Kind: ui.InputScroll, X: ev.X, Y: ev.Y, DX: max(-300, min(dx, 300)) / 4, Time: ev.Time}
-	if dx == 0 || !*dragging(st) || a.l.owner(d) != a || !editorInput(ed, scroll) {
-		d.sliding = false
-		return false
-	}
-	editorInput(ed, ev)
-	return true
 }
 
 // subtract takes away the selection under the press ev, as Sublime

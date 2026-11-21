@@ -12,7 +12,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
@@ -71,17 +70,21 @@ func TestDragPastSide(t *testing.T) {
 	tt.Press(r.X+r.W/2, r.Y+8)
 	tt.Move(r.X+r.W+40, r.Y+8)
 	head := d.st.Cursor()
-	for range 5 {
-		if !a.slideStep(d, unsafe.Add(unsafe.Pointer(d.st), editorOffset)) {
-			t.Fatal("a drag past the right stopped scrolling")
-		}
+	tt.Advance(200 * time.Millisecond)
+	right := d.st.Cursor()
+	if right <= head {
+		t.Fatalf("the selection stayed at %d, from %d", right, head)
 	}
-	if got := d.st.Cursor(); got <= head {
-		t.Fatalf("the selection stayed at %d, from %d", got, head)
+	tt.Move(r.X+5, r.Y+8)
+	tt.Advance(100 * time.Millisecond)
+	left := d.st.Cursor()
+	if left >= right {
+		t.Fatalf("dragging past the left did not scroll back: %d, from %d", left, right)
 	}
-	tt.Release(r.X+r.W+40, r.Y+8)
-	if a.slideStep(d, unsafe.Add(unsafe.Pointer(d.st), editorOffset)) {
-		t.Fatal("scrolling went on after the release")
+	tt.Release(r.X+5, r.Y+8)
+	tt.Advance(200 * time.Millisecond)
+	if got := d.st.Cursor(); got != left {
+		t.Fatalf("scrolling went on after the release: %d, from %d", got, left)
 	}
 }
 

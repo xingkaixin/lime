@@ -28,8 +28,6 @@ type doc struct {
 	path         string
 	st           *editor.State
 	columns      bool
-	drag         ui.InputEvent
-	sliding      bool
 	saved        editor.Snapshot
 	disk         stamp
 	base         string
