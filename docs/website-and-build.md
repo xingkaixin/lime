@@ -8,7 +8,6 @@ Design decisions governing Lime's WebAssembly landing-page demo, its in-memory f
 - **In-memory Git delegation**: On `GOOS=js`, `gitWith` delegates to `globalThis.limeGit` backed by an in-memory repository because browsers cannot spawn external `git` processes (`cmd/lime/git_js.go`).
 - **Branch and remote commands hidden**: `realGit` suppresses command palette captions for branch and remote commands in `GOOS=js` builds because `website/git.js` does not implement branches or remotes (`cmd/lime/git.go`).
 - **Worktree discard omitted**: The Changes sidebar omits the Discard menu item on `GOOS=js` because the website's Git shim does not implement worktree restore and browsers have no OS Trash (`cmd/lime/changes.go`).
-- **Hunk discard omitted**: Commit and diff views omit the Discard Hunk button when `runtime.GOOS == "js"` because `website/git.js` only applies patches to the index, not the working tree (`cmd/lime/commitview.go`).
 - **No tab tear-off**: On `runtime.GOOS == "js"`, dropping a tab outside any tab bar leaves it in place instead of spawning a new window because browsers lack global screen cursor coordinates and multi-window support (`cmd/lime/tabdrag.go`).
 
 ## Demo Bundle & In-Memory Filesystem (`limeFS`)
@@ -23,7 +22,7 @@ Design decisions governing Lime's WebAssembly landing-page demo, its in-memory f
 - **Minimal command surface**: `limeGit` answers commands from `cmd/lime/git_js.go` using the demo's commits, an in-memory index, and the work tree in `limeFS`, implementing only the exact subcommands, flags, and output formats Lime invokes (`website/git.js`).
 - **Synthetic object IDs**: `oid` computes deterministic 40-hex-character IDs via a fast 5-round FNV-1a loop rather than SHA-1 because the demo only needs stable content-derived IDs for Git output formatting (`website/git.js`).
 - **EOF newline diffing**: Before running Myers diff, `hunks` appends a `\0` sentinel to any final line lacking a trailing newline so adding or removing an EOF newline produces a diff change and emits `\ No newline at end of file` (`website/git.js`).
-- **Hunk count recounting**: `apply` updates index file text in forward or `--reverse` mode while ignoring line-count fields in `@@` hunk headers, because Lime invokes `git apply --recount` with partial-hunk patches whose header counts may not match the hunk body (`website/git.js`).
+- **Hunk count recounting**: `apply` updates index (`--cached`) or work-tree (`limeFS`) file text in forward or `--reverse` mode while ignoring line-count fields in `@@` hunk headers, because Lime invokes `git apply --recount` with partial-hunk patches whose header counts may not match the hunk body (`website/git.js`).
 
 ## Browser Input, Viewport, Theme & Initial State
 

@@ -202,39 +202,76 @@
     return out
   }
 
-  // apply applies the hunks of a patch to the index's text of its file,
-  // or takes them back out with reverse; --recount: the counts are not read.
-  const apply = (input, reverse) => {
-    let path
-    const hs = []
+  // apply applies the hunks of a patch to the index or work tree, or takes
+  // them back out with reverse; --recount: the counts are not read.
+  const apply = (input, reverse, cached) => {
+    const files = []
+    let cur
     for (const l of input.split("\n")) {
-      const m = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(l)
-      if (l.startsWith("+++ b/")) path = l.slice(6)
-      else if (m) hs.push({ old: +m[1], new: +m[2], lines: [] })
-      else if (hs.length && /^[ +\-\\]/.test(l)) hs.at(-1).lines.push(l)
-    }
-    if (!repo.index.has(path)) throw new Error(`error: ${path}: does not exist in index`)
-    const t = split(repo.index.get(path))
-    const [onlyFrom, onlyTo] = reverse ? ["+", "-"] : ["-", "+"]
-    for (const h of hs.reverse()) {
-      const from = [], to = []
-      let toNoEOL = false, prev
-      for (const l of h.lines) {
-        if (l[0] === "\\") {
-          if (prev !== onlyFrom) toNoEOL = true
-          continue
-        }
-        prev = l[0]
-        if (l[0] !== onlyTo) from.push(l.slice(1))
-        if (l[0] !== onlyFrom) to.push(l.slice(1))
+      if (l.startsWith("diff --git ")) {
+        cur = { oldPath: undefined, newPath: undefined, hunks: [] }
+        files.push(cur)
+        continue
       }
-      const start = reverse ? h.new : h.old
-      const at = from.length ? start - 1 : start
-      if (t.lines.slice(at, at + from.length).join("\n") !== from.join("\n")) throw new Error(`error: patch failed: ${path}:${start}`)
-      t.lines.splice(at, from.length, ...to)
-      if (at + to.length === t.lines.length) t.eol = !toNoEOL
+      if (!cur && (l.startsWith("--- ") || l.startsWith("+++ "))) {
+        cur = { oldPath: undefined, newPath: undefined, hunks: [] }
+        files.push(cur)
+      }
+      if (!cur) continue
+      const m = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(l)
+      if (!cur.hunks.length && l.startsWith("--- ")) cur.oldPath = l === "--- /dev/null" ? null : l.startsWith("--- a/") ? l.slice(6) : l.slice(4)
+      else if (!cur.hunks.length && l.startsWith("+++ ")) cur.newPath = l === "+++ /dev/null" ? null : l.startsWith("+++ b/") ? l.slice(6) : l.slice(4)
+      else if (m) cur.hunks.push({ old: +m[1], new: +m[2], lines: [] })
+      else if (cur.hunks.length && /^[ +\-\\]/.test(l)) cur.hunks.at(-1).lines.push(l)
     }
-    repo.index.set(path, t.lines.length ? t.lines.join("\n") + (t.eol ? "\n" : "") : "")
+    if (!files.length) throw new Error("error: unrecognized input")
+    const source = cached ? repo.index : work()
+    const [onlyFrom, onlyTo] = reverse ? ["+", "-"] : ["-", "+"]
+    const updates = []
+    for (const f of files) {
+      const path = f.newPath ?? f.oldPath
+      if (!path || path.startsWith("/") || path.split("/").includes("..")) throw new Error(`error: invalid path '${path ?? ""}'`)
+      const creating = reverse ? f.newPath === null : f.oldPath === null
+      const deleting = reverse ? f.oldPath === null : f.newPath === null
+      if (creating) {
+        if (source.has(path)) throw new Error(`error: ${path}: already exists in ${cached ? "index" : "working directory"}`)
+      } else if (!source.has(path)) {
+        throw new Error(cached ? `error: ${path}: does not exist in index` : `error: ${path}: No such file or directory`)
+      }
+      const t = split(creating ? "" : source.get(path))
+      for (const h of f.hunks.reverse()) {
+        const from = [], to = []
+        let toNoEOL = false, prev
+        for (const l of h.lines) {
+          if (l[0] === "\\") {
+            if (prev !== onlyFrom) toNoEOL = true
+            continue
+          }
+          prev = l[0]
+          if (l[0] !== onlyTo) from.push(l.slice(1))
+          if (l[0] !== onlyFrom) to.push(l.slice(1))
+        }
+        const start = reverse ? h.new : h.old
+        const at = from.length ? start - 1 : start
+        const got = t.lines.slice(at, at + from.length)
+        if (at < 0 || at > t.lines.length || got.length !== from.length || got.some((l, i) => l !== from[i])) {
+          throw new Error(`error: patch failed: ${path}:${start}`)
+        }
+        t.lines.splice(at, from.length, ...to)
+        if (at + to.length === t.lines.length) t.eol = !toNoEOL
+      }
+      if (deleting && t.lines.length) throw new Error(`error: patch failed: ${path}:1`)
+      updates.push({ path, deleting, text: t.lines.length ? t.lines.join("\n") + (t.eol ? "\n" : "") : "" })
+    }
+    for (const u of updates) {
+      if (cached) {
+        if (u.deleting) repo.index.delete(u.path)
+        else repo.index.set(u.path, u.text)
+      } else {
+        if (u.deleting) limeFS.remove(repo.root + "/" + u.path)
+        else limeFS.put(repo.root + "/" + u.path, u.text)
+      }
+    }
   }
 
   const run = (dir, input, args) => {
@@ -280,8 +317,7 @@
       case "cat-file":
         return catFile(dir, input, has(rest, "--batch-check=%(objectsize)"))
       case "apply":
-        if (!has(rest, "--cached")) throw new Error("error: the demo applies patches to the index only")
-        apply(input, has(rest, "--reverse"))
+        apply(input, has(rest, "--reverse"), has(rest, "--cached"))
         return ""
       case "for-each-ref":
         return rest.at(-1) === "refs/heads" ? `${repo.branch}\t${repo.root}\n` : ""

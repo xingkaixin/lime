@@ -31,6 +31,10 @@
     mkdirs(dirOf(p))
     nodes.set(p, make(false, typeof data === "string" ? new TextEncoder().encode(data) : data))
   }
+  const remove = (p) => {
+    p = norm(p)
+    if (nodes.get(p)?.dir === false) nodes.delete(p)
+  }
   const children = (p) => {
     const prefix = p === "/" ? "/" : p + "/"
     const names = []
@@ -183,5 +187,5 @@
     return texts
   }
 
-  globalThis.limeFS = { put, mkdirs, files }
+  globalThis.limeFS = { put, remove, mkdirs, files }
 })()

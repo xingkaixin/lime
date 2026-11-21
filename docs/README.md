@@ -11,4 +11,4 @@ Non-obvious architectural, behavioral, platform, and compatibility decisions ext
 | [Git Integration](./git-integration.md) | Git execution flags, repository resolution, Changes/History/Commit views, hunk staging, mini-diff, blame, sidebar marks, remotes, avatars, and permalinks. | 105 |
 | [Search & Navigation](./search-and-navigation.md) | Find/Replace bar, Find in Files (`Where` filters, parallel search, Replace in Files), Goto Anything, Goto Definition, and Jump history. | 43 |
 | [Settings, Keymaps & Menus](./settings-and-keymaps.md) | `settings.json` schema and migration, Sublime Text compatibility, keymap precedence, platform defaults, and menu synchronization. | 39 |
-| [Website Demo & Build Tooling](./website-and-build.md) | WebAssembly demo architecture, in-memory `limeFS` and `limeGit`, browser input/theme/touch behavior, `mise.toml`, and icon/theme codegen. | 27 |
+| [Website Demo & Build Tooling](./website-and-build.md) | WebAssembly demo architecture, in-memory `limeFS` and `limeGit`, browser input/theme/touch behavior, `mise.toml`, and icon/theme codegen. | 26 |
