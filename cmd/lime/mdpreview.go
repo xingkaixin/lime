@@ -206,6 +206,9 @@ func (a *app) previewOptions(c *ui.Context, p *mdPreview) *markdown.Options {
 	p.opts.Theme = &p.theme
 	services := c.Services()
 	p.opts.OnLink = func(link string) { a.followLink(services, p, link) }
+	// Keep Block set across frames so toggling it does not re-wrap blocks
+	// and invalidate the hovered link mid-frame, which drops ScrollIntoView.
+	p.opts.Block = p.scrollToAnchor
 	return p.opts
 }
 
@@ -236,7 +239,7 @@ func isHeading(d *parser.Document, i int, slug string) bool {
 // it does in a browser, before the heading is built.
 func (p *mdPreview) scrollToAnchor(c *ui.Context, d *parser.Document, i int) bool {
 	if p.heading != "" && isHeading(d, i, p.heading) {
-		ui.Box(c).Absolute().Top(0).Size(1, p.list.Bounds(c).H).ScrollIntoView()
+		ui.Box(c).ScrollIntoView(ui.ScrollIntoViewOptions{Block: ui.ScrollStart})
 		p.heading = ""
 	}
 	return false
@@ -292,10 +295,6 @@ func (a *app) previewTab(c *ui.Context, d *doc) {
 				p.list.ScrollTo(k, ui.Start)
 				p.heading = ""
 			}
-		}
-		opts.Block = nil
-		if p.heading != "" {
-			opts.Block = p.scrollToAnchor
 		}
 		th := &p.theme
 		ui.List(c, &p.list, len(p.parts), func(k int) {
