@@ -54,7 +54,6 @@ func macEditorKeys() []editor.Binding {
 		bind(0, ui.KeyEnter, editor.Newline), bind(sh, ui.KeyEnter, editor.Newline),
 		bind(0, ui.KeyTab, editor.Tab), bind(sh, ui.KeyTab, editor.Backtab), bind(0, ui.KeyEscape, editor.Cancel),
 
-		// Sublime Text's own.
 		bind(ctrl, ui.KeyLeft, editor.MoveSubwordLeft), bind(ctrl, ui.KeyRight, editor.MoveSubwordRight),
 		bind(ctrl|sh, ui.KeyLeft, editor.SelectSubwordLeft), bind(ctrl|sh, ui.KeyRight, editor.SelectSubwordRight),
 		bind(ctrl|alt, ui.KeyLeft, editor.MoveSubwordLeft), bind(ctrl|alt, ui.KeyRight, editor.MoveSubwordRight),
@@ -169,7 +168,6 @@ type appKey struct {
 	id    string
 }
 
-// appKeys are the window's keys as Sublime Text has them.
 var appKeys = func() []appKey {
 	cmd, alt, ctrl, sh := ui.Cmd, ui.Alt, ui.Ctrl, ui.Shift
 	k := func(mods ui.Modifiers, key ui.Key, id string) appKey { return appKey{mods, key, false, id} }
@@ -248,7 +246,6 @@ var appKeys = func() []appKey {
 	return keys
 }()
 
-// keyNames names keys for menus' accelerators and, on macOS, for showing.
 var keyNames = map[ui.Key][2]string{
 	ui.KeyLeft: {"Left", "←"}, ui.KeyRight: {"Right", "→"}, ui.KeyUp: {"Up", "↑"}, ui.KeyDown: {"Down", "↓"},
 	ui.KeyPageUp: {"PageUp", "⇞"}, ui.KeyPageDown: {"PageDown", "⇟"}, ui.KeyHome: {"Home", "↖"}, ui.KeyEnd: {"End", "↘"},
@@ -275,7 +272,6 @@ func keyName(k ui.Key, symbol bool) string {
 	return n[0]
 }
 
-// accelerator writes a key as a menu item's Accelerator.
 func accelerator(mods ui.Modifiers, key ui.Key) string {
 	var b strings.Builder
 	for _, m := range []struct {
@@ -289,8 +285,6 @@ func accelerator(mods ui.Modifiers, key ui.Key) string {
 	return b.String() + keyName(key, false)
 }
 
-// shortcutText shows a key as the platform does: ⌃⌥⇧⌘K on macOS,
-// Ctrl+Shift+K elsewhere.
 func shortcutText(mods ui.Modifiers, key ui.Key) string {
 	if !mac {
 		return strings.ReplaceAll(accelerator(mods, key), "Super+", "Win+")

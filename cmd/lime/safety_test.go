@@ -140,7 +140,6 @@ func TestExternalChangeConflict(t *testing.T) {
 		t.Fatal("doc should stay dirty after dialog error")
 	}
 
-	// Cancel keeps both disk and buffer untouched.
 	a.messageDialog = func(mygo.MessageOptions) (mygo.MessageResult, error) {
 		return mygo.MessageResult{Button: 2}, nil
 	}
@@ -149,7 +148,6 @@ func TestExternalChangeConflict(t *testing.T) {
 		t.Fatalf("cancel changed disk=%q buf=%q", got, d.st.Buffer.String())
 	}
 
-	// Reload replaces buffer with external content and clears dirty.
 	a.messageDialog = func(mygo.MessageOptions) (mygo.MessageResult, error) {
 		return mygo.MessageResult{Button: 1}, nil
 	}
@@ -158,7 +156,6 @@ func TestExternalChangeConflict(t *testing.T) {
 		t.Fatalf("after reload: buf=%q dirty=%v changed=%v", got, d.dirty(), d.changedOnDisk())
 	}
 
-	// Overwrite forces buffer content onto disk.
 	d.st.Buffer.Set("override\n")
 	if err := os.WriteFile(p, []byte("external 2\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -233,7 +230,6 @@ func TestDialogErrorAndStackedGuard(t *testing.T) {
 	a.messageDialog = func(opts mygo.MessageOptions) (mygo.MessageResult, error) {
 		calls++
 		closeOpts = opts
-		// Simulate re-entrant click while dialog is open.
 		a.closeDoc(d)
 		return mygo.MessageResult{Button: 0}, errors.New("cancelled by system")
 	}
@@ -292,7 +288,6 @@ func TestSymlinkDedupAndSinglePassRead(t *testing.T) {
 		t.Fatalf("active tab %q, want %q", a.current().path, otherPath)
 	}
 
-	// Opening the symlink activates the existing AGENTS.md tab without duplicating it.
 	a.open([]string{linkPath})
 	if a.docCount() != 2 {
 		t.Fatalf("docCount=%d, want 2 after opening symlink", a.docCount())
@@ -333,7 +328,6 @@ func TestSaveAllChaining(t *testing.T) {
 	u2 := a.add("", "")
 	u2.st.Buffer.Set("untitled 2\n")
 
-	// Cancel first untitled save, accept second.
 	picks := []string{"", u2Path}
 	i := 0
 	a.saveDialog = func(mygo.SaveDialogOptions) (string, error) {
@@ -359,7 +353,6 @@ func TestSaveAllChaining(t *testing.T) {
 		t.Fatalf("u2 should be saved at %q, got path=%q dirty=%v", u2Path, u2.path, u2.dirty())
 	}
 
-	// Now save remaining dirty untitled doc; allSaved should be true.
 	a.saveDialog = func(mygo.SaveDialogOptions) (string, error) {
 		return u1Path, nil
 	}
@@ -432,7 +425,6 @@ func TestCLIArgsAndNonExistentFile(t *testing.T) {
 	missing := filepath.Join(dir, "brand_new.go")
 
 	a := newApp("")
-	// "--" allows filenames starting with "-", while flags before "--" are skipped.
 	parsed := parseCLIArgs([]string{"-ignored", "--", "-flaglike.txt"})
 	if len(parsed) != 1 || parsed[0].path != "-flaglike.txt" {
 		t.Fatalf("parseCLIArgs with --: %+v", parsed)
@@ -476,7 +468,6 @@ func TestSessionSideBarAndAutosaveRetry(t *testing.T) {
 	a := l.newWindow()
 	a.newFile()
 
-	// Prime sessionKey.
 	if !l.sessionChanged() {
 		t.Fatal("initial sessionChanged should be true")
 	}
@@ -488,14 +479,12 @@ func TestSessionSideBarAndAutosaveRetry(t *testing.T) {
 		t.Fatal("changing a.side did not trigger sessionChanged")
 	}
 
-	// Block session.json with a directory so writeSession fails.
 	blocker := filepath.Join(dir, "session.json")
 	if err := os.Mkdir(blocker, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	a.side = filesPanel
 	l.autosave()
-	// Wait for background writeSession goroutine to fail and reset sessionKey.
 	deadline := time.Now().Add(2 * time.Second)
 	for {
 		l.sessionMu.Lock()

@@ -11,15 +11,13 @@ import (
 	"lime/locales"
 )
 
-// comparison is what a diff tab shows: the text of a tab, which it edits,
-// against an older one.
 type comparison struct {
 	diff    editor.DiffState
-	src     *doc // the tab whose text is the new one
-	old     *doc // the tab whose text is the old one, when it is a tab's
+	src     *doc
+	old     *doc
 	oldName string
-	oldPath string // "" when the old text is no file's
-	unsaved bool   // compares src with its text on disk
+	oldPath string
+	unsaved bool
 }
 
 func (cmp *comparison) title() string {
@@ -29,8 +27,6 @@ func (cmp *comparison) title() string {
 	return cmp.oldName + " ↔ " + cmp.src.name()
 }
 
-// showCompare lists what src can be compared with: a file the system's
-// dialog picks, the other tabs and the project's files.
 func (a *app) showCompare(src *doc) {
 	a.indexFolders()
 	browse := item{label: locales.PanelBrowseFiles(), detail: locales.PanelBrowseFilesDetail(), pick: func() { a.promptCompare(src) }}
@@ -72,8 +68,6 @@ func (a *app) promptCompare(src *doc) {
 	}()
 }
 
-// compareFile compares src with the file at path, as its tab has it when
-// it is open.
 func (a *app) compareFile(src *doc, path string) {
 	if d := a.docAt(path); d != nil {
 		a.compareDocs(src, d)
@@ -116,8 +110,6 @@ func (a *app) showUnsavedChanges(src *doc) {
 		diff: editor.DiffState{Old: old, Layout: editor.DiffUnified, HunkActions: true}})
 }
 
-// diskChanged has the tabs of d's unsaved changes compare it with its
-// text on disk as saving or reloading left it.
 func (l *lime) diskChanged(d *doc) {
 	for _, a := range l.wins {
 		for _, x := range a.allDocs() {
@@ -128,7 +120,6 @@ func (l *lime) diskChanged(d *doc) {
 	}
 }
 
-// compare opens a diff tab of cmp, or tells that its texts are the same.
 func (a *app) compare(cmp *comparison) {
 	if sameText(cmp.diff.Old.Snapshot(), cmp.src.st.Buffer.Snapshot()) {
 		a.notify(locales.StatusNoDifferences())
@@ -142,8 +133,6 @@ func (a *app) compare(cmp *comparison) {
 	a.show(d)
 }
 
-// diffView shows the diff tab d in place of the editor of the group at
-// gi, under the names of its texts.
 func (a *app) diffView(c *ui.Context, gi int, d *doc) {
 	cmp := d.cmp
 	df := &cmp.diff
@@ -166,8 +155,6 @@ func (a *app) diffView(c *ui.Context, gi int, d *doc) {
 	})
 }
 
-// diffHeader names the texts over their sides, or the old one before the
-// new one over a unified diff.
 func (a *app) diffHeader(c *ui.Context, cmp *comparison) {
 	ch := a.scheme.chrome()
 	oldName, newName := cmp.oldName, cmp.src.name()
@@ -221,8 +208,6 @@ func (a *app) revertAction(c *ui.Context, bar ui.Element, h *editor.DiffHunkActi
 	})
 }
 
-// diffCounts shows how many changes cmp has, and how many lines they
-// add and delete.
 func (a *app) diffCounts(c *ui.Context, cmp *comparison) {
 	n := len(cmp.diff.Hunks())
 	text := locales.StatusDifferences(n)
@@ -235,7 +220,6 @@ func (a *app) diffCounts(c *ui.Context, cmp *comparison) {
 	ui.Text(c, "−"+strconv.Itoa(deleted)).FontSize(12).TextColor(a.scheme.danger())
 }
 
-// diffLayoutButton shows how cmp shows, which its menu changes.
 func (a *app) diffLayoutButton(c *ui.Context, cmp *comparison) {
 	name := func(l editor.DiffLayout) string {
 		if l == editor.DiffUnified {

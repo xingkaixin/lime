@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// avatarClient fetches the pictures of commit authors.
 var avatarClient = &http.Client{Timeout: 15 * time.Second}
 
 func fetchAvatar(email string) ([]byte, error) {

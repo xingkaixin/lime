@@ -8,9 +8,6 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The side bar marks files and folders as git status has them, in the
-// work tree each folder is in, from its top or below it, and in the
-// repositories in it; and none outside a repository.
 func TestGitMarks(t *testing.T) {
 	dir, git := newRepo(t)
 	write := func(name, text string) {
@@ -32,7 +29,7 @@ func TestGitMarks(t *testing.T) {
 	write("new/n.txt", "n\n")
 	write("node_modules/x/i.js", "i\n")
 	write("debug.log", "d\n")
-	write("cafe\u0301.txt", "c\n") // in NFD
+	write("cafe\u0301.txt", "c\n")
 	inner := filepath.Join(dir, "inner")
 	write("inner/f", "f\n")
 	for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"commit", "-q", "-m", "inner"}} {
@@ -77,7 +74,6 @@ func TestGitMarks(t *testing.T) {
 		}
 	}
 
-	// A file the side bar moves is read again.
 	kept := filepath.Join(dir, "kept.txt")
 	a.transfer(filepath.Join(dir, "keep.txt"), kept, false)
 	if got := a.marks.mark(kept); got != gitAdded {

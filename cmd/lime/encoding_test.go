@@ -9,9 +9,6 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
-// A file that isn't UTF-8 opens in the fallback encoding, reopens in
-// another and saves in it, after hot exit too. Text the encoding has no
-// characters for saves as UTF-8.
 func TestEncoding(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "a.txt")
@@ -45,7 +42,6 @@ func TestEncoding(t *testing.T) {
 	}
 }
 
-// UTF-16 with a BOM opens as text rather than binary, and saves as it was.
 func TestUTF16(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "a.txt")
 	raw := "\xff\xfeh\x00i\x00\n\x00"
@@ -62,13 +58,10 @@ func TestUTF16(t *testing.T) {
 	}
 }
 
-// A file that its encoding would not save back as it was keeps its bytes,
-// which saving writes as they were, and does not reopen in an encoding
-// that would change them.
 func TestEncodingKeepsBytes(t *testing.T) {
 	for _, raw := range []string{
-		"\x81@ \xc4\xe3\n",     // GBK's 丂, which Windows 1252 has no character for
-		"\xff\xfeh\x00i\x00\n", // UTF-16 cut short
+		"\x81@ \xc4\xe3\n",
+		"\xff\xfeh\x00i\x00\n",
 	} {
 		p := filepath.Join(t.TempDir(), "a.txt")
 		os.WriteFile(p, []byte(raw), 0o644)
@@ -83,8 +76,6 @@ func TestEncodingKeepsBytes(t *testing.T) {
 	}
 }
 
-// A file in GBK, committed and unchanged since, shows no changes in the
-// gutter.
 func TestEncodingDiffBase(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("no git")

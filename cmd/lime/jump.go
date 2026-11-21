@@ -10,7 +10,6 @@ import (
 // jump, as in Zed.
 const jumpLines = 10
 
-// spot is where the caret was in a tab.
 type spot struct {
 	d   *doc
 	pos editor.Pos
@@ -45,7 +44,6 @@ func (a *app) trackJumps() {
 	a.keepJump()
 }
 
-// keepJump keeps where the caret was when it is now a jump away.
 func (a *app) keepJump() {
 	j, now := &a.jumps, a.here()
 	if l := j.last; l.d != nil && !near(l, now) {
@@ -54,7 +52,6 @@ func (a *app) keepJump() {
 	j.last = now
 }
 
-// near reports whether s and t are less than a jump apart.
 func near(s, t spot) bool { return s.d == t.d && abs(s.pos.Line-t.pos.Line) < jumpLines }
 
 func abs(n int) int { return max(n, -n) }
@@ -84,7 +81,6 @@ func (a *app) jump(from, to *[]spot) {
 	}
 }
 
-// forget takes d's spots out as its tab leaves the window.
 func (j *jumps) forget(d *doc) {
 	gone := func(s spot) bool { return s.d == d }
 	j.back = slices.DeleteFunc(j.back, gone)

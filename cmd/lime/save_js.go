@@ -9,7 +9,6 @@ import (
 )
 
 func init() {
-	// The browser confirm dialog exposes only two choices and always defaults to OK.
 	askSaveConflict = func(_ *app, o mygo.MessageOptions) (mygo.MessageResult, error) {
 		message := o.Message + "\n" + o.Detail
 		for i, label := range o.Buttons {

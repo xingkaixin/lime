@@ -12,7 +12,6 @@ import (
 	"lime/locales"
 )
 
-// shortcut is a command of the shortcuts settings, by its name there.
 type shortcut struct {
 	id   string
 	name func(locales.Messages) string
@@ -153,8 +152,6 @@ var shortcutGroups = func() []shortcutGroup {
 	}
 }()
 
-// shortcutNamed returns the command named id of the settings, and its
-// group.
 func shortcutNamed(id string) (shortcut, shortcutGroup) {
 	for _, g := range shortcutGroups {
 		for _, s := range g.items {
@@ -167,14 +164,13 @@ func shortcutNamed(id string) (shortcut, shortcutGroup) {
 	return shortcut{id, unnamed}, shortcutGroup{title: unnamed}
 }
 
-// recording is the key the shortcuts settings record for a command.
 type recording struct {
 	id      string
-	chord   bool   // Cmd+K was pressed, before the chord's second key
-	pending appKey // pressed, and other commands' key too; zero for none
-	notice  string // why the key pressed cannot be a shortcut
-	focused bool   // the recorder took the focus: losing it ends the recording
-	seen    bool   // the recorder showed in the build
+	chord   bool
+	pending appKey
+	notice  string
+	focused bool // the recorder took the focus: losing it ends the recording
+	seen    bool
 }
 
 var (
@@ -183,8 +179,6 @@ var (
 	resetIcon     = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.25 8a4.75 4.75 0 1 0 1.4-3.36"/><path d="M3.25 2.75v2.5h2.5"/></svg>`))
 )
 
-// shortcutsBar is the top of the shortcuts settings, which stays as the
-// commands scroll.
 func (a *app) shortcutsBar(c *ui.Context) {
 	p := &a.prefs
 	conflicts := a.conflictKeys()
@@ -233,7 +227,6 @@ func (a *app) shortcutsPage(c *ui.Context) {
 	}
 }
 
-// shortcutList lists the commands matching the search by their groups.
 func (a *app) shortcutList(c *ui.Context) {
 	tx, en := locales.In(i18n.Locale()), locales.In("en")
 	q := strings.ToLower(strings.TrimSpace(a.prefs.query))
@@ -263,8 +256,6 @@ func (a *app) shortcutList(c *ui.Context) {
 	}
 }
 
-// conflictList lists the keys of two commands or more, with their
-// commands.
 func (a *app) conflictList(c *ui.Context) {
 	ch := a.scheme.chrome()
 	km := a.l.keys
@@ -286,8 +277,6 @@ func (a *app) conflictList(c *ui.Context) {
 	ui.Text(c, locales.SettingsShortcutsResolve()).FontSize(12).TextColor(ch.muted)
 }
 
-// conflictKeys are the keys of two commands or more, in the order the
-// settings list the commands.
 func (a *app) conflictKeys() []appKey {
 	km := a.l.keys
 	var keys []appKey
@@ -303,9 +292,6 @@ func (a *app) conflictKeys() []appKey {
 	return keys
 }
 
-// shortcutRow shows the keys of the command named id, which the pointer
-// over it changes. group names the command's group where the list does
-// not.
 func (a *app) shortcutRow(c *ui.Context, id, name, group string) {
 	ch := a.scheme.chrome()
 	km := a.l.keys
@@ -355,9 +341,6 @@ func (a *app) shortcutRow(c *ui.Context, id, name, group string) {
 	})
 }
 
-// keyChip shows k, a key of the command named id, in the color of a
-// conflict when another command has it too, and a button taking it away
-// when removable.
 func (a *app) keyChip(c *ui.Context, id string, k appKey, removable bool) {
 	ch := a.scheme.chrome()
 	fg, line, bg := ch.text, ch.line, ch.panel
@@ -388,7 +371,6 @@ func (a *app) keyChip(c *ui.Context, id string, k appKey, removable bool) {
 	})
 }
 
-// recorder takes the next key pressed for the command named id.
 func (a *app) recorder(c *ui.Context, id, name string) {
 	ch := a.scheme.chrome()
 	r := &a.prefs.rec
@@ -418,8 +400,6 @@ func (a *app) recorder(c *ui.Context, id, name string) {
 	})
 }
 
-// recordingDetail says how to record a key, or why the key pressed is
-// not one, or which commands have it.
 func (a *app) recordingDetail(c *ui.Context, id string) {
 	r := &a.prefs.rec
 	muted := a.scheme.chrome().muted
@@ -435,8 +415,6 @@ func (a *app) recordingDetail(c *ui.Context, id string) {
 	}
 }
 
-// conflictPanel lists the commands that have the key pressed for the
-// command named id, which it keeps or takes from them.
 func (a *app) conflictPanel(c *ui.Context, id string) {
 	ch := a.scheme.chrome()
 	tx := locales.In(i18n.Locale())
@@ -533,8 +511,6 @@ func refusal(k appKey) string {
 	return ""
 }
 
-// addKey gives the command named id the key k, taking it from the
-// commands from.
 func (a *app) addKey(id string, k appKey, from []string) {
 	km := a.l.keys
 	for _, o := range from {
@@ -585,7 +561,6 @@ func (a *app) iconButton(c *ui.Context, icon *ui.SVG, label string, click func()
 	btn.Children(func() { ui.Icon(c, icon).Size(14, 14).TextColor(ch.muted) })
 }
 
-// textOn is white or black, whichever is the more legible on bg.
 func textOn(bg ui.Color) ui.Color {
 	lin := func(v uint8) float64 {
 		c := float64(v) / 255

@@ -19,9 +19,9 @@ type finding struct {
 	query, replace             string
 	caseSens, wholeWord, regex bool
 	replacing                  bool
-	pending                    bool      // the current editor's panel takes them as it next shows
-	seen                       string    // the query of the current editor's panel, as last read
-	rowsAt                     time.Time // when the current editor's panel last showed or hid the replace row
+	pending                    bool
+	seen                       string
+	rowsAt                     time.Time
 }
 
 // showFind opens the find panel of the current editor, with the replace
@@ -136,9 +136,6 @@ var (
 	findRowMotion = ui.ElementTransition{Duration: findMotionTime, Colors: true, Enter: &ui.Motion{Collapse: true}, Exit: &ui.Motion{Collapse: true}}
 )
 
-// findBar builds the find panel of d's editor as Sublime Text's, along
-// the bottom of the editor: the options, the query and the buttons, and
-// the replacement below them while replacing.
 func (a *app) findBar(c *ui.Context, bar ui.Element, f *editor.FindBar, d *doc) {
 	s := &a.find
 	switch {

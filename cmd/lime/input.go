@@ -23,7 +23,6 @@ const (
 	pressColumns
 )
 
-// mouseGesture reads Sublime Text's mousemap of the platform.
 func mouseGesture(button int, mods ui.Modifiers) gesture {
 	if mac {
 		switch {
@@ -53,11 +52,6 @@ func mouseGesture(button int, mods ui.Modifiers) gesture {
 	return pressAsIs
 }
 
-// The editor takes no remapping of its mouse, so the app replaces its
-// input handler with one that adjusts events and then calls the editor's
-// own handler. linkname reaches that handler; TestSublimeInput guards the
-// link across MyGo upgrades.
-//
 //go:linkname editorInput github.com/egoist/mygo/ui/editor.(*editor).input
 func editorInput(ed unsafe.Pointer, ev ui.InputEvent) bool
 
@@ -85,7 +79,6 @@ func diffActiveEditor(d *editor.DiffState) unsafe.Pointer {
 	return unsafe.Add(unsafe.Pointer(d), diffEdsOffset+uintptr(d.ActiveSide())*diffEdSize)
 }
 
-// editorFieldAt reaches a field at names inside MyGo's unexported editor struct.
 func editorFieldAt[T any](names ...string) func(unsafe.Pointer) *T {
 	ed, ok := reflect.TypeFor[editor.State]().FieldByName("ed")
 	if !ok {
@@ -105,20 +98,15 @@ func editorFieldAt[T any](names ...string) func(unsafe.Pointer) *T {
 	return func(ed unsafe.Pointer) *T { return (*T)(unsafe.Add(ed, off)) }
 }
 
-// editorField reaches the field of MyGo's editor at the path names, from
-// State, failing at start rather than misreading memory when an upgrade
-// moves or retypes it.
 func editorField[T any](names ...string) func(*editor.State) *T {
 	at := editorFieldAt[T](names...)
 	return func(st *editor.State) *T { return at(unsafe.Add(unsafe.Pointer(st), editorOffset)) }
 }
 
 var (
-	dragging  = editorField[bool]("gesture", "active")
-	textLeft  = editorField[float32]("textX")
-	editorBox = editorField[ui.Rect]("r")
-	// State has no switch for the scroll bars, and View sets the editor's
-	// options from State: set it after View.
+	dragging     = editorField[bool]("gesture", "active")
+	textLeft     = editorField[float32]("textX")
+	editorBox    = editorField[ui.Rect]("r")
 	noScrollBars = editorField[bool]("o", "noScrollbar")
 
 	findQueryAt     = editorFieldAt[string]("find", "query")
@@ -128,8 +116,6 @@ var (
 	findStaleAt     = editorFieldAt[bool]("find", "stale")
 )
 
-// pastSide is how far x, in the editor, is left (< 0) or right (> 0) of
-// its text.
 func pastSide(st *editor.State, x float32) float32 {
 	switch l, r := *textLeft(st), editorBox(st).W; {
 	case x < l:
@@ -177,7 +163,6 @@ func (a *app) input(e ui.Element, d *doc, services ui.Services) {
 		}
 		ok := editorInput(ed, ev)
 		if ev.Kind == ui.InputPointerDown && ev.Button == 1 {
-			// For the context menu's Paste, after the press settles the selections.
 			splitPaste(st, services)
 		}
 		if ev.Kind == ui.InputPointerMove {
@@ -190,9 +175,6 @@ func (a *app) input(e ui.Element, d *doc, services ui.Services) {
 	})
 }
 
-// editorClip is MyGo's lastClip: what an editor last copied, whose pieces
-// a paste of the same text gives the selections one each.
-//
 //go:linkname editorClip github.com/egoist/mygo/ui/editor.lastClip
 var editorClip struct {
 	text   string
@@ -201,8 +183,6 @@ var editorClip struct {
 }
 
 func init() {
-	// Verify our local linkname mirror keeps the exact field layout MyGo's
-	// editor.clipboard expects (TestEditorClipLayout verifies the live link).
 	t := reflect.TypeOf(editorClip)
 	want := []reflect.Type{reflect.TypeFor[string](), reflect.TypeFor[[]string](), reflect.TypeFor[[]bool]()}
 	if t.NumField() != len(want) {
@@ -215,7 +195,6 @@ func init() {
 	}
 }
 
-// pastes reports whether ev is the editor's Paste.
 func pastes(st *editor.State, ev ui.InputEvent) bool {
 	switch ev.Kind {
 	case ui.InputCommand:
@@ -226,9 +205,6 @@ func pastes(st *editor.State, ev ui.InputEvent) bool {
 	return false
 }
 
-// splitPaste has the next paste give each selection a line of the
-// clipboard when their counts match, as Sublime Text does; MyGo's editor
-// splits only what it copied from as many selections.
 func splitPaste(st *editor.State, services ui.Services) {
 	n := len(st.Selections())
 	if n < 2 {
@@ -245,10 +221,6 @@ func splitPaste(st *editor.State, services ui.Services) {
 	editorClip.text, editorClip.pieces, editorClip.lines = text, lines, make([]bool, n)
 }
 
-// slide scrolls the editor of d sideways while a drag goes past the left
-// or the right of its text, as Sublime Text does; MyGo's editor scrolls
-// only up and down for a drag. Until it does, a ticker sends the editor
-// the scroll and the pointer's move a frame would.
 func (a *app) slide(d *doc, ed unsafe.Pointer) {
 	d.sliding = true
 	win := a.win
@@ -279,8 +251,6 @@ func (a *app) slide(d *doc, ed unsafe.Pointer) {
 	}()
 }
 
-// slideStep scrolls a frame's worth, at MyGo's speed for up and down, and
-// reports whether to go on.
 func (a *app) slideStep(d *doc, ed unsafe.Pointer) bool {
 	st, ev := d.st, d.drag
 	dx := pastSide(st, ev.X)
@@ -290,8 +260,6 @@ func (a *app) slideStep(d *doc, ed unsafe.Pointer) bool {
 		d.sliding = false
 		return false
 	}
-	// The scroll extends a column drag as a plain one; the move puts the
-	// columns back.
 	editorInput(ed, ev)
 	return true
 }

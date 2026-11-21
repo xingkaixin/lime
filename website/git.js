@@ -5,8 +5,6 @@
 (() => {
   let repo
 
-  // load takes demo.json's commits and returns the files HEAD has, for
-  // the work tree.
   const load = (root, demo) => {
     const tree = (t) => new Map(Object.entries(t).map(([p, i]) => [p, demo.blobs[i]]))
     repo = {
@@ -43,7 +41,6 @@
     return c
   }
   const parentTree = (c) => repo.commits[repo.commits.indexOf(c) + 1]?.tree ?? repo.base
-  // treeOf is the files of rev: "" is the index, rev^ its commit's parent.
   const treeOf = (rev) => {
     if (rev === "") return repo.index
     return rev.endsWith("^") ? parentTree(commitOf(rev.slice(0, -1))) : commitOf(rev).tree
@@ -91,12 +88,9 @@
     return `[${repo.branch} ${short(hash)}] ${subject(c)}\n`
   }
 
-  // split is a text's lines, and whether its last ends with a newline.
   const split = (t) => t === "" ? { lines: [], eol: true }
     : t.endsWith("\n") ? { lines: t.slice(0, -1).split("\n"), eol: true } : { lines: t.split("\n"), eol: false }
 
-  // diffLines is Myers' diff of a and b: [op, i, j], where i and j are
-  // the line of a and of b each op is at.
   const diffLines = (a, b) => {
     let pre = 0, post = 0
     while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++
@@ -131,8 +125,6 @@
     return ops
   }
 
-  // hunks are the unified diff's hunks from text a to b, with git's three
-  // lines of context.
   const hunks = (ta, tb) => {
     const A = split(ta), B = split(tb)
     // A last line without a newline differs from the same line with one.
@@ -185,15 +177,12 @@
     return out
   }
 
-  // tracked is the work tree's text of each file in the index.
   const tracked = () => {
     const w = work(), t = new Map()
     for (const p of repo.index.keys()) if (w.has(p)) t.set(p, w.get(p))
     return t
   }
 
-  // catFile reads rev:path, where a path of ./ is dir's, as git -C dir
-  // reads it.
   const catFile = (dir, input, sizes) => {
     const here = dir === repo.root ? "" : dir.slice(repo.root.length + 1) + "/"
     let out = ""
@@ -226,7 +215,6 @@
     }
     if (!repo.index.has(path)) throw new Error(`error: ${path}: does not exist in index`)
     const t = split(repo.index.get(path))
-    // The lines only the side applied to has, and only the side it becomes.
     const [onlyFrom, onlyTo] = reverse ? ["+", "-"] : ["-", "+"]
     for (const h of hs.reverse()) {
       const from = [], to = []
@@ -276,8 +264,6 @@
         return commit(input, has(rest, "-a"), has(rest, "--amend"))
       case "log": {
         const n = +(option(rest, "-n") ?? Infinity)
-        // A path after -- lists the commits that change it, and with
-        // --name-only -z, its name after each.
         const path = rest[rest.indexOf("--") + 1]
         const cs = rest.includes("--") ? repo.commits.filter((c) => c.tree.get(path) !== parentTree(c).get(path)) : repo.commits
         const names = has(rest, "--name-only") ? `\0\n${path}\0` : "\n"
@@ -294,7 +280,6 @@
       case "cat-file":
         return catFile(dir, input, has(rest, "--batch-check=%(objectsize)"))
       case "apply":
-        // apply edits the index alone: Discard Hunk, for the work tree, fails.
         if (!has(rest, "--cached")) throw new Error("error: the demo applies patches to the index only")
         apply(input, has(rest, "--reverse"))
         return ""

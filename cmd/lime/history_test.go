@@ -11,8 +11,6 @@ import (
 	"lime/locales"
 )
 
-// File History lists the commits of a file across its renames, each of
-// which opens at the file's diff. An untracked file has none to show.
 func TestFileHistory(t *testing.T) {
 	dir, git := newRepo(t)
 	write := func(name, text string) {

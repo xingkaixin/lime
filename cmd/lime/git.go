@@ -11,14 +11,11 @@ import (
 	"lime/locales"
 )
 
-// gitRepo is what the side bar shows of the git repository of a project
-// of one folder: its work tree and the branch checked out there.
 type gitRepo struct {
-	dir    string // the folder read
-	root   string // the top of its work tree; "" outside a repository
-	tree   string // the work tree's name: main, or a linked one's folder
-	branch string // or the short hash of a detached HEAD
-	// The commits HEAD has that its upstream lacks, and the other way round.
+	dir           string
+	root          string
+	tree          string
+	branch        string
 	ahead, behind int
 	gen           int
 }
@@ -60,9 +57,6 @@ func readRepo(dir string) gitRepo {
 	return r
 }
 
-// gitDir is the folder whose repository the side bar shows: the project's
-// folder, or when a project has several, the one holding the active file,
-// falling back to the first.
 func (a *app) gitDir() string {
 	if d := a.current(); d != nil && d.commit != nil {
 		return d.commit.root
@@ -140,8 +134,6 @@ func (a *app) background(work func() func()) {
 	}()
 }
 
-// gitRun runs git in the repository, then shows the folders, the tabs
-// and the branch as it left them, or what it said of a failure.
 func (a *app) gitRun(args ...string) { a.gitRunWith("", nil, args...) }
 
 // repoLocks lets one git write run at a time per repository root: two at
@@ -164,14 +156,10 @@ func repoLock(dir string) *sync.Mutex {
 	return mu
 }
 
-// gitRunWith runs git as gitRun does, with input on its standard input,
-// and done after it succeeds.
 func (a *app) gitRunWith(input string, done func(), args ...string) {
 	a.gitRunIn(a.git.root, input, done, args...)
 }
 
-// gitRunIn runs git in dir, with input on its standard input, and done
-// after it succeeds.
 func (a *app) gitRunIn(dir, input string, done func(), args ...string) {
 	a.gitRunFinish(dir, input, func(err error) {
 		if err == nil && done != nil {
@@ -212,7 +200,7 @@ func (a *app) gitRunFinish(dir, input string, finish func(error), args ...string
 
 type branches struct {
 	local, remote []string
-	elsewhere     map[string]string // the work trees of the local branches checked out in others
+	elsewhere     map[string]string
 }
 
 func readBranches(root string) branches {
@@ -315,7 +303,6 @@ func (a *app) showBranches() {
 	})
 }
 
-// inRepo runs fn when the project has a git repository.
 func inRepo(fn func(a *app)) func(a *app) {
 	return func(a *app) {
 		if a.git.root == "" {
@@ -335,7 +322,6 @@ func realGit(caption func(locales.Messages) string) func(locales.Messages) strin
 	return caption
 }
 
-// promptCreateBranch names a branch to make at HEAD and switch to.
 func (a *app) promptCreateBranch() {
 	root := a.git.root
 	a.openPanel(&panel{prompt: locales.PromptBranchName(), submit: func(name string) {
@@ -345,7 +331,6 @@ func (a *app) promptCreateBranch() {
 	}})
 }
 
-// promptRenameBranch renames the branch checked out.
 func (a *app) promptRenameBranch() {
 	root, old := a.git.root, a.git.branch
 	a.openPanel(&panel{prompt: locales.PromptNewName(), query: old, submit: func(name string) {
@@ -355,8 +340,6 @@ func (a *app) promptRenameBranch() {
 	}})
 }
 
-// showDeleteBranch lists the local branches to delete one: not the one
-// checked out here or in another work tree, which git keeps.
 func (a *app) showDeleteBranch() {
 	root, cur := a.git.root, a.git.branch
 	a.background(func() func() {
@@ -380,8 +363,6 @@ func (a *app) showDeleteBranch() {
 	})
 }
 
-// deleteBranch deletes the branch name. Unless force, git refuses one
-// not merged, which the user may then delete anyway.
 func (a *app) deleteBranch(root, name string, force bool) {
 	dir, flag := root, "-d"
 	if force {
@@ -427,7 +408,6 @@ func (a *app) showWorktrees() {
 	})
 }
 
-// switchWorktree makes the work tree at path the project's folder.
 func (a *app) switchWorktree(path string) {
 	a.proj.unwatch()
 	a.proj = project{gen: a.proj.gen + 1, jump: true}

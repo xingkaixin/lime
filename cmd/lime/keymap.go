@@ -73,7 +73,7 @@ type keymap struct {
 	keys    map[string][]appKey // each command's, the first shown in menus
 	changed map[string]bool
 	users   map[appKey][]string // the commands of each key, the one it runs first
-	window  []appKey            // the keys the window runs
+	window  []appKey
 	editor  []editor.Binding
 }
 
@@ -119,14 +119,11 @@ func newKeymap(changes []keyChange) *keymap {
 	return km
 }
 
-// runs reports whether k runs its command, rather than another command
-// with the same key.
 func (km *keymap) runs(k appKey) bool {
 	u := km.users[k.seq()]
 	return len(u) > 0 && u[0] == k.id
 }
 
-// first returns the first key that runs the command named id.
 func (km *keymap) first(id string) (appKey, bool) {
 	for _, k := range km.keys[id] {
 		if km.runs(k) {
@@ -143,14 +140,12 @@ func (km *keymap) text(id string) string {
 	return ""
 }
 
-// others returns the commands other than id with the key k.
 func (km *keymap) others(k appKey, id string) []string {
 	return slices.DeleteFunc(slices.Clone(km.users[k.seq()]), func(o string) bool { return o == id })
 }
 
 func (km *keymap) conflicted(k appKey) bool { return len(km.users[k.seq()]) > 1 }
 
-// without returns the keys of the command named id but k.
 func (km *keymap) without(id string, k appKey) []appKey {
 	keys := []appKey{}
 	for _, o := range km.keys[id] {
@@ -176,7 +171,6 @@ func (l *lime) setKeys(id string, keys []appKey) {
 	l.keysChanged()
 }
 
-// resetKeys gives every command Sublime Text's keys.
 func (l *lime) resetKeys() {
 	l.set.Keys = nil
 	l.keysChanged()
@@ -188,13 +182,11 @@ func (l *lime) keysChanged() {
 	l.refreshMenu()
 }
 
-// seq is k without its command, the key alone.
 func (k appKey) seq() appKey {
 	k.id = ""
 	return k
 }
 
-// spec writes k as settings.json keeps it.
 func (k appKey) spec() string {
 	s := strings.ToLower(accelerator(k.mods, k.key))
 	if k.chord {
@@ -221,7 +213,6 @@ var keysByName = func() map[string]ui.Key {
 	return m
 }()
 
-// parseKey reads a key as spec writes it.
 func parseKey(s string) (appKey, bool) {
 	strokes := strings.Fields(s)
 	var k appKey

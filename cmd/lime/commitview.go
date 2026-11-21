@@ -28,17 +28,17 @@ import (
 type commitView struct {
 	commit
 	root    string
-	body    string // the whole message
-	more    bool   // the whole message shows, not its subject alone
+	body    string
+	more    bool
 	files   []*commitFile
 	loaded  bool
 	unified bool
 	rows    []diffRow
-	dirty   bool // the rows are to be built again
+	dirty   bool
 	list    ui.ListState
-	gen     int    // counts the readings, for the last to win
-	at      string // the file to scroll to, once its rows are built
-	github  string // the repository's web address on GitHub, "" for none
+	gen     int
+	at      string
+	github  string
 }
 
 // The tabs of the work tree's changes stand for commits of these hashes,
@@ -48,14 +48,10 @@ const (
 	unstagedChanges = "unstaged"
 )
 
-// worktree reports whether cv shows the work tree's changes, not a
-// commit's.
 func (cv *commitView) worktree() bool {
 	return cv.hash == stagedChanges || cv.hash == unstagedChanges
 }
 
-// commitFile is a file of a commit's tab: its hunks, as git prints them,
-// and its texts before and after, from which the rows take their lines.
 type commitFile struct {
 	change
 	added, deleted int
@@ -63,13 +59,12 @@ type commitFile struct {
 	folded         bool
 	hunks          []editor.PatchHunk
 	old, new       fileText
-	shown          map[int]bool // the gaps unfolded, by the hunk after them
+	shown          map[int]bool
 }
 
-// fileText is a side of a file's diff: its lines and their tokens.
 type fileText struct {
 	lines  []string
-	tokens [][]editor.Token // nil for a language MyGo does not know
+	tokens [][]editor.Token
 }
 
 type rowKind uint8
@@ -77,16 +72,13 @@ type rowKind uint8
 const (
 	rowMessage rowKind = iota
 	rowHeader
-	rowNote   // why a file shows no lines
-	rowGap    // unchanged lines, folded
-	rowSame   // an unchanged line
-	rowChange // a line deleted or added, or side by side, one of each
-	rowHunk   // the head of the hunk gap of the work tree's, to stage or unstage it
+	rowNote
+	rowGap
+	rowSame
+	rowChange
+	rowHunk
 )
 
-// diffRow is a row of a commit's tab. old and new number its lines before
-// and after from 1, 0 for none; a gap's are its first, of count, before
-// the hunk gap.
 type diffRow struct {
 	kind       rowKind
 	file       int
@@ -104,11 +96,8 @@ func (cv *commitView) title() string {
 	return cv.short + " — " + cv.subject
 }
 
-// showCommit opens a tab of cm's changes, or shows the one open.
 func (a *app) showCommit(cm commit) *commitView { return a.showCommitIn(a.git.root, cm) }
 
-// showCommitIn opens a tab of cm's changes in the repository at root, or
-// shows the one open.
 func (a *app) showCommitIn(root string, cm commit) *commitView {
 	for _, d := range a.allDocs() {
 		if cv := d.commit; cv != nil && cv.hash == cm.hash && cv.root == root {
@@ -126,8 +115,6 @@ func (a *app) showCommitIn(root string, cm commit) *commitView {
 	return cv
 }
 
-// loadCommit reads cv's message and files, again for the work tree's,
-// whose files stay folded as they were.
 func (a *app) loadCommit(cv *commitView) {
 	root, hash, fallback := cv.root, cv.hash, a.set.FallbackEncoding
 	cv.gen++
@@ -334,8 +321,6 @@ func largeWorktreeChanges(root string, changes []change) map[string]bool {
 	return large
 }
 
-// readBoundedText reads up to limit bytes of path as a string. It reports
-// oversized when the file exceeds limit bytes, without reading past it.
 func readBoundedText(path string, limit int64) (string, bool) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -365,7 +350,6 @@ func hasUTF16BOM(s string) bool {
 	return strings.HasPrefix(s, "\xff\xfe") || strings.HasPrefix(s, "\xfe\xff")
 }
 
-// addedHunk is the hunk of a file added with lines.
 func addedHunk(lines []string) []editor.PatchHunk {
 	if len(lines) == 0 {
 		return nil
@@ -377,8 +361,6 @@ func addedHunk(lines []string) []editor.PatchHunk {
 	return []editor.PatchHunk{h}
 }
 
-// splitText splits text into lines and highlights them, as the language
-// of the file name highlights.
 func splitText(text, name string) fileText {
 	lines := strings.Split(text, "\n")
 	if lines[len(lines)-1] == "" {
@@ -413,8 +395,6 @@ func hunkStart(start, lines int) int {
 	return start
 }
 
-// buildRows lays the files out as rows: each one's header, then its lines,
-// or why it has none.
 func (cv *commitView) buildRows() {
 	rows := append(cv.rows[:0], diffRow{kind: rowMessage})
 	for fi, f := range cv.files {
@@ -430,10 +410,6 @@ func (cv *commitView) buildRows() {
 	cv.rows, cv.dirty = rows, false
 }
 
-// appendRows appends the rows of f's hunks, each under its head when
-// heads, and of the unchanged lines around them, folded unless shown.
-// Side by side, a run of lines deleted pairs with the run added after it,
-// line by line.
 func (f *commitFile) appendRows(rows []diffRow, fi int, unified, heads bool) []diffRow {
 	old, new := 1, 1
 	gap := func(i, count int) {
@@ -498,8 +474,6 @@ func (f *commitFile) appendRows(rows []diffRow, fi int, unified, heads bool) []d
 	return rows
 }
 
-// catFiles reads the objects named rev:path with one git, "" for each
-// that is missing, as a file a commit adds has no text before it.
 func catFiles(root string, specs []string) []string {
 	texts := make([]string, len(specs))
 	for i, o := range catObjects(root, specs) {
@@ -508,11 +482,8 @@ func catFiles(root string, specs []string) []string {
 	return texts
 }
 
-// object is a file's text in git, by its id: "" for one missing.
 type object struct{ id, text string }
 
-// catObjects reads the objects named rev:path with one git run in dir,
-// all missing when it fails, as outside a repository.
 func catObjects(dir string, specs []string) []object {
 	objs := make([]object, len(specs))
 	var in strings.Builder
@@ -547,9 +518,6 @@ func catObjects(dir string, specs []string) []object {
 	return objs
 }
 
-// commitTab shows the commit's tab d in place of the editor of the group
-// at gi: a bar over the commit's message and its files' lines, each file
-// under its header, which stays at the top while its lines scroll under it.
 func (a *app) commitTab(c *ui.Context, gi int, d *doc) {
 	cv := d.commit
 	col := ui.Column(c.Key(key(d))).Grow(1).FillWidth().MinHeight(0).Background(a.scheme.bg)
@@ -580,15 +548,14 @@ func (a *app) commitTab(c *ui.Context, gi int, d *doc) {
 	})
 }
 
-// codeStyle is how the lines of a commit's tab look, the same for each.
 type codeStyle struct {
 	font, features     string
 	size, line, digit  float32
-	tab                string // a tab, as spaces
+	tab                string
 	theme              *editor.Theme
 	addLine, addGutter ui.Color
 	delLine, delGutter ui.Color
-	empty              ui.Color // a side with no line
+	empty              ui.Color
 }
 
 func (a *app) codeStyle(c *ui.Context) *codeStyle {
@@ -609,7 +576,6 @@ func (a *app) codeStyle(c *ui.Context) *codeStyle {
 	return st
 }
 
-// codeFont is the family of the content font, as the editor takes it.
 func (a *app) codeFont() string {
 	if a.set.ContentFont == "" {
 		return "monospace"
@@ -617,13 +583,11 @@ func (a *app) codeFont() string {
 	return a.set.ContentFont
 }
 
-// gutter is the width of a column of f's line numbers.
 func (st *codeStyle) gutter(f *commitFile) float32 {
 	digits := len(strconv.Itoa(max(len(f.old.lines), len(f.new.lines), 99)))
 	return float32(digits)*st.digit + 16
 }
 
-// spans colors the line numbered n of t by its tokens.
 func (st *codeStyle) spans(t *fileText, n int) []ui.Span {
 	if n < 1 || n > len(t.lines) {
 		return nil
@@ -674,8 +638,6 @@ func (a *app) diffRow(c *ui.Context, cv *commitView, r diffRow, st *codeStyle) {
 	}
 }
 
-// lineRow shows a line, with its numbers before and after; side by side,
-// the line before on the left and after on the right.
 func (a *app) lineRow(c *ui.Context, cv *commitView, f *commitFile, r diffRow, st *codeStyle) {
 	gutter := st.gutter(f)
 	changed := r.kind == rowChange
@@ -704,8 +666,6 @@ func (a *app) lineRow(c *ui.Context, cv *commitView, f *commitFile, r diffRow, s
 	})
 }
 
-// lineHalf is a side of a row side by side: the line numbered n of t,
-// tinted when changed, or nothing when n is 0.
 func (a *app) lineHalf(c *ui.Context, t *fileText, n int, gutter float32, changed bool, bg, gutterBg ui.Color, st *codeStyle) {
 	half := ui.Row(c).Grow(1).Basis(0).MinWidth(0).AlignItems(ui.Stretch)
 	switch {
@@ -735,7 +695,6 @@ func (a *app) code(c *ui.Context, t *fileText, n int, st *codeStyle) {
 		Grow(1).Basis(0).MinWidth(0).Padding(0, 10)
 }
 
-// gapRow stands for unchanged lines, which a click shows.
 func (a *app) gapRow(c *ui.Context, cv *commitView, f *commitFile, r diffRow) {
 	ch := a.scheme.chrome()
 	label := locales.CommitUnchangedLines(r.count)
@@ -759,8 +718,6 @@ func (a *app) gapRow(c *ui.Context, cv *commitView, f *commitFile, r diffRow) {
 	})
 }
 
-// hunkRow stages hunk i of f, or unstages it in the tab of the changes
-// staged; in the tab of those not, it discards it too.
 func (a *app) hunkRow(c *ui.Context, cv *commitView, f *commitFile, i int) {
 	ch := a.scheme.chrome()
 	unstage := cv.hash == stagedChanges
@@ -805,8 +762,6 @@ func (a *app) stageHunkIn(root, p string, h editor.PatchHunk, unstage bool) {
 	a.gitRunIn(root, hunkPatch(p, h), nil, append(args, "-")...)
 }
 
-// discardHunk takes h, of the unstaged changes of the file at p, out of
-// the work tree.
 func (a *app) discardHunk(p string, h editor.PatchHunk) {
 	a.discardHunkIn(a.git.root, p, h)
 }
@@ -849,8 +804,6 @@ var (
 </svg>`))
 )
 
-// commitBar folds or unfolds all the files, lays the diffs out side by
-// side or one over the other, and counts the lines they add and delete.
 func (a *app) commitBar(c *ui.Context, cv *commitView) {
 	ch := a.scheme.chrome()
 	added, deleted, open := 0, 0, false
@@ -874,8 +827,6 @@ func (a *app) commitBar(c *ui.Context, cv *commitView) {
 	})
 }
 
-// layDiffs lays cv's diffs out side by side or unified, as commits opened
-// next will be.
 func (a *app) layDiffs(cv *commitView, unified bool) {
 	cv.unified, cv.dirty = unified, true
 	a.set.DiffUnified = unified
@@ -889,7 +840,6 @@ func (cv *commitView) foldAll(fold bool) {
 	cv.dirty = true
 }
 
-// barButton is an icon button of a tab's bar, tinted while on.
 func (a *app) barButton(c *ui.Context, icon *ui.SVG, label string, on bool, onClick func()) {
 	ch := a.scheme.chrome()
 	btn := ui.ButtonBase(c.Key(label)).Size(24, 22).Radius(4).Center().Transition(colorFade).
@@ -910,7 +860,6 @@ func (a *app) counts(c *ui.Context, added, deleted int) {
 	ui.Text(c, "−"+strconv.Itoa(deleted)).FontSize(12).TextColor(a.scheme.danger()).Shrink(0)
 }
 
-// moreButton shows the whole message, or its subject alone again.
 func (a *app) moreButton(c *ui.Context, cv *commitView) {
 	ch := a.scheme.chrome()
 	label := locales.CommitShowMessage()
@@ -930,9 +879,6 @@ func (a *app) moreButton(c *ui.Context, cv *commitView) {
 	})
 }
 
-// commitMessage is the first row: the author's picture, name and email,
-// when, the message's subject, or the whole message while more, and the
-// hash to copy. The work tree's has none.
 func (a *app) commitMessage(c *ui.Context, cv *commitView) {
 	if cv.worktree() {
 		ui.Box(c).FillWidth().Height(0)
@@ -979,8 +925,6 @@ func (a *app) commitMessage(c *ui.Context, cv *commitView) {
 	})
 }
 
-// fileHeader names a file of the commit with its counts; a click folds
-// or unfolds its diff.
 func (a *app) fileHeader(c *ui.Context, cv *commitView, f *commitFile) {
 	ch := a.scheme.chrome()
 	row := ui.Row(c).FillWidth().Height(32).Padding(0, 12).Gap(8).AlignItems(ui.Center).Background(ch.bg).

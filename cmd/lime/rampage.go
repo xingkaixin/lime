@@ -13,7 +13,7 @@ import (
 // oldest particles go.
 const maxParticles = 600
 
-const trailLife = 0.22 // seconds
+const trailLife = 0.22
 
 var warm = []ui.Color{ui.Hex("#ff5e3a"), ui.Hex("#ff9f1c"), ui.Hex("#ffd23f")}
 
@@ -30,8 +30,8 @@ type rampageFx struct {
 }
 
 type particle struct {
-	x, y, vx, vy float32 // DIPs, and DIPs a second
-	age, life    float32 // seconds
+	x, y, vx, vy float32
+	age, life    float32
 	size         float32
 	c            ui.Color
 }
@@ -41,8 +41,6 @@ type trail struct {
 	age      float32
 }
 
-// drawRampage bursts particles at the carets of d as its text grows or
-// shrinks, and draws a trail behind each caret that jumps.
 func (a *app) drawRampage(p *ui.Painter, d *doc) {
 	fx := &d.rampage
 	st := d.st
@@ -84,8 +82,6 @@ func (a *app) drawRampage(p *ui.Painter, d *doc) {
 	}
 }
 
-// burst sends particles out of each caret: a few of the caret's colors
-// for typing, more, faster and warm for deleting.
 func (fx *rampageFx) burst(carets []ui.Rect, deleted bool, s *scheme) {
 	n, speed, life, size := 7, float32(70), float32(0.45), float32(2.5)
 	if deleted {
@@ -114,8 +110,6 @@ func (fx *rampageFx) burst(carets []ui.Rect, deleted bool, s *scheme) {
 	}
 }
 
-// advance moves the particles and ages the trails dt seconds, dropping
-// those whose time is up.
 func (fx *rampageFx) advance(dt float32) {
 	bits := fx.bits[:0]
 	for _, b := range fx.bits {
@@ -145,8 +139,6 @@ func (fx *rampageFx) drawBits(p *ui.Painter, o ui.Point) {
 	}
 }
 
-// drawTrails draws each trail as a wedge from where the caret was, thin,
-// to where it is, as tall as the caret; its tail runs after the caret.
 func (fx *rampageFx) drawTrails(p *ui.Painter, o ui.Point, c ui.Color) {
 	for _, t := range fx.trails {
 		k := t.age / trailLife

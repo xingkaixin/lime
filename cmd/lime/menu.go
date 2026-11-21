@@ -29,8 +29,6 @@ func (l *lime) menuItem(label, id string) *mygo.MenuItem {
 	}}
 }
 
-// check is a checkbox or radio item that runs the command named id,
-// checked as syncMenu has it.
 func (l *lime) check(label, id string, typ mygo.MenuItemType) *mygo.MenuItem {
 	it := l.menuItem(label, id)
 	it.ID, it.Type = id, typ
@@ -216,8 +214,6 @@ func clearMenuKeys(items []*mygo.MenuItem) {
 	}
 }
 
-// syncMenu checks the menu's checkboxes and radio items as the state of
-// the window last focused has them, when that changed.
 func (a *app) syncMenu() {
 	l := a.l
 	if l.last != a {
@@ -270,7 +266,6 @@ func (l *lime) pauseMenu(paused bool) {
 	}
 }
 
-// refreshMenu makes the menu anew, with its keys as they are.
 func (l *lime) refreshMenu() {
 	if l.menu == nil {
 		return
@@ -282,8 +277,6 @@ func (l *lime) refreshMenu() {
 	}
 }
 
-// menuKey is the accelerator of the menu item running the command named
-// id: its first key that is not a chord, when it runs it.
 func (l *lime) menuKey(id string) string {
 	if l.menuPaused {
 		return ""

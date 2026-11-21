@@ -55,7 +55,6 @@ func (a *app) sideBar(c *ui.Context) {
 	a.proj.forgetHidden()
 }
 
-// sidePanel is what the side bar shows; noPanel hides it.
 type sidePanel int
 
 const (
@@ -102,7 +101,6 @@ func (a *app) sideBarTitle(c *ui.Context) {
 		a.gitButton(c, worktreeIcon, a.git.tree, locales.GitSwitchWorktree(), a.showWorktrees).Shrink(0).MaxWidth(120)
 		a.gitButton(c, branchIcon, a.git.branch, locales.GitSwitchBranch(), a.showBranches)
 		a.syncButton(c)
-		// Around the buttons, the band drags the window, as a title bar.
 		if band > 0 {
 			lead.DragWindow()
 			ui.Box(c).Grow(1).DragWindow()
@@ -110,7 +108,6 @@ func (a *app) sideBarTitle(c *ui.Context) {
 	})
 }
 
-// sideBarEmpty asks for a folder, opened from its button or dropped on it.
 func (a *app) sideBarEmpty(c *ui.Context) {
 	ch := a.shell(c)
 	area := ui.Column(c).Grow(1).FillWidth().Margin(8).Padding(16).Gap(12).Center().Radius(c.Theme().Radius).
@@ -127,16 +124,12 @@ func (a *app) sideBarEmpty(c *ui.Context) {
 	})
 }
 
-// filesIcon is the status bar's button for the files panel, drawn as the
-// folder icons are.
 var filesIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
 	<g fill="none" stroke="#4c4f69" stroke-linecap="round" stroke-linejoin="round">
 		<path d="M2 2.5v8A1.5 1.5 0 003.5 12H7M2 5.5A1.5 1.5 0 003.5 7H7M5 2.5h9M9.5 7H14M9.5 12H14" />
 	</g>
 </svg>`))
 
-// panelButtons are the status bar's buttons of the side bar's panels, as
-// Zed's are.
 func (a *app) panelButtons(c *ui.Context) {
 	ui.Row(c).Gap(2).Children(func() {
 		a.panelButton(c, filesPanel, filesIcon, locales.SideBarFilesPanel(), "toggle_files_panel")
@@ -189,8 +182,6 @@ var (
 </svg>`))
 )
 
-// gitButton is a button of the side bar's repository row, as the work
-// tree and the branch of Zed's title bar are.
 func (a *app) gitButton(c *ui.Context, icon *ui.SVG, text, label string, onClick func()) ui.Element {
 	ch := a.shell(c)
 	btn := ui.ButtonBase(c.Key(label)).Height(22).AlignSelf(ui.Center).Padding(0, 6).Gap(5).Radius(4).AlignItems(ui.Center).
@@ -211,12 +202,8 @@ func (a *app) gitButton(c *ui.Context, icon *ui.SVG, text, label string, onClick
 // each level indents by, as Sublime Text's side bar does.
 const treeIcon, treeGap = 16, 6
 
-// treeMotion slides the rows of the side bar as folders above them open
-// and close, and fades their hover. What a folder holds grows in and
-// collapses as one block, which the rows below follow.
 var treeMotion = ui.ElementTransition{Position: true, Colors: true, Enter: &ui.Motion{Collapse: true}, Exit: &ui.Motion{Collapse: true}}
 
-// treeDrag is a file or folder of the side bar dragged to another folder.
 type treeDrag string
 
 // treeBox keys the box of a folder's row and what it holds, apart from
@@ -232,9 +219,6 @@ var copyMods = func() ui.Modifiers {
 	return ui.Ctrl
 }()
 
-// treeDir shows dir, and what it holds while open. A click anywhere on its
-// row opens or closes it. Files and folders dragged anywhere on it go into
-// it.
 func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
 	open := a.proj.isOpen(dir, depth == 0)
 	ic := a.folderIcon(*open)
@@ -283,8 +267,6 @@ func treeSource(c *ui.Context, row ui.Element, path string) {
 	}
 }
 
-// treeInput names a new file or folder in a row of the tree. Enter makes
-// it; Escape, a press elsewhere or the focus leaving cancels it.
 func (a *app) treeInput(c *ui.Context, cr *creation, depth int) {
 	t := c.Theme()
 	ic := a.fileIcon(filepath.Join(cr.dir, cr.name))

@@ -27,8 +27,6 @@ func TestGuessIndent(t *testing.T) {
 	}
 }
 
-// A file opens with its own indentation, which View > Indentation changes
-// and the session keeps.
 func TestIndentation(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "a.yaml")

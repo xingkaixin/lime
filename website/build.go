@@ -1,10 +1,5 @@
 //go:build ignore
 
-// Builds the website into build/site: the landing page, and the demo it
-// runs, Lime compiled to WebAssembly with a few of the repository's files
-// and their last commits.
-//
-//	go run website/build.go
 package main
 
 import (
@@ -29,8 +24,6 @@ var demoFiles = []string{
 	"cmd/lime/settings.go", "cmd/lime/theme.go",
 }
 
-// demoCommits is how many of the commits that changed demoFiles the
-// demo's history has.
 const demoCommits = 12
 
 // demo is demo.json: the commits, newest first, each with demoFiles as it
@@ -40,7 +33,7 @@ type demo struct {
 	Blobs    []string       `json:"blobs"`
 	Commits  []demoCommit   `json:"commits"`
 	Parent   map[string]int `json:"parent"`
-	blob     map[string]int // index in Blobs by object id
+	blob     map[string]int
 }
 
 type demoCommit struct {
@@ -106,8 +99,6 @@ func main() {
 	}
 }
 
-// tree reads demoFiles as rev has them, with one git, keeping each text
-// once. A file rev lacks is left out.
 func (d *demo) tree(rev string) map[string]int {
 	var in strings.Builder
 	for _, p := range demoFiles {

@@ -20,9 +20,6 @@ import (
 	"lime/locales"
 )
 
-// The editor's input goes through app.input, which reaches the editor's
-// handler by linkname: Sublime's keys, chords and mouse work, and Zed's
-// keys Sublime leaves alone do nothing.
 func TestSublimeInput(t *testing.T) {
 	if !mac {
 		t.Skip("the test presses macOS keys")
@@ -138,7 +135,6 @@ func TestTabs(t *testing.T) {
 	}
 	a.remove(a.current())
 
-	// The status bar's syntax menu sets the syntax.
 	tt.Frame()
 	if err := tt.Click("Syntax: Go"); err != nil {
 		t.Fatal(err)
@@ -151,8 +147,6 @@ func TestTabs(t *testing.T) {
 	}
 }
 
-// Typing in a group without tabs opens a tab with the text, as in
-// Sublime Text.
 func TestTypeWithoutTabs(t *testing.T) {
 	a := newApp("")
 	a.newFile()
@@ -170,8 +164,6 @@ func TestTypeWithoutTabs(t *testing.T) {
 	}
 }
 
-// A tab dragged along its tab bar moves as the pointer goes, the others
-// making way, and stays where it is let go.
 func TestTabDrag(t *testing.T) {
 	a := newApp("")
 	for _, s := range []string{"one", "two", "three"} {
@@ -200,8 +192,6 @@ func TestTabDrag(t *testing.T) {
 	}
 }
 
-// Tabs that do not fit scroll: to show the current one, by a touchpad or
-// wheel either way, and along while a tab dragged is held at an end.
 func TestTabOverflow(t *testing.T) {
 	a := newApp("")
 	for i := range 40 {
@@ -251,7 +241,6 @@ func TestTabOverflow(t *testing.T) {
 	}
 	tt.Release(x, y)
 
-	// The current tab moves as the tabs before it close.
 	a.show(g.docs[30])
 	tt.Frame()
 	a.closeTabs(g.docs[:30], func(*doc) bool { return true })
@@ -262,8 +251,6 @@ func TestTabOverflow(t *testing.T) {
 	}
 }
 
-// Tabs of files with the same name show the fewest parent folders that
-// tell them apart.
 func TestTabDirs(t *testing.T) {
 	a := newApp("")
 	want := map[string]string{
@@ -304,7 +291,6 @@ func TestGroups(t *testing.T) {
 		t.Fatalf("the tab moved keeps the focus: %q", got)
 	}
 
-	// Ctrl+Tab walks the tabs by their last use while Ctrl is held.
 	tt.HoldModifiers(ui.Ctrl)
 	tt.Key(ui.Ctrl, ui.KeyTab)
 	tt.Key(ui.Ctrl, ui.KeyTab)
@@ -378,9 +364,6 @@ func TestPanels(t *testing.T) {
 	}
 }
 
-// The find panel goes along the bottom of the editor, as Sublime Text's,
-// and one opened in another tab starts with the last query, or the one
-// Quick Add Next found.
 func TestFindPanel(t *testing.T) {
 	if !mac {
 		t.Skip("the test presses macOS keys")
@@ -424,8 +407,6 @@ func TestFindPanel(t *testing.T) {
 	}
 }
 
-// A click anywhere on a folder's row in the side bar opens or closes it,
-// and one on a file's opens the file.
 func TestSideBar(t *testing.T) {
 	dir := t.TempDir()
 	main := filepath.Join(dir, "src", "main.go")
@@ -440,7 +421,7 @@ func TestSideBar(t *testing.T) {
 	if err := tt.Click("src"); err != nil {
 		t.Fatal(err)
 	}
-	tt.Advance(time.Second) // src's files grow in
+	tt.Advance(time.Second)
 	if err := tt.Click("main.go"); err != nil {
 		t.Fatalf("a click on src: %v", err)
 	}
@@ -461,7 +442,7 @@ func TestSideBar(t *testing.T) {
 
 	files, git := locales.SideBarFilesPanel(), locales.SideBarGitPanel()
 	for i, s := range []struct {
-		click string // a panel's button, or "" for toggle_side_bar
+		click string
 		want  sidePanel
 	}{
 		{git, gitPanel}, {files, filesPanel}, {files, noPanel}, {git, gitPanel}, {git, noPanel}, {files, filesPanel},
@@ -478,8 +459,6 @@ func TestSideBar(t *testing.T) {
 	}
 }
 
-// Renaming a folder from its menu moves the tabs of its files, and it
-// stays open.
 func TestRenameFolder(t *testing.T) {
 	dir := t.TempDir()
 	main := filepath.Join(dir, "src", "main.go")
@@ -522,8 +501,6 @@ func TestRenameFolder(t *testing.T) {
 	}
 }
 
-// New File and New Folder of a folder's menu name the item in the side
-// bar. Escape or a press elsewhere makes nothing.
 func TestCreateInSideBar(t *testing.T) {
 	dir := t.TempDir()
 	a := newApp("")
@@ -574,7 +551,6 @@ func TestCreateInSideBar(t *testing.T) {
 	}
 }
 
-// Files take their icons as file-icons gives them, by name and by path.
 func TestIcons(t *testing.T) {
 	for p, want := range map[string]string{
 		"main.go": "go", "go.mod": "config-go", ".gitignore": "git", "src/App.tsx": "tsx",
@@ -641,8 +617,6 @@ func TestPierreIcons(t *testing.T) {
 	tt.Frame()
 }
 
-// Hot exit: the next run brings back the windows, their tabs, the unsaved
-// text over the file on disk, and the layout.
 func TestHotExit(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "a.go")
@@ -658,7 +632,6 @@ func TestHotExit(t *testing.T) {
 	a.current().st.Buffer.Set("draft")
 	a.moveToGroup(1)
 	a.cols = []float32{30}
-	// A tab dragged to another window leaves this one.
 	w := a.l.newWindow()
 	w.newFile()
 	w.moveTab(a.docAt(gone), 0, 0)
@@ -695,8 +668,6 @@ func TestHotExit(t *testing.T) {
 	}
 }
 
-// Hot exit keeps the bytes of unsaved text that isn't UTF-8, as of a GBK
-// file.
 func TestHotExitKeepsBytes(t *testing.T) {
 	dir := t.TempDir()
 	a := newApp(dir)
@@ -713,9 +684,6 @@ func TestHotExitKeepsBytes(t *testing.T) {
 	}
 }
 
-// Open Recent lists the files, folders and projects opened, newest first,
-// which the session keeps. Quick Switch Project opens a folder in a window
-// without folders or unsaved text.
 func TestRecent(t *testing.T) {
 	dir := t.TempDir()
 	file, other := filepath.Join(dir, "a.txt"), filepath.Join(dir, "other")
@@ -742,8 +710,6 @@ func TestRecent(t *testing.T) {
 	}
 }
 
-// The color scheme of older settings becomes the appearance and the theme
-// that show it.
 func TestMigrateColorScheme(t *testing.T) {
 	for _, tc := range []struct{ old, appearance, light, dark string }{
 		{"Auto", followSystem, "GitHub Light", "GitHub Dark"},
@@ -759,8 +725,6 @@ func TestMigrateColorScheme(t *testing.T) {
 	}
 }
 
-// A settings.json saved with an error leaves the settings as they were,
-// and is not written over with them.
 func TestInvalidSettings(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(settingsPath(dir), []byte(`{"font_size": 20}`), 0o644)
@@ -799,10 +763,6 @@ func TestDeleteBlankLines(t *testing.T) {
 	}
 }
 
-// The case commands convert each selection, or the word at each caret, a
-// word with several carets once, and select what they converted. The
-// naming styles leave out the white space around a selection, and carets
-// in no word stay where they are.
 func TestConvertCase(t *testing.T) {
 	sel := func(a, h int) editor.Selection { return editor.Selection{Anchor: a, Head: h} }
 	for _, c := range []struct {
@@ -917,8 +877,6 @@ func TestCompare(t *testing.T) {
 	}
 }
 
-// F12 goes to the definition of the word at the caret, in its tab, else
-// in another, and says when there is none.
 func TestGotoDefinition(t *testing.T) {
 	a := newApp("")
 	other := a.add("/p/b.go", "package p\n\nfunc helper() {}\n")
@@ -943,9 +901,6 @@ func TestGotoDefinition(t *testing.T) {
 	}
 }
 
-// Goto Symbol lists the tab's definitions and Markdown's headings. One
-// shows as it is selected; Escape, or another row picked, puts the caret
-// and the scroll back. name@ lists another file's.
 func TestGotoSymbol(t *testing.T) {
 	a := newApp("")
 	md := a.add("/p/README.md", "# Lime\n\nText\n\n## Install ##\n")
@@ -990,7 +945,6 @@ func TestGotoSymbol(t *testing.T) {
 	if a.current() != md || !selected(md, "Install") || !selected(d, "one") {
 		t.Fatalf("READ@inst: tab %q, selections %v and %v", a.current().name(), md.st.Selection(), d.st.Selection())
 	}
-	// A press outside a panel that showed nothing goes to the editor.
 	a.run("show_goto")
 	tt.Frame()
 	tt.ClickAt(400, 450)
@@ -1010,10 +964,6 @@ func TestGotoSymbol(t *testing.T) {
 	}
 }
 
-// Jump Back and Jump Forward go through where the caret jumped from: 10
-// lines or more at once, or to another tab. Nothing is a jump while the
-// caret is being chosen: Goto Symbol's rows, the find panel's query typed,
-// Ctrl+Tab's tabs. A closed tab's are forgotten.
 func TestJumps(t *testing.T) {
 	a := newApp("")
 	b := a.add("/p/b.go", "package p\n")
@@ -1087,8 +1037,6 @@ func TestJumps(t *testing.T) {
 	at(f, 0)
 }
 
-// A file dragged in the side bar onto a folder moves into it, its tab
-// following. A copy leaves it and its tab where they are.
 func TestSideBarDrag(t *testing.T) {
 	dir := t.TempDir()
 	os.Mkdir(filepath.Join(dir, "sub"), 0o755)
@@ -1122,8 +1070,6 @@ func TestSideBarDrag(t *testing.T) {
 		t.Fatalf("moving a.txt into sub: %v, tab at %s", err, a.current().path)
 	}
 
-	// The Tester lets go of the pointer without modifiers, so a copy is
-	// asked for as the drop would.
 	a.dropInto(moved, dir, true)
 	if _, err := os.Stat(file); err != nil {
 		t.Fatalf("copying a.txt back: %v", err)
@@ -1138,8 +1084,6 @@ func TestSideBarDrag(t *testing.T) {
 	}
 }
 
-// A file changed on disk shows as it is now, unless its tab has unsaved
-// changes, which stay.
 func TestReloadChanged(t *testing.T) {
 	dir := t.TempDir()
 	clean, edited := filepath.Join(dir, "clean.txt"), filepath.Join(dir, "edited.txt")
@@ -1164,8 +1108,6 @@ func TestReloadChanged(t *testing.T) {
 	}
 }
 
-// The side bar shows the branch of a project's repository, whose panel
-// switches it, and the tabs show the files as the branch has them.
 func TestGitBar(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("no git")
@@ -1217,8 +1159,6 @@ func TestGitBar(t *testing.T) {
 	}
 }
 
-// The history lists the commits, each of which opens a tab of the diffs
-// of its files, which neither side edits.
 func TestHistory(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("no git")
@@ -1285,7 +1225,6 @@ func TestHistory(t *testing.T) {
 	}
 }
 
-// newRepo makes a repository in a new folder, and a git to run in it.
 func newRepo(t *testing.T) (string, func(...string)) {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -1302,8 +1241,6 @@ func newRepo(t *testing.T) (string, func(...string)) {
 	return dir, git
 }
 
-// The Changes tab groups the work tree's changes as git status tells
-// them, each of which shows the diffs of its section.
 func TestChanges(t *testing.T) {
 	dir, git := newRepo(t)
 	write := func(name, text string) {
@@ -1383,8 +1320,6 @@ func TestChanges(t *testing.T) {
 	}
 }
 
-// The check boxes, Space and the menu of the rows chosen stage and
-// unstage files.
 func TestStage(t *testing.T) {
 	dir, git := newRepo(t)
 	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
@@ -1439,8 +1374,6 @@ func TestStage(t *testing.T) {
 	}
 }
 
-// The tree shows the changes in their folders, folders first, which open
-// and close, and whose check boxes stage what they hold.
 func TestChangesTree(t *testing.T) {
 	dir, git := newRepo(t)
 	names := []string{"top.txt", "src/b.txt", "src/a/x.txt", "src/a/y.txt"}
@@ -1489,8 +1422,6 @@ func TestChangesTree(t *testing.T) {
 	}
 }
 
-// The Changes tab commits the changes staged, or with none, the tracked
-// files' changes; a failing commit keeps its message.
 func TestCommit(t *testing.T) {
 	dir, git := newRepo(t)
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("1\n"), 0o644)
@@ -1539,8 +1470,6 @@ func TestCommit(t *testing.T) {
 	}
 }
 
-// Amend loads HEAD's message, and its commit takes HEAD's place; the
-// message typed before comes back.
 func TestAmend(t *testing.T) {
 	dir, git := newRepo(t)
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("1\n"), 0o644)
@@ -1602,8 +1531,6 @@ func TestAmendFinishesBothCommits(t *testing.T) {
 	}
 }
 
-// A hunk of the unstaged changes stages alone, and unstages again from
-// the staged changes.
 func TestStageHunk(t *testing.T) {
 	dir, git := newRepo(t)
 	var lines []string
@@ -1706,8 +1633,6 @@ func TestDiscard(t *testing.T) {
 	}
 }
 
-// Create Branch and Rename Branch take the name from the input panel,
-// and a name git refuses shows what git says of it.
 func TestBranchName(t *testing.T) {
 	dir, git := newRepo(t)
 	git("commit", "-q", "--allow-empty", "-m", "base")
@@ -1737,9 +1662,6 @@ func TestBranchName(t *testing.T) {
 	}
 }
 
-// Push publishes a branch without an upstream; the side bar counts the
-// commits to push, and those Fetch finds to pull, which a click on each
-// count takes.
 func TestRemote(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	dir, git := newRepo(t)
@@ -1833,8 +1755,6 @@ func TestCommitRows(t *testing.T) {
 	}
 }
 
-// A paste of as many lines as there are carets gives each caret a line,
-// as Sublime Text's, though one selection copied them.
 func TestPasteLinePerCaret(t *testing.T) {
 	a := newApp("")
 	a.add("", "a\nb\nc\nx\ny\nz\n")

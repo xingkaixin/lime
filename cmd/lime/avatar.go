@@ -70,7 +70,6 @@ func (a *app) avatar(c *ui.Context, email string, size float32) {
 	})
 }
 
-// avatarSlots bounds concurrent avatar fetches and decodes.
 var avatarSlots = make(chan struct{}, 4)
 
 // avatar returns the picture of email once loaded, nil until then or

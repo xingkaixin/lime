@@ -7,9 +7,6 @@ import (
 	"testing"
 )
 
-// A permalink names the file at HEAD's commit on GitHub, from a remote's
-// URL in any of its forms, and tells whether the remote has the commit and
-// whether the file has changed since.
 func TestPermalink(t *testing.T) {
 	for remote, want := range map[string]string{
 		"git@github.com:o/r.git":         "https://github.com/o/r",

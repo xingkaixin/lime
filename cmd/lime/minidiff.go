@@ -12,8 +12,6 @@ import (
 // git_diff_target says, or against the text on disk for a file git does
 // not track.
 
-// diffRev is the revision of the files' texts in git that the gutter
-// marks the changes against: "" is the index.
 func (s *settings) diffRev() string {
 	if s.GitDiffTarget == "head" {
 		return "HEAD"
@@ -21,9 +19,6 @@ func (s *settings) diffRev() string {
 	return ""
 }
 
-// readBases reads the texts in git of the files of docs, which the
-// gutter marks their changes against: as they open and are saved, as the
-// window comes to the front and as git changes them.
 func (a *app) readBases(docs ...*doc) {
 	var ds []*doc
 	var paths []string
@@ -47,7 +42,6 @@ func (a *app) readBases(docs ...*doc) {
 		return func() {
 			for i, d := range ds {
 				switch o := objs[i]; {
-				// Saved again, or read since, or the same text.
 				case d.path != paths[i] || d.baseGen != gens[i] || o.id == d.base:
 				case o.id == "":
 					d.diffDisk()
@@ -102,7 +96,6 @@ func gitTexts(paths []string, rev string) []object {
 	return objs
 }
 
-// diffDisk has the gutter mark the changes against the text on disk.
 func (d *doc) diffDisk() {
 	text := ""
 	if d.saved.Len() <= largeFile {
@@ -111,8 +104,6 @@ func (d *doc) diffDisk() {
 	d.setDiffBase("", text)
 }
 
-// setDiffBase has the gutter mark the changes against text: the file's
-// in git, of the object id, or on disk, of "".
 func (d *doc) setDiffBase(id, text string) {
 	d.base = id
 	switch {

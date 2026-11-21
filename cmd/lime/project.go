@@ -46,8 +46,6 @@ func excluded(name string, patterns []string) bool {
 	return false
 }
 
-// leftOut reports whether the side bar leaves out the file or folder
-// named name under the default exclude patterns.
 func leftOut(name string, dir bool) bool {
 	return projLeftOut(name, dir, folderExclude, fileExclude)
 }
@@ -73,20 +71,18 @@ type projWatchBatch struct {
 	stopped bool
 }
 
-// project is the folders of the window, kept in a .sublime-project file
-// once saved.
 type project struct {
 	path       string
 	folders    []string
-	meta       map[string]json.RawMessage            // preserved top-level .sublime-project fields
-	folderMeta map[string]map[string]json.RawMessage // preserved per-folder fields, keyed by folder path
-	open       map[string]*bool                      // folders of the side bar shown open
-	dirs       map[string][]os.DirEntry              // folders read, for the side bar
-	watches    map[string]context.CancelFunc         // folders followed on disk while shown
-	watchBatch *projWatchBatch                       // debounces watch events across open folders
-	shown      map[string]bool                       // folders the side bar listed as it built
-	files      []string                              // the folders' files, for Goto Anything
-	gen        int                                   // counts the indexings, for the last to win
+	meta       map[string]json.RawMessage
+	folderMeta map[string]map[string]json.RawMessage
+	open       map[string]*bool
+	dirs       map[string][]os.DirEntry
+	watches    map[string]context.CancelFunc
+	watchBatch *projWatchBatch
+	shown      map[string]bool
+	files      []string
+	gen        int
 	create     *creation
 	// jump has the side bar show the next frame without motion: another
 	// project or a rename replaced the rows' paths, not their places.
@@ -105,7 +101,6 @@ type projectFile struct {
 	extra   map[string]json.RawMessage
 }
 
-// rel shows path from its folder, as Goto Anything does.
 func (p *project) rel(path string) string {
 	for _, f := range p.folders {
 		if r, err := filepath.Rel(filepath.Dir(f), path); err == nil && !strings.HasPrefix(r, "..") {
@@ -134,8 +129,6 @@ func (p *project) isOpen(dir string, open bool) *bool {
 	return o
 }
 
-// list reads dir as the side bar shows it: folders first, then files, by
-// name.
 func (p *project) list(dir string, folderExcl, fileExcl []string) []os.DirEntry {
 	if es, ok := p.dirs[dir]; ok {
 		return es
@@ -165,8 +158,6 @@ func (p *project) list(dir string, folderExcl, fileExcl []string) []os.DirEntry 
 // instead.
 const watchDirs = runtime.GOOS != "windows"
 
-// shownDir is what dir, which the side bar shows open, holds. While it
-// shows, dir is followed on disk and read again as what it holds changes.
 func (a *app) shownDir(dir string) []os.DirEntry {
 	if a.proj.shown == nil {
 		a.proj.shown = make(map[string]bool)
@@ -318,8 +309,6 @@ func (a *app) hasOpenPath(paths map[string]bool) bool {
 	return false
 }
 
-// forgetHidden stops following the folders the side bar no longer shows
-// open, and drops what was read of them, which would go stale.
 func (p *project) forgetHidden() {
 	for dir, stop := range p.watches {
 		if !p.shown[dir] {
@@ -335,7 +324,6 @@ func (p *project) forgetHidden() {
 	clear(p.shown)
 }
 
-// unwatch stops following the folders on disk.
 func (p *project) unwatch() {
 	for _, stop := range p.watches {
 		stop()
@@ -363,8 +351,6 @@ type projIgnoreLayer struct {
 	rules []projIgnoreRule
 }
 
-// projIgnore matches paths against stacked .gitignore files while walking a
-// project folder.
 type projIgnore struct {
 	layers []projIgnoreLayer
 }
@@ -614,8 +600,6 @@ func walkFoldersWith(folders, folderExcl, fileExcl []string) []string {
 	return files
 }
 
-// indexFolders lists the folders' files for Goto Anything, off the main
-// thread in the app.
 func (a *app) indexFolders() {
 	a.proj.gen++
 	gen, folders := a.proj.gen, slices.Clone(a.proj.folders)
@@ -766,7 +750,6 @@ func projStripJSONC(src []byte) []byte {
 	return out
 }
 
-// readProject reads the .sublime-project file at path.
 func readProject(path string) (projectFile, error) {
 	var pf projectFile
 	b, err := os.ReadFile(path)
@@ -805,7 +788,6 @@ func (a *app) openProject(path string) error {
 	return nil
 }
 
-// useProject makes pf, read from path, the window's project.
 func (a *app) useProject(path string, pf projectFile) {
 	a.closeProject()
 	a.proj.path, a.proj.jump = path, true
@@ -903,12 +885,10 @@ func (a *app) promptSaveProject() {
 	}()
 }
 
-// within reports whether path is dir or inside it.
 func within(path, dir string) bool {
 	return path == dir || strings.HasPrefix(path, dir+string(filepath.Separator))
 }
 
-// moved returns p once from is renamed to.
 func moved(p, from, to string) string {
 	if within(p, from) {
 		return to + p[len(from):]
@@ -942,8 +922,6 @@ func renameNew(from, to string) error {
 	return os.Rename(from, to)
 }
 
-// renamed has the tabs of the files in from, its folders shown open and
-// the project's folders follow it to to, across all windows.
 func (a *app) renamed(from, to string) {
 	a.l.renameRecent(from, to)
 	for _, w := range a.l.wins {
@@ -982,8 +960,6 @@ func (a *app) renamed(from, to string) {
 	a.l.redraw()
 }
 
-// canDrop reports whether path dragged in the side bar can go into dir:
-// not where it is, nor into itself.
 func canDrop(path, dir string) bool {
 	return filepath.Dir(path) != dir && !within(dir, path)
 }
@@ -1032,8 +1008,6 @@ func (a *app) dropInto(path, dir string, copy bool) {
 	}()
 }
 
-// replace moves the item at to to the Trash, then moves or copies path
-// there.
 func (a *app) replace(path, to string, copy bool) {
 	if err := a.discard(to); err != nil {
 		a.transferError(path, copy, err)
@@ -1043,7 +1017,6 @@ func (a *app) replace(path, to string, copy bool) {
 	a.transfer(path, to, copy)
 }
 
-// transfer moves path to to, or copies it off the main thread in the app.
 func (a *app) transfer(path, to string, copy bool) {
 	if !copy {
 		if err := renameNew(path, to); err != nil {
@@ -1094,7 +1067,6 @@ func keepBoth(to string) string {
 	}
 }
 
-// copyNew copies the file or folder from to to, which must not exist.
 func copyNew(from, to string) error {
 	fi, err := os.Lstat(from)
 	if err != nil {
@@ -1122,13 +1094,10 @@ func copyNew(from, to string) error {
 	return dst.Close()
 }
 
-// holds reports whether path is in one of the folders.
 func (p *project) holds(path string) bool {
 	return slices.ContainsFunc(p.folders, func(f string) bool { return within(path, f) })
 }
 
-// creation is a file or folder being named in the side bar, at the top of
-// the folder it goes in.
 type creation struct {
 	dir     string
 	folder  bool
@@ -1141,8 +1110,6 @@ func (a *app) startCreate(dir string, folder bool) {
 	a.proj.create = &creation{dir: dir, folder: folder}
 }
 
-// projResolveCreate resolves a user-typed relative path under dir, rejecting
-// absolute paths and ".." segments that would escape dir.
 func projResolveCreate(dir, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -1164,7 +1131,6 @@ func projResolveCreate(dir, name string) (string, error) {
 	return p, nil
 }
 
-// finishCreate makes the file or folder named, opening a file in a tab.
 func (a *app) finishCreate() {
 	cr := a.proj.create
 	a.proj.create = nil
@@ -1226,7 +1192,6 @@ func createNew(dir, p string, folder bool) error {
 	return f.Close()
 }
 
-// docsIn returns the tabs of the files in path.
 func (a *app) docsIn(path string) []*doc {
 	var docs []*doc
 	for _, d := range a.allDocs() {
@@ -1237,7 +1202,6 @@ func (a *app) docsIn(path string) []*doc {
 	return docs
 }
 
-// docsIn returns the tabs of the files in path across all windows.
 func (l *lime) docsIn(path string) []*doc {
 	var docs []*doc
 	for _, w := range l.wins {
@@ -1248,8 +1212,6 @@ func (l *lime) docsIn(path string) []*doc {
 
 var projTrashItem = func(p string) error { return mygo.Shell.TrashItem(p) }
 
-// discard moves path to the Trash, with the tabs of its files, any dependent
-// diff/preview views, and the project's folders in it across all windows.
 func (a *app) discard(path string) error {
 	if err := projTrashItem(path); err != nil {
 		return err
@@ -1278,8 +1240,6 @@ func (a *app) discard(path string) error {
 	return nil
 }
 
-// trash moves path to the Trash, with the tabs of its files. It asks first
-// for a folder, or when a tab has changes.
 func (a *app) trash(path string, folder bool) {
 	docs := a.l.docsIn(path)
 	del := func() {

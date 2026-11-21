@@ -6,8 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Sublime Text's keys run one command each, and read back as
-// settings.json writes them.
 func TestDefaultKeys(t *testing.T) {
 	km := newKeymap(nil)
 	for s, users := range km.users {
@@ -24,8 +22,6 @@ func TestDefaultKeys(t *testing.T) {
 	}
 }
 
-// A key given to a second command runs the command changed last, and a
-// key taken away does nothing, though the editor binds it by default.
 func TestChangedKeys(t *testing.T) {
 	if !mac {
 		t.Skip("the test presses macOS keys")
@@ -59,8 +55,6 @@ func TestChangedKeys(t *testing.T) {
 	}
 }
 
-// A key pressed while recording runs nothing, and Replace takes it from
-// the command that had it.
 func TestRecordKey(t *testing.T) {
 	if !mac {
 		t.Skip("the test presses macOS keys")

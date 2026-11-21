@@ -175,8 +175,6 @@
     chmod: noop, fchmod: noop, chown: noop, fchown: noop, lchown: noop, utimes: noop, futimes: noop, fsync: noop,
   }
 
-  // files returns the texts of the files under root, by path from it,
-  // as git's work tree has them: without .git.
   const files = (root) => {
     const prefix = norm(root) + "/", texts = new Map(), decoder = new TextDecoder()
     for (const [k, n] of nodes) {

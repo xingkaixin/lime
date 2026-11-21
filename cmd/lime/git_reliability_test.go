@@ -17,7 +17,6 @@ import (
 )
 
 func TestParseCommitChangesTruncatedRename(t *testing.T) {
-	// Truncated rename/copy records must not panic on f[i+2].
 	for _, out := range []string{
 		"R100\x00old.txt",
 		"C095\x00src.txt",
@@ -57,27 +56,23 @@ func TestChangesRowsCacheInvalidation(t *testing.T) {
 	if len(w.rows) != 3 || w.rowsTree {
 		t.Fatalf("flat rows = %+v (tree=%v)", w.rows, w.rowsTree)
 	}
-	// Mutating a sentinel in place lets us prove a cache hit does not rebuild w.rows.
 	w.rows[0].depth = 99
 	w.ensureRows(false)
 	if w.rows[0].depth != 99 {
 		t.Fatal("ensureRows rebuilt rows on cache hit")
 	}
 
-	// Switching to tree mode invalidates the cache.
 	w.ensureRows(true)
 	if !w.rowsTree || w.rows[0].depth != 0 || len(w.rows) != 4 {
 		t.Fatalf("tree rows = %+v (tree=%v)", w.rows, w.rowsTree)
 	}
 
-	// Closing a folder invalidates the cache.
 	w.toggle(changeKey{unstaged, "src/"}, false)
 	w.ensureRows(true)
 	if len(w.rows) != 2 {
 		t.Fatalf("after closing src/: rows = %+v", w.rows)
 	}
 
-	// Updating files via dataGen invalidates the cache.
 	w.files[unstaged] = append(w.files[unstaged], change{status: '?', path: "top.txt"})
 	w.dataGen++
 	w.ensureRows(true)
@@ -111,7 +106,6 @@ func TestGitDirMultiFolder(t *testing.T) {
 
 	a.addFolder(dirB)
 	a.addFolder(nested)
-	// No active file in any folder falls back to the first folder.
 	if got := a.gitDir(); got != dirA {
 		t.Fatalf("multi-folder fallback: gitDir = %q, want %q", got, dirA)
 	}
@@ -176,7 +170,6 @@ func TestHunkActionsUseCommitViewRoot(t *testing.T) {
 	os.WriteFile(filepath.Join(repoB, "a.txt"), []byte(strings.Join(modB, "\n")+"\n"), 0o644)
 
 	a := newApp("")
-	// The selected diff belongs to repoA while the project folder is repoB.
 	a.open([]string{repoB})
 	tt := ui.NewTester(a.view, 900, 600)
 	cv := a.showCommitIn(repoA, commit{hash: unstagedChanges})
@@ -185,7 +178,6 @@ func TestHunkActionsUseCommitViewRoot(t *testing.T) {
 		t.Fatalf("setup: cv.root=%q a.git.root=%q files=%+v", cv.root, a.git.root, cv.files)
 	}
 
-	// Stage hunk via UI button in commitView — must target repoA, not repoB.
 	if err := tt.Click(locales.ChangesStage()); err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +189,6 @@ func TestHunkActionsUseCommitViewRoot(t *testing.T) {
 		t.Fatalf("repoB should remain unstaged, got %q", out)
 	}
 
-	// Discard remaining hunk in repoA via discardHunkIn — must leave repoB untouched.
 	a.discardHunkIn(cv.root, "a.txt", cv.files[0].hunks[0])
 	tt.Frame()
 	if out, _ := runGit(repoA, "diff", "--name-only"); strings.TrimSpace(out) != "" {
@@ -224,7 +215,6 @@ func TestCommittingDoubleSubmitGuard(t *testing.T) {
 	tt.Click(locales.ChangesMessage())
 	tt.Type("Second commit")
 
-	// Simulate an in-flight commit.
 	a.changes.committing = true
 	if _, _, ready := a.changes.commitArgs(); ready {
 		t.Fatal("commitArgs reported ready while committing is true")
@@ -237,7 +227,6 @@ func TestCommittingDoubleSubmitGuard(t *testing.T) {
 		t.Fatalf("commit count = %q while committing was true, want 1", out)
 	}
 
-	// Clearing committing allows the commit, and committing resets afterwards.
 	a.changes.committing = false
 	tt.Frame()
 	tt.Click(locales.ChangesMessage())
@@ -263,7 +252,6 @@ func TestReadCommitBoundedAndFallbackEncoding(t *testing.T) {
 	}
 	os.WriteFile(filepath.Join(dir, "gbk.txt"), gbkBytes, 0o644)
 
-	// Create a sparse file > largeFile so the test stays fast and uses almost no disk.
 	big := filepath.Join(dir, "huge.txt")
 	f, err := os.Create(big)
 	if err != nil {

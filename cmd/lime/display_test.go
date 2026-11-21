@@ -10,8 +10,6 @@ import (
 	"github.com/egoist/mygo/ui/editor"
 )
 
-// draw_white_space takes Sublime Text's options, or its older strings, to
-// the nearest the editor draws.
 func TestDrawWhiteSpace(t *testing.T) {
 	for _, tc := range []struct {
 		json string
@@ -32,8 +30,6 @@ func TestDrawWhiteSpace(t *testing.T) {
 	}
 }
 
-// Rulers with their styles and scroll_past_end as an amount, as Sublime
-// Text takes them, read as the editor shows them.
 func TestSublimeDisplaySettings(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(settingsPath(dir), []byte(`{"rulers": [[80, "solid"], 100], "scroll_past_end": 0.5}`), 0o644)
@@ -43,8 +39,6 @@ func TestSublimeDisplaySettings(t *testing.T) {
 	}
 }
 
-// The display settings show in the open tabs at once, but an empty
-// group's editor numbers no lines.
 func TestDisplaySettings(t *testing.T) {
 	a := newApp("")
 	a.add("", "alpha\n")
