@@ -273,8 +273,8 @@ func (a *app) groupContent(c *ui.Context, g *group, gi int) {
 	}
 	a.syncBlame(c, d)
 	a.withBlame(c, d, func() ui.Element {
+		d.st.NoScrollbars = !a.set.ShowScrollBars
 		e := editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
-		*noScrollBars(d.st) = !a.set.ShowScrollBars
 		e.DrawOver(func(p *ui.Painter, _ ui.Rect) {
 			a.drawRampage(p, d)
 			a.drawCarets(p, d)

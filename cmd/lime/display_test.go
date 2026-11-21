@@ -46,12 +46,21 @@ func TestDisplaySettings(t *testing.T) {
 	a.setLayout(layouts[1])
 	tt := ui.NewTester(a.view, 900, 500)
 
-	a.set.Rulers, a.set.HighlightLine = []int{80}, true
+	if !d.st.NoScrollbars {
+		t.Fatal("scroll bars shown by default")
+	}
+	a.set.Rulers, a.set.HighlightLine, a.set.ShowScrollBars = []int{80}, true, true
 	tt.Frame()
-	if !slices.Equal(d.st.WrapGuides, []int{80}) || d.st.NoActiveLine {
-		t.Fatalf("rulers %v, no line highlight %v", d.st.WrapGuides, d.st.NoActiveLine)
+	if !slices.Equal(d.st.WrapGuides, []int{80}) || d.st.NoActiveLine || d.st.NoScrollbars {
+		t.Fatalf("rulers %v, no line highlight %v, no scroll bars %v", d.st.WrapGuides, d.st.NoActiveLine, d.st.NoScrollbars)
 	}
 	if b := a.groups[1].blank; b == nil || b.st.LineNumbers != editor.LineNumbersOff {
 		t.Fatal("the empty group's editor numbers its lines")
+	}
+	rd := a.resultsTab()
+	a.set.ShowScrollBars = false
+	tt.Frame()
+	if !rd.st.NoScrollbars {
+		t.Fatal("results tab shows scroll bars when disabled")
 	}
 }

@@ -1330,8 +1330,8 @@ func (a *app) resultsView(c *ui.Context, g *group, d *doc) {
 		}
 		return false
 	}
+	d.st.NoScrollbars = !a.set.ShowScrollBars
 	editor.View(c.Key(key(d)), d.st).Grow(1).FillWidth().MinHeight(0).FocusBind(&a.focused, place{g, d})
-	*noScrollBars(d.st) = !a.set.ShowScrollBars
 }
 
 func (a *app) openResult(d *doc, row int) {
