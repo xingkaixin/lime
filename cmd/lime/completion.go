@@ -185,7 +185,7 @@ func matchesPrefix(prefix, s string) bool {
 func (a *app) complete(d *doc, r editor.CompletionRequest) {
 	b := d.st.Buffer
 	p := b.Pos(r.Offset)
-	if !r.Explicit && (!a.set.AutoComplete || r.Prefix == "" || !completesTyping(b) || inComment(b, p) || !sameWords(d.st, r.Prefix)) {
+	if !r.Explicit && (!a.set.AutoComplete || r.Prefix == "" || !completesTyping(b) || inCommentAt(b, p, &d.lex) || !sameWords(d.st, r.Prefix)) {
 		return
 	}
 	d.asked = r
@@ -259,18 +259,121 @@ func completesTyping(b *editor.Buffer) bool {
 	return l != nil && l.Name != "Markdown" && b.Len() <= completeSizeLimit
 }
 
-func inComment(b *editor.Buffer, p editor.Pos) bool {
-	l := b.Language()
-	if l == nil || l.Tokenizer == nil || p.Col == 0 {
-		return false
+// maxTokenizeLine matches MyGo's maxTokenize so minified lines do not stall completion.
+const maxTokenizeLine = 10000
+
+type lexCache struct {
+	lang   *editor.Language
+	snap   editor.Snapshot
+	states []uint64
+}
+
+func (c *lexCache) stateAt(snap editor.Snapshot, l *editor.Language, line int) uint64 {
+	if line <= 0 {
+		return 0
 	}
-	toks, _ := l.Tokenizer.Tokenize(b.Line(p.Line)[:p.Col], 0, nil)
-	for _, t := range toks {
-		if t.End >= p.Col {
-			return t.Kind == editor.TokenComment
+	if c == nil {
+		_, state := propagateLineStates(nil, snap, l.Tokenizer, 0, line, false)
+		return state
+	}
+	if c.lang != l || len(c.states) == 0 {
+		c.lang = l
+		c.snap = snap
+		c.states = append(c.states[:0], 0)
+	} else if c.snap.Version() != snap.Version() {
+		limit := snap.LineStart(min(line, len(c.states)-1))
+		valid := snap.LineOf(commonPrefix(c.snap, snap, limit)) + 1
+		if valid < len(c.states) {
+			c.states = c.states[:valid]
+		}
+		c.snap = snap
+	}
+	if from := len(c.states) - 1; from < line {
+		c.states, _ = propagateLineStates(c.states, snap, l.Tokenizer, from, line, true)
+	}
+	return c.states[line]
+}
+
+func commonPrefix(a, b editor.Snapshot, limit int) int {
+	end := min(limit, a.Len(), b.Len())
+	off := 0
+	a.Chunks(0, end, func(s string) bool {
+		same := true
+		b.Chunks(off, off+len(s), func(t string) bool {
+			if s[:len(t)] == t {
+				off += len(t)
+				s = s[len(t):]
+				return true
+			}
+			for i := 0; i < len(t) && s[i] == t[i]; i++ {
+				off++
+			}
+			same = false
+			return false
+		})
+		return same
+	})
+	return off
+}
+
+func propagateLineStates(states []uint64, snap editor.Snapshot, t editor.Tokenizer, from, to int, keep bool) ([]uint64, uint64) {
+	var state uint64
+	if len(states) > from {
+		state = states[from]
+	}
+	if keep {
+		states = slices.Grow(states, to-from)
+	}
+	var toks []editor.Token
+	for i := from; i < to; {
+		end := min(i+256, to)
+		text := snap.Slice(snap.LineStart(i), snap.LineStart(end))
+		for ; i < end; i++ {
+			nl := strings.IndexByte(text, '\n')
+			var ln string
+			if nl >= 0 {
+				ln, text = text[:nl], text[nl+1:]
+			} else {
+				ln, text = text, ""
+			}
+			if len(ln) <= maxTokenizeLine {
+				toks, state = t.Tokenize(ln, state, toks[:0])
+			}
+			if keep {
+				states = append(states, state)
+			}
 		}
 	}
-	return false
+	return states, state
+}
+
+func inComment(b *editor.Buffer, p editor.Pos) bool {
+	return inCommentAt(b, p, nil)
+}
+
+func inCommentAt(b *editor.Buffer, p editor.Pos, cache *lexCache) bool {
+	l := b.Language()
+	if l == nil || l.Tokenizer == nil {
+		return false
+	}
+	snap := b.Snapshot()
+	if p.Line < 0 || p.Line >= snap.LineCount() {
+		return false
+	}
+	state := cache.stateAt(snap, l, p.Line)
+	col := max(0, p.Col)
+	if col == 0 && state == 0 {
+		return false
+	}
+	line := snap.Line(p.Line)
+	col = min(col, len(line))
+	if col > maxTokenizeLine {
+		return false
+	}
+	// Append a space so a caret right after a closing delimiter (e.g. */) is
+	// classified outside the comment while col == 0 inside one stays a comment.
+	toks, _ := l.Tokenizer.Tokenize(line[:col]+" ", state, nil)
+	return len(toks) > 0 && toks[len(toks)-1].End >= col+1 && toks[len(toks)-1].Kind == editor.TokenComment
 }
 
 // sameWords reports whether prefix is the word before each caret. The
