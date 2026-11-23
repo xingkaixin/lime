@@ -514,3 +514,38 @@ func TestSessionSideBarAndAutosaveRetry(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+func TestAutosaveSkipsLargeUnsavedAndCoalesces(t *testing.T) {
+	dir := t.TempDir()
+	l := newLime(dir)
+	a := l.newWindow()
+	a.newFile()
+	d := a.current()
+	d.st.Buffer.Set(strings.Repeat("a", largeFile+1))
+
+	if s := l.sessionFor(true); s.Windows[0].Groups[0].Docs[0].unsaved != nil {
+		t.Fatal("autosave session kept oversized unsaved snapshot")
+	}
+	if s := l.sessionFor(false); s.Windows[0].Groups[0].Docs[0].unsaved == nil {
+		t.Fatal("quit session dropped oversized unsaved snapshot")
+	}
+
+	d.st.Buffer.Set("small")
+	l.writing.Lock()
+	l.autosave()
+	d.st.Buffer.Set("latest")
+	l.autosave()
+	l.writing.Unlock()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		raw, err := os.ReadFile(filepath.Join(dir, "session.json"))
+		if err == nil && strings.Contains(string(raw), `"latest"`) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("coalesced autosave did not persist latest text, got %q err=%v", string(raw), err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

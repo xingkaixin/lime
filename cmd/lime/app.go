@@ -332,14 +332,17 @@ type lime struct {
 	menuState     menuStateKey
 	avatars       map[string]*ui.Bitmap
 	fonts         *fontLists
-	sessionMu     sync.Mutex
-	sessionKey    string
-	sessionKeyBuf []byte
-	sessionKeyGen uint64
-	sessionGen    uint64
-	writing       sync.Mutex
-	written       uint64
-	quitting      bool
+	sessionMu      sync.Mutex
+	sessionKey     string
+	sessionKeyBuf  []byte
+	sessionKeyGen  uint64
+	sessionGen     uint64
+	autosaving     bool
+	pendingSession *session
+	pendingGen     uint64
+	writing        sync.Mutex
+	written        uint64
+	quitting       bool
 }
 
 type app struct {

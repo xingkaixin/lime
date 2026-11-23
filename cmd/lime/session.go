@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"maps"
 	"math"
@@ -75,15 +76,19 @@ func (l *lime) sessionPath() string {
 	return filepath.Join(l.dir, "session.json")
 }
 
-func (l *lime) session() session {
+func (l *lime) session() session { return l.sessionFor(false) }
+
+func (l *lime) sessionFor(autosave bool) session {
 	s := session{Recent: recentList{slices.Clone(l.recent.Files), slices.Clone(l.recent.Folders)}}
 	for _, a := range l.wins {
-		s.Windows = append(s.Windows, a.session())
+		s.Windows = append(s.Windows, a.sessionFor(autosave))
 	}
 	return s
 }
 
-func (a *app) session() sessionWindow {
+func (a *app) session() sessionWindow { return a.sessionFor(false) }
+
+func (a *app) sessionFor(autosave bool) sessionWindow {
 	s := sessionWindow{Layout: a.layout.name, Cols: slices.Clone(a.cols), Rows: slices.Clone(a.rows), Focus: a.focus,
 		Folders: slices.Clone(a.proj.folders), Project: a.proj.path, ProjectMeta: a.proj.meta, FolderMeta: maps.Clone(a.proj.folderMeta), SideBar: panelNames[a.side]}
 	if a.win != nil {
@@ -106,7 +111,12 @@ func (a *app) session() sessionWindow {
 			}
 			if d.dirty() {
 				snap := d.st.Buffer.Snapshot()
-				sd.unsaved, sd.LineEnding = &snap, endingType(d.lineEnding())
+				// Periodic autosave skips oversized unsaved buffers to avoid
+				// flattening and writing hundreds of MB every few seconds;
+				// explicit saveSession on quit still preserves them.
+				if !autosave || snap.Len() <= largeFile {
+					sd.unsaved, sd.LineEnding = &snap, endingType(d.lineEnding())
+				}
 			}
 			for _, sel := range d.st.Selections() {
 				sd.Sels = append(sd.Sels, [2]int{sel.Anchor, sel.Head})
@@ -142,6 +152,7 @@ func (l *lime) writeSession(s session, gen uint64) error {
 			for i := range g.Docs {
 				if u := g.Docs[i].unsaved; u != nil {
 					text := u.String()
+					g.Docs[i].unsaved = nil
 					if utf8.ValidString(text) {
 						g.Docs[i].Text = &text
 					} else {
@@ -151,17 +162,28 @@ func (l *lime) writeSession(s session, gen uint64) error {
 			}
 		}
 	}
-	b, err := json.Marshal(s)
-	if err != nil {
-		return err
-	}
 	if err := os.MkdirAll(l.dir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(p+".tmp", b, 0o600); err != nil {
+	tmp := p + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
 		return err
 	}
-	if err := os.Rename(p+".tmp", p); err != nil {
+	bw := bufio.NewWriter(f)
+	err = json.NewEncoder(bw).Encode(s)
+	if err == nil {
+		err = bw.Flush()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, p); err != nil {
+		os.Remove(tmp)
 		return err
 	}
 	l.written = gen
@@ -244,22 +266,43 @@ func (l *lime) sessionChanged() bool {
 // autosave keeps the session as it changes, for a run that ends without
 // closing the windows, as the system restarting or the app crashing.
 func (l *lime) autosave() {
-	if !l.quitting && len(l.wins) > 0 && l.sessionChanged() {
-		l.sessionGen++
-		gen, s := l.sessionGen, l.session()
-		l.sessionMu.Lock()
-		l.sessionKeyGen = gen
-		l.sessionMu.Unlock()
-		go func() {
-			if err := l.writeSession(s, gen); err != nil {
+	if l.quitting || len(l.wins) == 0 || !l.sessionChanged() {
+		return
+	}
+	l.sessionGen++
+	gen, s := l.sessionGen, l.sessionFor(true)
+	l.sessionMu.Lock()
+	l.sessionKeyGen = gen
+	l.pendingSession = &s
+	l.pendingGen = gen
+	start := !l.autosaving
+	if start {
+		l.autosaving = true
+	}
+	l.sessionMu.Unlock()
+	if !start {
+		return
+	}
+	go func() {
+		for {
+			l.sessionMu.Lock()
+			next, nextGen := l.pendingSession, l.pendingGen
+			l.pendingSession = nil
+			if next == nil {
+				l.autosaving = false
+				l.sessionMu.Unlock()
+				return
+			}
+			l.sessionMu.Unlock()
+			if err := l.writeSession(*next, nextGen); err != nil {
 				l.sessionMu.Lock()
-				if l.sessionKeyGen == gen {
+				if l.sessionKeyGen == nextGen && l.pendingSession == nil {
 					l.sessionKey = ""
 				}
 				l.sessionMu.Unlock()
 			}
-		}()
-	}
+		}
+	}()
 }
 
 func (l *lime) restoreSession() {
