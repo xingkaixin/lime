@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo/ui"
-	"golang.org/x/text/unicode/norm"
 )
 
 // The side bar tints the names of files and folders as git status has
@@ -31,6 +30,7 @@ const (
 type gitMarks struct {
 	folders []string // the folders read; nil reads them again as the side bar shows them
 	bases   map[string]gitBase
+	cache   map[string]gitMark
 	// One reading runs at a time; again reads once more after it, for
 	// what changed meanwhile, as a Save All or many changes on disk ask
 	// for one each.
@@ -60,7 +60,7 @@ func (a *app) readMarks() {
 	a.background(func() func() {
 		bases := readGitBases(folders)
 		return func() {
-			g.bases, g.reading = bases, false
+			g.bases, g.cache, g.reading = bases, nil, false
 			if g.again {
 				g.again = false
 				a.readMarks()
@@ -83,7 +83,7 @@ func readGitBases(folders []string) map[string]gitBase {
 			out, err := runGit(f, "rev-parse", "--path-format=absolute", "--show-toplevel", "--show-prefix")
 			top, prefix, ok := strings.Cut(strings.TrimSuffix(out, "\n"), "\n")
 			if err == nil && ok {
-				places[i] = place{f, top, norm.NFC.String(prefix)}
+				places[i] = place{f, top, nfcString(prefix)}
 			}
 		})
 	}
@@ -134,7 +134,7 @@ type treeStatus struct {
 func readTreeStatus(top string) treeStatus {
 	out, _ := runGit(top, "status", "--porcelain=v2", "-z", "--untracked-files=all", "--ignored=matching")
 	s := treeStatus{marks: map[string]gitMark{}}
-	f := strings.Split(norm.NFC.String(out), "\x00")
+	f := strings.Split(nfcString(out), "\x00")
 	for i := 0; i < len(f); i++ {
 		line := f[i]
 		if len(line) < 3 {
@@ -207,13 +207,38 @@ func changeMark(c byte) gitMark {
 // NFC, as git on macOS prints them, where the names read from a folder
 // may be in NFD.
 func (g *gitMarks) mark(path string) gitMark {
+	if len(g.bases) == 0 {
+		return gitClean
+	}
+	if m, ok := g.cache[path]; ok {
+		return m
+	}
+	m := g.computeMark(path)
+	if g.cache == nil {
+		g.cache = make(map[string]gitMark, 64)
+	}
+	g.cache[path] = m
+	return m
+}
+
+func (g *gitMarks) computeMark(path string) gitMark {
 	for p := path; ; {
 		dir := filepath.Dir(p)
 		if dir == p {
 			break
 		}
 		if b, ok := g.bases[dir]; ok {
-			return b.mark(norm.NFC.String(b.prefix + filepath.ToSlash(strings.TrimLeft(path[len(dir):], string(filepath.Separator)))))
+			rel := path[len(dir):]
+			for len(rel) > 0 && rel[0] == filepath.Separator {
+				rel = rel[1:]
+			}
+			if filepath.Separator != '/' {
+				rel = filepath.ToSlash(rel)
+			}
+			if b.prefix != "" {
+				rel = b.prefix + rel
+			}
+			return b.mark(nfcString(rel))
 		}
 		p = dir
 	}
