@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/egoist/mygo"
@@ -11,6 +10,21 @@ import (
 
 	"lime/locales"
 )
+
+type menuStateKey struct {
+	valid       bool
+	side        sidePanel
+	wordWrap    bool
+	rampage     bool
+	layout      string
+	layoutStyle string
+	scheme      string
+	tabSize     int
+	spaces      bool
+	ending      string
+	reopen      bool
+	revert      bool
+}
 
 // menuItem runs the command named id in the focused window, showing its
 // key. With no window, as on macOS after the last closes, the windows come
@@ -228,7 +242,11 @@ func (a *app) syncMenu() {
 		tabSize, spaces = a.indentOf(d)
 		ending, reopen, revert = d.lineEnding(), reopenable(d), d.path != ""
 	}
-	state := fmt.Sprint(a.side, a.set.WordWrap, a.set.rampage(), a.layout.name, a.set.LayoutStyle, a.scheme.name, tabSize, spaces, ending, reopen, revert)
+	state := menuStateKey{
+		valid: true, side: a.side, wordWrap: a.set.WordWrap, rampage: a.set.rampage(),
+		layout: a.layout.name, layoutStyle: a.set.LayoutStyle, scheme: a.scheme.name,
+		tabSize: tabSize, spaces: spaces, ending: ending, reopen: reopen, revert: revert,
+	}
 	if state == l.menuState {
 		return
 	}
@@ -270,7 +288,7 @@ func (l *lime) refreshMenu() {
 	if l.menu == nil {
 		return
 	}
-	l.menu, l.menuState = l.newMenu(), ""
+	l.menu, l.menuState = l.newMenu(), menuStateKey{}
 	mygo.App.SetMenu(l.menu)
 	if l.last != nil {
 		l.last.syncMenu()

@@ -35,13 +35,13 @@ func (a *app) makeWindow(r mygo.Rectangle) {
 	}
 	a.win = mygo.NewWindow(o)
 	a.win.OnFocus(func() {
-		a.l.last, a.l.menuState = a, ""
+		a.l.last, a.l.menuState = a, menuStateKey{}
 		a.syncMenu()
 		a.reloadChanged()
 		a.readGit()
 		a.readMarks()
 		if !watchDirs {
-			a.proj.dirs = nil
+			a.proj.clearDirs()
 		}
 	})
 	a.win.OnClose(a.closing)
@@ -50,6 +50,7 @@ func (a *app) makeWindow(r mygo.Rectangle) {
 
 func main() {
 	l := newLime(dataDir())
+	onIconFontLoaded = l.redraw
 	l.restoreSession()
 	if len(l.wins) == 0 {
 		l.newWindow()

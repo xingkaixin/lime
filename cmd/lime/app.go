@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -23,6 +24,7 @@ import (
 )
 
 type doc struct {
+	keyAny       any
 	tabHandle    ui.Handle
 	editorHandle ui.Handle
 	path         string
@@ -61,6 +63,15 @@ type doc struct {
 	caret     caretFx
 	rampage   rampageFx
 	prompting bool
+
+	selStatVer    uint64
+	selStatAnchor int
+	selStatHead   int
+	selStatChars  int
+	selStatLines  int
+	selStatLocale string
+	selStatText   string
+	selStatValid  bool
 }
 
 func (d *doc) name() string {
@@ -169,6 +180,7 @@ func sameText(a, b editor.Snapshot) bool {
 }
 
 type group struct {
+	keyAny any
 	docs   []*doc
 	active int
 	bar    ui.Rect
@@ -177,6 +189,49 @@ type group struct {
 	shown  *doc
 	at     int
 	blank  *doc
+
+	dirsCache map[*doc]string
+	dirsDocs  []*doc
+	dirsPaths []string
+	docsBuf   []*doc
+}
+
+func (g *group) tabDirs() map[*doc]string {
+	if len(g.docs) < 2 {
+		clear(g.dirsDocs)
+		g.dirsDocs = g.dirsDocs[:0]
+		clear(g.dirsPaths)
+		g.dirsPaths = g.dirsPaths[:0]
+		g.dirsCache = nil
+		return nil
+	}
+	same := len(g.dirsDocs) == len(g.docs)
+	if same {
+		for i, d := range g.docs {
+			if g.dirsDocs[i] != d || g.dirsPaths[i] != d.path {
+				same = false
+				break
+			}
+		}
+	}
+	if same {
+		return g.dirsCache
+	}
+	prevLen := len(g.dirsDocs)
+	g.dirsDocs = append(g.dirsDocs[:0], g.docs...)
+	if prevLen > len(g.dirsDocs) {
+		clear(g.dirsDocs[len(g.dirsDocs):prevLen])
+	}
+	prevPaths := len(g.dirsPaths)
+	g.dirsPaths = g.dirsPaths[:0]
+	for _, d := range g.docs {
+		g.dirsPaths = append(g.dirsPaths, d.path)
+	}
+	if prevPaths > len(g.dirsPaths) {
+		clear(g.dirsPaths[len(g.dirsPaths):prevPaths])
+	}
+	g.dirsCache = tabDirs(g.docs)
+	return g.dirsCache
 }
 
 func (g *group) current() *doc {
@@ -274,11 +329,12 @@ type lime struct {
 	setErr error
 
 	themeSource   mygo.ThemeSource
-	menuState     string
+	menuState     menuStateKey
 	avatars       map[string]*ui.Bitmap
 	fonts         *fontLists
 	sessionMu     sync.Mutex
 	sessionKey    string
+	sessionKeyBuf []byte
 	sessionKeyGen uint64
 	sessionGen    uint64
 	writing       sync.Mutex
@@ -329,7 +385,39 @@ type app struct {
 	closingPrompt          bool
 	messageDialog          func(mygo.MessageOptions) (mygo.MessageResult, error)
 	saveDialog             func(mygo.SaveDialogOptions) (string, error)
+
+	uiThemeScheme *scheme
+	uiThemeFont   string
+	uiThemeBase   *ui.Theme
+	uiThemeCached *ui.Theme
+
+	boundKM        *keymap
+	boundKeys      []boundShortcut
+	boundChordKeys []boundShortcut
+
+	titleDoc   *doc
+	titlePath  string
+	titleName  string
+	titleDirty bool
+
+	posLine   int
+	posCol    int
+	posLocale string
+	posText   string
 }
+
+type boundShortcut struct {
+	mods ui.Modifiers
+	key  ui.Key
+	fn   func()
+}
+
+var nextElemID atomic.Uint64
+
+type (
+	docElemKey   uint64
+	groupElemKey uint64
+)
 
 func newLime(dir string) *lime {
 	set, err := loadSettings(dir)
@@ -455,14 +543,26 @@ func (a *app) cycleTabs(step int) {
 }
 
 func newDoc(path, text string) *doc {
+	d := newDocWithStamp(path, text, stamp{})
+	if path != "" {
+		d.disk = stampOf(path)
+	}
+	return d
+}
+
+func newDocWithStamp(path, text string, disk stamp) *doc {
 	text, ending := splitLines(text)
 	buf := editor.NewBuffer(text)
-	d := &doc{path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, saved: buf.Snapshot(), savedEnding: ending}
+	d := &doc{keyAny: docElemKey(nextElemID.Add(1)), path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, saved: buf.Snapshot(), savedEnding: ending}
 	d.setLineEnding(ending)
 	if path != "" {
 		buf.SetLanguage(editor.LanguageFor(path))
-		d.diffDisk()
-		d.disk = stampOf(path)
+		if len(text) > largeFile && d.saved.Len() <= largeFile {
+			d.diffDisk()
+		} else {
+			d.setDiffBase("", text)
+		}
+		d.disk = disk
 	}
 	return d
 }
@@ -599,10 +699,13 @@ func (a *app) applyReloads(rs []reload) {
 const largeFile = 16 << 20
 
 func (a *app) add(path, text string) *doc {
-	d := newDoc(path, text)
+	return a.addDoc(newDoc(path, text))
+}
+
+func (a *app) addDoc(d *doc) *doc {
 	g := a.group()
 	// An empty untitled tab that was never touched gives way to the file.
-	if cur := g.current(); path != "" && cur != nil && cur.kind == textDoc && cur.path == "" && cur.st.Buffer.Len() == 0 && !cur.dirty() {
+	if cur := g.current(); d.path != "" && cur != nil && cur.kind == textDoc && cur.path == "" && cur.st.Buffer.Len() == 0 && !cur.dirty() {
 		g.docs[g.active] = d
 		a.mru = slices.DeleteFunc(a.mru, func(x *doc) bool { return x == cur })
 		a.jumps.forget(cur)
@@ -617,38 +720,126 @@ func (a *app) add(path, text string) *doc {
 func (a *app) newFile() { a.add("", "") }
 
 func (a *app) open(paths []string) {
-	var files, folders []string
-	var added []*doc
-	for _, p := range paths {
+	type prepared struct {
+		path  string
+		isDir bool
+		exist *doc
+		kind  docKind
+		text  string
+		enc   *fileEncoding
+		disk  stamp
+		err   error
+	}
+	items := make([]prepared, len(paths))
+	var toRead []int
+	for i, p := range paths {
 		p, _ = filepath.Abs(p)
+		items[i].path = p
 		fi, err := os.Stat(p)
 		if err == nil && fi.IsDir() {
-			a.addFolder(p)
-			folders = append(folders, p)
+			items[i].isDir = true
 			continue
 		}
+		if err == nil {
+			items[i].disk = stamp{fi.ModTime(), fi.Size()}
+		}
 		if d := a.docAt(p); d != nil {
+			items[i].exist = d
+			continue
+		}
+		toRead = append(toRead, i)
+	}
+	fallback := a.set.FallbackEncoding
+	readOne := func(idx int) {
+		p := items[idx].path
+		k, raw, st, err := readOpenWithStamp(p, items[idx].disk)
+		items[idx].kind, items[idx].disk, items[idx].err = k, st, err
+		if err == nil && k == textDoc {
+			items[idx].text, items[idx].enc = openText(raw, fallback)
+		}
+	}
+	if len(toRead) >= 8 {
+		var wg sync.WaitGroup
+		slots := make(chan struct{}, min(len(toRead), 4))
+		for _, idx := range toRead {
+			wg.Go(func() {
+				slots <- struct{}{}
+				defer func() { <-slots }()
+				readOne(idx)
+			})
+		}
+		wg.Wait()
+	} else {
+		for _, idx := range toRead {
+			readOne(idx)
+		}
+	}
+
+	var files, folders []string
+	var added []*doc
+	seen := make(map[string]*doc, len(items))
+	var seenCanon map[string]*doc
+	if len(items) > 1 {
+		seenCanon = make(map[string]*doc, len(items))
+	}
+	for _, it := range items {
+		if it.isDir {
+			a.addFolder(it.path)
+			folders = append(folders, it.path)
+			continue
+		}
+		if it.exist != nil {
+			a.show(it.exist)
+			continue
+		}
+		if d := seen[it.path]; d != nil {
 			a.show(d)
 			continue
 		}
-		k, raw, err := readOpen(p)
-		if err != nil {
-			go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(p)), err.Error())
+		var keyP string
+		if seenCanon != nil {
+			keyP = openedPathKey(it.path)
+			if d := seenCanon[keyP]; d != nil {
+				a.show(d)
+				continue
+			}
+			var match *doc
+			for k, d := range seenCanon {
+				if sameOpenedKeys(k, keyP) {
+					match = d
+					break
+				}
+			}
+			if match != nil {
+				a.show(match)
+				continue
+			}
+		}
+		if it.err != nil {
+			go mygo.Dialog.Error(locales.DialogUnableToOpen(filepath.Base(it.path)), it.err.Error())
 			continue
 		}
-		if k != textDoc {
-			a.add(p, "").kind = k
-			files = append(files, p)
+		if it.kind != textDoc {
+			d := a.addDoc(newDocWithStamp(it.path, "", it.disk))
+			d.kind = it.kind
+			seen[it.path] = d
+			if seenCanon != nil {
+				seenCanon[keyP] = d
+			}
+			files = append(files, it.path)
 			continue
 		}
-		text, enc := openText(raw, a.set.FallbackEncoding)
-		d := a.add(p, text)
-		d.enc = enc
+		d := a.addDoc(newDocWithStamp(it.path, it.text, it.disk))
+		d.enc = it.enc
 		if a.set.DetectIndentation {
 			d.guessIndent()
 		}
+		seen[it.path] = d
+		if seenCanon != nil {
+			seenCanon[keyP] = d
+		}
 		added = append(added, d)
-		files = append(files, p)
+		files = append(files, it.path)
 	}
 	// A window not made yet reads them as it comes to the front, rather
 	// than hold up the launch.
@@ -659,69 +850,106 @@ func (a *app) open(paths []string) {
 }
 
 func readOpen(path string) (docKind, string, error) {
+	k, s, _, err := readOpenWithStamp(path, stamp{})
+	return k, s, err
+}
+
+func readOpenWithStamp(path string, st stamp) (docKind, string, stamp, error) {
 	if slices.Contains(imageExts, strings.ToLower(filepath.Ext(path))) {
-		if _, err := os.Stat(path); err != nil {
-			return textDoc, "", err
+		if st == (stamp{}) {
+			fi, err := os.Stat(path)
+			if err != nil {
+				return textDoc, "", stamp{}, err
+			}
+			st = stamp{fi.ModTime(), fi.Size()}
 		}
-		return imageDoc, "", nil
+		return imageDoc, "", st, nil
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		return textDoc, "", err
+		return textDoc, "", stamp{}, err
 	}
 	defer f.Close()
 	var head [8000]byte
 	n, err := io.ReadFull(f, head[:])
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-		return textDoc, "", err
+		return textDoc, "", stamp{}, err
 	}
 	prefix := head[:n]
 	if !bytes.HasPrefix(prefix, []byte("\xff\xfe")) && !bytes.HasPrefix(prefix, []byte("\xfe\xff")) && bytes.IndexByte(prefix, 0) >= 0 {
-		return binaryDoc, "", nil
+		return binaryDoc, "", st, nil
 	}
 	var b strings.Builder
-	if fi, err := f.Stat(); err == nil && fi.Size() > int64(n) {
-		b.Grow(int(fi.Size()))
+	if st.size > int64(n) {
+		b.Grow(int(st.size))
+	} else if fi, serr := f.Stat(); serr == nil {
+		st = stamp{fi.ModTime(), fi.Size()}
+		if fi.Size() > int64(n) {
+			b.Grow(int(fi.Size()))
+		} else {
+			b.Grow(n)
+		}
 	} else {
 		b.Grow(n)
 	}
 	b.Write(prefix)
 	if err == nil {
 		if _, err := io.Copy(&b, f); err != nil {
-			return textDoc, "", err
+			return textDoc, "", st, err
 		}
 	}
-	return textDoc, b.String(), nil
+	return textDoc, b.String(), st, nil
 }
 
 // readText reads the file at path as a string, without the copy that
 // converting os.ReadFile's bytes makes, which a big file feels.
 func readText(path string) (string, error) {
+	s, _, err := readTextWithStamp(path)
+	return s, err
+}
+
+func readTextWithStamp(path string) (string, stamp, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return "", err
+		return "", stamp{}, err
 	}
 	defer f.Close()
 	var b strings.Builder
+	var st stamp
 	if fi, err := f.Stat(); err == nil {
+		st = stamp{fi.ModTime(), fi.Size()}
 		b.Grow(int(fi.Size()))
 	}
 	if _, err := io.Copy(&b, f); err != nil {
-		return "", err
+		return "", st, err
 	}
-	return b.String(), nil
+	return b.String(), st, nil
 }
 
 func (a *app) docAt(path string) *doc {
-	docs := a.allDocs()
-	for _, d := range docs {
-		if d.path == path {
-			return d
+	if path == "" {
+		return nil
+	}
+	hasNamed := false
+	for _, g := range a.groups {
+		for _, d := range g.docs {
+			if d.path == path {
+				return d
+			}
+			if d.path != "" {
+				hasNamed = true
+			}
 		}
 	}
-	for _, d := range docs {
-		if sameOpenedPath(d.path, path) {
-			return d
+	if !hasNamed {
+		return nil
+	}
+	keyP := openedPathKey(path)
+	for _, g := range a.groups {
+		for _, d := range g.docs {
+			if d.path != "" && sameOpenedKeys(openedPathKey(d.path), keyP) {
+				return d
+			}
 		}
 	}
 	return nil
@@ -734,7 +962,10 @@ func sameOpenedPath(a, b string) bool {
 	if a == b {
 		return true
 	}
-	a, b = openedPathKey(a), openedPathKey(b)
+	return sameOpenedKeys(openedPathKey(a), openedPathKey(b))
+}
+
+func sameOpenedKeys(a, b string) bool {
 	if a == b {
 		return true
 	}

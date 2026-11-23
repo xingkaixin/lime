@@ -4,11 +4,11 @@ import (
 	"cmp"
 	"fmt"
 	"math"
-	"slices"
 	"time"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
@@ -26,9 +26,13 @@ func (a *app) view(c *ui.Context) {
 		c.DisableAnimations()
 	}
 	a.scheme = s
-	th := a.scheme.uiTheme(c.Theme())
-	th.Font = a.set.UIFont
-	c.SetTheme(th)
+	base := c.Theme()
+	if a.uiThemeCached == nil || a.uiThemeScheme != s || a.uiThemeFont != a.set.UIFont || a.uiThemeBase != base {
+		th := s.uiTheme(base)
+		th.Font = a.set.UIFont
+		a.uiThemeScheme, a.uiThemeFont, a.uiThemeBase, a.uiThemeCached = s, a.set.UIFont, base, th
+	}
+	c.SetTheme(a.uiThemeCached)
 	a.syncFocus(c.Modifiers()&ui.Ctrl != 0)
 	if a.gitDir() != a.git.dir {
 		a.readGit()
@@ -323,11 +327,14 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 				tabs.ClipX().HandleInput(func(ev ui.InputEvent) bool { return g.wheel(ev, over) })
 			}
 			tabs.Children(func() {
-				dirs := tabDirs(g.docs)
+				dirs := g.tabDirs()
 				// A tab's menu closes tabs as the loop builds them.
-				for i, d := range slices.Clone(g.docs) {
+				g.docsBuf = append(g.docsBuf[:0], g.docs...)
+				for i, d := range g.docsBuf {
 					a.tab(c, g, i, d, dirs[d], i == g.active, gi == a.focus)
 				}
+				clear(g.docsBuf)
+				g.docsBuf = g.docsBuf[:0]
 			})
 			a.newTabButton(c, gi)
 			// Along the window's top, the room past the tabs is the title bar,
@@ -497,9 +504,14 @@ func (a *app) statusBar(c *ui.Context) {
 			pos := st.CursorPos()
 			line := st.Buffer.Line(pos.Line)
 			col := utf8.RuneCountInString(line[:min(pos.Col, len(line))]) + 1
-			left = locales.StatusPosition(pos.Line+1, col)
+			loc := i18n.Locale()
+			if a.posText == "" || a.posLine != pos.Line+1 || a.posCol != col || a.posLocale != loc {
+				a.posLine, a.posCol, a.posLocale = pos.Line+1, col, loc
+				a.posText = locales.StatusPosition(a.posLine, a.posCol)
+			}
+			left = a.posText
 		}
-		sel = selectionStatus(st, sels)
+		sel = d.selectionStatus(st, sels)
 	}
 	ui.Row(c).FillWidth().Height(24).Shrink(0).Padding(0, 6).Gap(8).AlignItems(ui.Center).Background(ch.bg).Children(func() {
 		a.panelButtons(c)
@@ -599,8 +611,27 @@ func (a *app) statusMenu(c *ui.Context, text, label string, menu func(m *ui.Menu
 	return btn
 }
 
-func selectionStatus(st *editor.State, sels []editor.Selection) string {
-	var chars, lines int
+func formatSelectionStatus(chars, lines int) string {
+	if chars == 0 {
+		return ""
+	}
+	if lines > 1 {
+		return locales.StatusSelectedLines(lines, chars)
+	}
+	return locales.StatusSelectedChars(chars)
+}
+
+func selectionCounts(st *editor.State, sels []editor.Selection) (chars, lines int) {
+	anyNonEmpty := false
+	for _, s := range sels {
+		if s.Anchor != s.Head {
+			anyNonEmpty = true
+			break
+		}
+	}
+	if !anyNonEmpty {
+		return 0, 0
+	}
 	snap := st.Buffer.Snapshot()
 	lastLine := -1
 	for _, s := range sels {
@@ -624,13 +655,36 @@ func selectionStatus(st *editor.State, sels []editor.Selection) string {
 			lastLine = to
 		}
 	}
-	if chars == 0 {
-		return ""
+	return chars, lines
+}
+
+func (d *doc) selectionStatus(st *editor.State, sels []editor.Selection) string {
+	if len(sels) == 1 {
+		s := sels[0]
+		if s.Anchor == s.Head {
+			d.selStatValid = false
+			return ""
+		}
+		ver := st.Buffer.Version()
+		loc := i18n.Locale()
+		if !d.selStatValid || d.selStatVer != ver || d.selStatAnchor != s.Anchor || d.selStatHead != s.Head {
+			d.selStatVer, d.selStatAnchor, d.selStatHead, d.selStatValid = ver, s.Anchor, s.Head, true
+			d.selStatChars, d.selStatLines = selectionCounts(st, sels)
+			d.selStatLocale = loc
+			d.selStatText = formatSelectionStatus(d.selStatChars, d.selStatLines)
+		} else if d.selStatLocale != loc {
+			d.selStatLocale = loc
+			d.selStatText = formatSelectionStatus(d.selStatChars, d.selStatLines)
+		}
+		return d.selStatText
 	}
-	if lines > 1 {
-		return locales.StatusSelectedLines(lines, chars)
-	}
-	return locales.StatusSelectedChars(chars)
+	d.selStatValid = false
+	return selectionStatus(st, sels)
+}
+
+func selectionStatus(st *editor.State, sels []editor.Selection) string {
+	chars, lines := selectionCounts(st, sels)
+	return formatSelectionStatus(chars, lines)
 }
 
 func (a *app) isChordKey(mods ui.Modifiers, key ui.Key) bool {
@@ -642,10 +696,38 @@ func (a *app) isChordKey(mods ui.Modifiers, key ui.Key) bool {
 	return false
 }
 
+func (a *app) ensureBoundShortcuts() {
+	if a.boundKM == a.l.keys {
+		return
+	}
+	a.boundKM = a.l.keys
+	a.boundKeys = a.boundKeys[:0]
+	a.boundChordKeys = a.boundChordKeys[:0]
+	for _, k := range a.l.keys.window {
+		id := k.id
+		if k.chord {
+			a.boundChordKeys = append(a.boundChordKeys, boundShortcut{
+				mods: k.mods,
+				key:  k.key,
+				fn: func() {
+					a.chord = false
+					a.run(id)
+				},
+			})
+		} else {
+			a.boundKeys = append(a.boundKeys, boundShortcut{
+				mods: k.mods,
+				key:  k.key,
+				fn:   func() { a.run(id) },
+			})
+		}
+	}
+}
+
 // shortcuts binds the window's keys: tabs, groups, panels, and the
 // chords after Cmd+K, which go before the editor's.
 func (a *app) shortcuts(c *ui.Context) {
-	keys := a.l.keys.window
+	a.ensureBoundShortcuts()
 	if a.chordKeyUp != ui.KeyUnknown {
 		a.chord = false
 		// Focus changes can rebuild and reroute the same press before key-up.
@@ -665,13 +747,8 @@ func (a *app) shortcuts(c *ui.Context) {
 				}
 			}
 		}
-		for _, k := range keys {
-			if k.chord {
-				c.OnShortcut(k.mods, k.key, func() {
-					a.chord = false
-					a.run(k.id)
-				})
-			}
+		for _, k := range a.boundChordKeys {
+			c.OnShortcut(k.mods, k.key, k.fn)
 		}
 		c.OnShortcut(0, ui.KeyEscape, func() { a.chord = false })
 		c.OnShortcut(0, ui.KeyK, func() { a.chord = false })
@@ -681,25 +758,37 @@ func (a *app) shortcuts(c *ui.Context) {
 	// A mouse's side buttons, as in Zed: Sublime Text's switch tabs.
 	c.OnShortcut(0, ui.KeyBack, func() { a.run("jump_back") })
 	c.OnShortcut(0, ui.KeyForward, func() { a.run("jump_forward") })
-	for _, k := range keys {
-		if !k.chord {
-			c.OnShortcut(k.mods, k.key, func() { a.run(k.id) })
-		}
+	for _, k := range a.boundKeys {
+		c.OnShortcut(k.mods, k.key, k.fn)
 	}
 }
 
 func (a *app) syncTitle() {
-	title := "Lime"
-	if d := a.current(); d != nil {
-		title = d.name()
-		if d.path != "" {
-			title = tildePath(d.path)
-		}
-		if d.dirty() {
-			title += " •"
-		}
+	if a.win == nil {
+		return
 	}
-	if title != a.title && a.win != nil {
+	d := a.current()
+	if d == nil {
+		if a.title != "Lime" {
+			a.titleDoc, a.title = nil, "Lime"
+			a.win.SetTitle("Lime")
+		}
+		return
+	}
+	dirty := d.dirty()
+	if d == a.titleDoc && d.path == a.titlePath && dirty == a.titleDirty && (d.path != "" || d.name() == a.titleName) {
+		return
+	}
+	name := d.name()
+	a.titleDoc, a.titlePath, a.titleName, a.titleDirty = d, d.path, name, dirty
+	title := name
+	if d.path != "" {
+		title = tildePath(d.path)
+	}
+	if dirty {
+		title += " •"
+	}
+	if title != a.title {
 		a.title = title
 		a.win.SetTitle(title)
 	}
@@ -707,4 +796,19 @@ func (a *app) syncTitle() {
 
 // key is the identity of p as an element's key. MyGo keys a pointer by
 // what it points to as printed, which changes as the struct does.
-func key(p any) string { return fmt.Sprintf("%p", p) }
+func key(p any) any {
+	switch v := p.(type) {
+	case *doc:
+		if v.keyAny == nil {
+			v.keyAny = docElemKey(nextElemID.Add(1))
+		}
+		return v.keyAny
+	case *group:
+		if v.keyAny == nil {
+			v.keyAny = groupElemKey(nextElemID.Add(1))
+		}
+		return v.keyAny
+	default:
+		return fmt.Sprintf("%p", p)
+	}
+}

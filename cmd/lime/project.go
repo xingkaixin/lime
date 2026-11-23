@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
 	"lime/locales"
@@ -37,9 +38,20 @@ var (
 // as a home directory.
 const maxIndexed = 50000
 
+func matchExcludePattern(p, name string) bool {
+	if strings.HasPrefix(p, "*.") && !strings.ContainsAny(p[2:], "*?[\\") {
+		return strings.HasSuffix(name, p[1:])
+	}
+	if !strings.ContainsAny(p, "*?[\\") {
+		return name == p
+	}
+	ok, _ := filepath.Match(p, name)
+	return ok
+}
+
 func excluded(name string, patterns []string) bool {
 	for _, p := range patterns {
-		if ok, _ := filepath.Match(p, name); ok {
+		if matchExcludePattern(p, name) {
 			return true
 		}
 	}
@@ -71,6 +83,28 @@ type projWatchBatch struct {
 	stopped bool
 }
 
+type dirItem struct {
+	name  string
+	path  string
+	isDir bool
+}
+
+type treeRowKey struct {
+	root int
+	path string
+}
+
+type treeRowItem struct {
+	root   int
+	path   string
+	name   string
+	parent string // folder that receives drops on this row (path itself for dirs)
+	depth  int
+	isDir  bool
+	open   *bool
+	create *creation
+}
+
 type project struct {
 	path       string
 	folders    []string
@@ -78,15 +112,28 @@ type project struct {
 	folderMeta map[string]map[string]json.RawMessage
 	open       map[string]*bool
 	dirs       map[string][]os.DirEntry
+	dirItems   map[string][]dirItem
 	watches    map[string]context.CancelFunc
 	watchBatch *projWatchBatch
 	shown      map[string]bool
 	files      []string
 	gen        int
 	create     *creation
+	listState  ui.ListState
+	treeRows   []treeRowItem
 	// jump has the side bar show the next frame without motion: another
 	// project or a rename replaced the rows' paths, not their places.
 	jump bool
+}
+
+func (p *project) clearDirs() {
+	p.dirs = nil
+	p.dirItems = nil
+}
+
+func (p *project) deleteDir(dir string) {
+	delete(p.dirs, dir)
+	delete(p.dirItems, dir)
 }
 
 type projectFolder struct {
@@ -129,6 +176,30 @@ func (p *project) isOpen(dir string, open bool) *bool {
 	return o
 }
 
+func compareFoldASCII(a, b string) int {
+	n := min(len(a), len(b))
+	for i := range n {
+		ca, cb := a[i], b[i]
+		if ca >= 0x80 || cb >= 0x80 {
+			return strings.Compare(strings.ToLower(a), strings.ToLower(b))
+		}
+		la, lb := lower(ca), lower(cb)
+		if la != lb {
+			if la < lb {
+				return -1
+			}
+			return 1
+		}
+	}
+	if len(a) < len(b) {
+		return -1
+	}
+	if len(a) > len(b) {
+		return 1
+	}
+	return 0
+}
+
 func (p *project) list(dir string, folderExcl, fileExcl []string) []os.DirEntry {
 	if es, ok := p.dirs[dir]; ok {
 		return es
@@ -142,13 +213,37 @@ func (p *project) list(dir string, folderExcl, fileExcl []string) []os.DirEntry 
 			}
 			return 1
 		}
-		return strings.Compare(strings.ToLower(x.Name()), strings.ToLower(y.Name()))
+		return compareFoldASCII(x.Name(), y.Name())
 	})
 	if p.dirs == nil {
 		p.dirs = make(map[string][]os.DirEntry)
 	}
 	p.dirs[dir] = es
+	delete(p.dirItems, dir)
 	return es
+}
+
+func (p *project) listItems(dir string, folderExcl, fileExcl []string) []dirItem {
+	if items, ok := p.dirItems[dir]; ok {
+		if _, hasDir := p.dirs[dir]; hasDir {
+			return items
+		}
+	}
+	es := p.list(dir, folderExcl, fileExcl)
+	if p.dirItems == nil {
+		p.dirItems = make(map[string][]dirItem)
+	}
+	prefix := dir
+	if !strings.HasSuffix(prefix, string(filepath.Separator)) {
+		prefix += string(filepath.Separator)
+	}
+	items := make([]dirItem, len(es))
+	for i, e := range es {
+		name := e.Name()
+		items[i] = dirItem{name: name, path: prefix + name, isDir: e.IsDir()}
+	}
+	p.dirItems[dir] = items
+	return items
 }
 
 // watchDirs says whether the side bar follows its open folders on disk.
@@ -167,6 +262,17 @@ func (a *app) shownDir(dir string) []os.DirEntry {
 		a.watchDir(dir)
 	}
 	return a.proj.list(dir, a.set.folderExcludes(), a.set.fileExcludes())
+}
+
+func (a *app) shownDirItems(dir string) []dirItem {
+	if a.proj.shown == nil {
+		a.proj.shown = make(map[string]bool)
+	}
+	a.proj.shown[dir] = true
+	if watchDirs && a.win != nil && a.proj.watches[dir] == nil {
+		a.watchDir(dir)
+	}
+	return a.proj.listItems(dir, a.set.folderExcludes(), a.set.fileExcludes())
 }
 
 // watchDir follows dir, dropping what was read of it as entries appear,
@@ -191,7 +297,7 @@ func (a *app) watchDir(dir string) {
 			if ctx.Err() != nil {
 				return
 			}
-			delete(a.proj.dirs, dir)
+			a.proj.deleteDir(dir)
 			stop()
 			delete(a.proj.watches, dir)
 			a.queueWatchEvents(batch, dir, true, nil)
@@ -286,7 +392,7 @@ func (a *app) applyWatchBatch(batch *projWatchBatch, dirs, paths map[string]bool
 	}
 	if reindex {
 		for dir := range dirs {
-			delete(a.proj.dirs, dir)
+			a.proj.deleteDir(dir)
 		}
 		a.readMarks()
 		a.indexFolders()
@@ -318,7 +424,7 @@ func (p *project) forgetHidden() {
 	}
 	for dir := range p.dirs {
 		if !p.shown[dir] {
-			delete(p.dirs, dir)
+			p.deleteDir(dir)
 		}
 	}
 	clear(p.shown)
@@ -532,6 +638,17 @@ func walkFolders(folders []string) []string {
 	return walkFoldersWith(folders, folderExclude, fileExclude)
 }
 
+func dirExcluded(dir string, folderExcl []string) bool {
+	for len(dir) > 0 {
+		seg, rest, _ := strings.Cut(dir, "/")
+		if seg != "" && excluded(seg, folderExcl) {
+			return true
+		}
+		dir = rest
+	}
+	return false
+}
+
 func walkFoldersWith(folders, folderExcl, fileExcl []string) []string {
 	var files []string
 	pending := slices.Clone(folders)
@@ -548,7 +665,7 @@ func walkFoldersWith(folders, folderExcl, fileExcl []string) []string {
 				}
 				rel = strings.TrimSuffix(rel, "/")
 				dir, name := path.Split(rel)
-				if slices.ContainsFunc(strings.Split(strings.TrimSuffix(dir, "/"), "/"), func(d string) bool { return d != "" && excluded(d, folderExcl) }) {
+				if dirExcluded(strings.TrimSuffix(dir, "/"), folderExcl) {
 					continue
 				}
 				file := filepath.Join(f, filepath.FromSlash(rel))
@@ -648,7 +765,7 @@ func (a *app) promptAddFolder() {
 }
 
 func (a *app) refreshFolders() {
-	a.proj.dirs = nil
+	a.proj.clearDirs()
 	a.indexFolders()
 	a.readMarks()
 }
