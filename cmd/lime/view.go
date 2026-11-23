@@ -94,13 +94,25 @@ func (a *app) view(c *ui.Context) {
 	a.settingsView(c)
 }
 
-const tabBarHeight = 34
+const (
+	tabBarHeight = 34
+	tabMinW      = 92
+	tabIcon      = 14
+	tabBtnSize   = 24
+	tabNavBtnW   = 22
+	tabNavGap    = 2
+	tabNavMargin = 4
+	tabNavWidth  = tabNavMargin + 3*tabNavBtnW + 2*tabNavGap
+	newTabSlotW  = 4 + tabBtnSize
+	tabFadeW     = 16
+	controlsGap  = 12
+)
 
-const tabMinW = 92
-
-const tabIcon = 14
-
-const controlsGap = 12
+var (
+	tabLeftIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8 10 12.5"/></svg>`))
+	tabRightIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg>`))
+	tabListIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6 8 10.5 12.5 6"/></svg>`))
+)
 
 const cardGap, cardRadius = 6, 8
 
@@ -319,15 +331,26 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 		}
 		g.bar = bar.LayoutBounds()
 		bar.Children(func() {
-			// Tabs that do not fit scroll, and leave the new tab button in
-			// sight. Tabs that fit are not clipped: the row shrinks at once as
-			// one closes, and would cut off those still sliding into place.
+			// Decide overflow against the bar width without the nav buttons so
+			// showing or hiding them never oscillates.
+			avail := g.bar.W - newTabSlotW
+			overflow := avail > 0 && float32(len(g.docs))*tabMinW > avail
+			dirs := g.tabDirs()
+			// Tabs that do not fit scroll, and leave the overflow controls and
+			// new tab button in sight. Tabs that fit are not clipped: the row
+			// shrinks at once as one closes, and would cut off those still
+			// sliding into place.
 			tabs := ui.Row(c).Shrink(1).MinWidth(0).AlignItems(ui.Stretch)
-			if over := a.scrollTabs(c, g, tabs.LayoutBounds().W); over > 0 {
+			room := tabs.LayoutBounds().W
+			if overflow {
+				room = max(avail-tabNavWidth, 0)
+			}
+			over := a.scrollTabs(c, g, room)
+			if overflow && over > 0 {
 				tabs.ClipX().HandleInput(func(ev ui.InputEvent) bool { return g.wheel(ev, over) })
+				maskTabEdges(tabs, g.scroll, over, room)
 			}
 			tabs.Children(func() {
-				dirs := g.tabDirs()
 				// A tab's menu closes tabs as the loop builds them.
 				g.docsBuf = append(g.docsBuf[:0], g.docs...)
 				for i, d := range g.docsBuf {
@@ -336,6 +359,9 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 				clear(g.docsBuf)
 				g.docsBuf = g.docsBuf[:0]
 			})
+			if overflow && over > 0 {
+				a.tabOverflowControls(c, g, dirs, room, over)
+			}
 			a.newTabButton(c, gi)
 			// Along the window's top, the room past the tabs is the title bar,
 			// which drags the window. Elsewhere a double click there opens a
@@ -347,6 +373,93 @@ func (a *app) tabBar(c *ui.Context, g *group, gi int) {
 				a.focusGroup(gi)
 				a.newFile()
 			}
+		})
+	})
+}
+
+func maskTabEdges(tabs ui.Element, scroll, over, room float32) {
+	if room <= 0 {
+		return
+	}
+	canLeft, canRight := scroll > 0.5, scroll < over-0.5
+	if !canLeft && !canRight {
+		return
+	}
+	fade := min(tabFadeW/room, 0.2)
+	var stops [4]ui.GradientStop
+	n := 0
+	if canLeft {
+		stops[n] = ui.GradientStop{Color: ui.Transparent, At: 0}
+		stops[n+1] = ui.GradientStop{Color: black, At: fade}
+		n += 2
+	} else {
+		stops[n] = ui.GradientStop{Color: black, At: 0}
+		n++
+	}
+	if canRight {
+		stops[n] = ui.GradientStop{Color: black, At: 1 - fade}
+		stops[n+1] = ui.GradientStop{Color: ui.Transparent, At: 1}
+		n += 2
+	} else {
+		stops[n] = ui.GradientStop{Color: black, At: 1}
+		n++
+	}
+	tabs.MaskLinearGradient(ui.LinearGradient{Angle: 90, Stops: stops[:n]})
+}
+
+func (a *app) tabOverflowControls(c *ui.Context, g *group, dirs map[*doc]string, room, over float32) {
+	ch := a.shell(c)
+	step := max(room-tabMinW, tabMinW)
+	scrollBtn := func(icon *ui.SVG, label string, disabled bool, onClick func()) {
+		btn := ui.ButtonBase(c).Width(tabNavBtnW).Height(tabBtnSize).Shrink(0).Radius(4).Center().
+			Transition(colorFade).Label(label).Tooltip(label).Disabled(disabled).OnClick(onClick)
+		fg := ch.muted
+		if disabled {
+			fg = ch.muted.Alpha(0.35)
+		} else if btn.Hovered() {
+			btn.Background(ch.hover)
+			fg = ch.text
+		}
+		btn.Children(func() {
+			ui.Icon(c, icon).Size(12, 12).TextColor(fg)
+		})
+	}
+	ui.Row(c).Shrink(0).AlignSelf(ui.Center).AlignItems(ui.Center).MarginStart(tabNavMargin).Gap(tabNavGap).Children(func() {
+		scrollBtn(tabLeftIcon, locales.TabScrollLeft(), g.scroll <= 0.5, func() {
+			g.scroll = max(g.scroll-step, 0)
+		})
+		scrollBtn(tabRightIcon, locales.TabScrollRight(), g.scroll >= over-0.5, func() {
+			g.scroll = min(g.scroll+step, over)
+		})
+		listBtn := ui.ButtonBase(c).Width(tabNavBtnW).Height(tabBtnSize).Shrink(0).Radius(4).Center().
+			Transition(colorFade).Label(locales.TabList()).Tooltip(locales.TabList())
+		fg := ch.muted
+		if listBtn.Hovered() {
+			listBtn.Background(ch.hover)
+			fg = ch.text
+		}
+		listBtn.Menu(func(m *ui.Menu) {
+			m.MaxWidth(320)
+			for i, d := range g.docs {
+				title := d.name()
+				if dir := dirs[d]; dir != "" {
+					title += " — " + dir
+				}
+				if d.dirty() {
+					title += " •"
+				}
+				it := m.Item(title).Checked(i == g.active)
+				if d.path != "" {
+					it.Tooltip(d.path)
+				}
+				if it.Chosen() {
+					g.shown = nil
+					a.show(d)
+				}
+			}
+		})
+		listBtn.Children(func() {
+			ui.Icon(c, tabListIcon).Size(12, 12).TextColor(fg)
 		})
 	})
 }

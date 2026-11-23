@@ -3322,6 +3322,36 @@ func (msgs Messages) TabBar() string {
 	return Catalog.Format(msgs.locale, "tabBar", nil)
 }
 
+// TabScrollLeft says "Scroll Tabs Left"
+// in the language the app shows.
+func TabScrollLeft() string { return In(i18n.Locale()).TabScrollLeft() }
+
+// TabScrollLeft says "Scroll Tabs Left"
+// in the language of msgs.
+func (msgs Messages) TabScrollLeft() string {
+	return Catalog.Format(msgs.locale, "tabScrollLeft", nil)
+}
+
+// TabScrollRight says "Scroll Tabs Right"
+// in the language the app shows.
+func TabScrollRight() string { return In(i18n.Locale()).TabScrollRight() }
+
+// TabScrollRight says "Scroll Tabs Right"
+// in the language of msgs.
+func (msgs Messages) TabScrollRight() string {
+	return Catalog.Format(msgs.locale, "tabScrollRight", nil)
+}
+
+// TabList says "Open Tabs"
+// in the language the app shows.
+func TabList() string { return In(i18n.Locale()).TabList() }
+
+// TabList says "Open Tabs"
+// in the language of msgs.
+func (msgs Messages) TabList() string {
+	return Catalog.Format(msgs.locale, "tabList", nil)
+}
+
 // TabClose says "Close {name}"
 // in the language the app shows.
 //

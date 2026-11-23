@@ -254,6 +254,88 @@ func TestTabOverflow(t *testing.T) {
 	}
 }
 
+func TestTabOverflowControls(t *testing.T) {
+	a := newApp("")
+	for i := range 3 {
+		a.add(fmt.Sprintf("/tmp/a/%02d.go", i), "")
+	}
+	tt := ui.NewTester(a.view, 900, 300)
+	tt.Frame()
+	if _, ok := tt.Find(locales.TabList()); ok {
+		t.Fatal("overflow controls shown when tabs fit")
+	}
+
+	for i := 3; i < 30; i++ {
+		a.add(fmt.Sprintf("/tmp/a/%02d.go", i), "")
+	}
+	a.add("/tmp/b/00.go", "")
+	a.current().st.Buffer.Set("edited")
+	tt.Frame()
+	tt.Advance(time.Second)
+
+	g := a.groups[0]
+	if _, ok := tt.Find(locales.TabScrollLeft()); !ok {
+		t.Fatal("left scroll button missing on overflow")
+	}
+	if _, ok := tt.Find(locales.TabScrollRight()); !ok {
+		t.Fatal("right scroll button missing on overflow")
+	}
+	if _, ok := tt.Find(locales.TabList()); !ok {
+		t.Fatal("open tabs button missing on overflow")
+	}
+
+	atEnd := g.scroll
+	if err := tt.Click(locales.TabScrollRight()); err != nil {
+		t.Fatalf("click right scroll: %v", err)
+	}
+	if g.scroll != atEnd {
+		t.Fatalf("disabled right scroll moved from %v to %v", atEnd, g.scroll)
+	}
+
+	if err := tt.Click(locales.TabScrollLeft()); err != nil {
+		t.Fatalf("click left scroll: %v", err)
+	}
+	if g.scroll >= atEnd {
+		t.Fatalf("left scroll did not move left: %v -> %v", atEnd, g.scroll)
+	}
+	afterLeft := g.scroll
+	if err := tt.Click(locales.TabScrollRight()); err != nil {
+		t.Fatalf("click right scroll after left: %v", err)
+	}
+	if g.scroll <= afterLeft {
+		t.Fatalf("right scroll did not move right: %v -> %v", afterLeft, g.scroll)
+	}
+
+	if err := tt.Click(locales.TabList()); err != nil {
+		t.Fatalf("click open tabs menu: %v", err)
+	}
+	items := tt.Menu()
+	if !slices.Contains(items, "00.go — a") || !slices.Contains(items, "00.go — b •") {
+		t.Fatalf("open tabs menu missing expected entries: %q", items)
+	}
+	if err := tt.ChooseMenuItem("00.go — a"); err != nil {
+		t.Fatalf("choose tab from menu: %v", err)
+	}
+	tt.Frame()
+	if a.current().path != "/tmp/a/00.go" {
+		t.Fatalf("chose /tmp/a/00.go from menu, got %q", a.current().path)
+	}
+	if r, ok := tt.Find("00.go"); !ok || r.W != tabMinW {
+		t.Fatalf("tab chosen from menu is not scrolled into view: found=%v rect=%v scroll=%v", ok, r, g.scroll)
+	}
+
+	a.closeTabs(g.docs[3:], func(*doc) bool { return true })
+	a.remove(g.docs[len(g.docs)-1])
+	tt.Frame()
+	tt.Frame()
+	if _, ok := tt.Find(locales.TabList()); ok {
+		t.Fatal("overflow controls stayed visible after tabs fit again")
+	}
+	if g.scroll != 0 {
+		t.Fatalf("scroll did not reset when tabs fit again: %v", g.scroll)
+	}
+}
+
 func TestTabDirs(t *testing.T) {
 	a := newApp("")
 	want := map[string]string{

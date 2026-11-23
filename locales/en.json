@@ -457,6 +457,9 @@
   "gitDeleteBranch": "Delete Branch",
   "previewBinary": "This file is binary and can't be shown.",
   "tabBar": "Tab bar",
+  "tabScrollLeft": "Scroll Tabs Left",
+  "tabScrollRight": "Scroll Tabs Right",
+  "tabList": "Open Tabs",
   "tabClose": "Close {name}",
   "@tabClose": {
     "description": "The button closing a tab, to assistive technology.",
