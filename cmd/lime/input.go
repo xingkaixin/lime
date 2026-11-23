@@ -152,6 +152,9 @@ func (a *app) input(e ui.Element, d *doc, services ui.Services) {
 		if ev.Kind == ui.InputPointerDown && ev.Button == 1 {
 			splitPaste(st, services)
 		}
+		if trimEditorClip() {
+			scheduleRelease()
+		}
 		return ok
 	})
 }
@@ -186,12 +189,23 @@ func pastes(st *editor.State, ev ui.InputEvent) bool {
 	return false
 }
 
+func trimEditorClip() bool {
+	if len(editorClip.text) <= largeFile {
+		return false
+	}
+	editorClip.text, editorClip.pieces, editorClip.lines = "", nil, nil
+	return true
+}
+
 func splitPaste(st *editor.State, services ui.Services) {
 	n := len(st.Selections())
 	if n < 2 {
 		return
 	}
 	text := strings.ReplaceAll(services.ReadClipboard(), "\r\n", "\n")
+	if len(text) > largeFile {
+		return
+	}
 	if text == editorClip.text && len(editorClip.pieces) == n {
 		return
 	}

@@ -265,9 +265,9 @@ func (l *lime) sessionChanged() bool {
 
 // autosave keeps the session as it changes, for a run that ends without
 // closing the windows, as the system restarting or the app crashing.
-func (l *lime) autosave() {
+func (l *lime) autosave() bool {
 	if l.quitting || len(l.wins) == 0 || !l.sessionChanged() {
-		return
+		return false
 	}
 	l.sessionGen++
 	gen, s := l.sessionGen, l.sessionFor(true)
@@ -281,7 +281,7 @@ func (l *lime) autosave() {
 	}
 	l.sessionMu.Unlock()
 	if !start {
-		return
+		return true
 	}
 	go func() {
 		for {
@@ -303,6 +303,7 @@ func (l *lime) autosave() {
 			}
 		}
 	}()
+	return true
 }
 
 func (l *lime) restoreSession() {

@@ -101,7 +101,7 @@ func main() {
 		}
 		go func() {
 			for range time.Tick(3 * time.Second) {
-				mygo.RunOnMain(l.autosave)
+				mygo.RunOnMain(l.tick)
 			}
 		}()
 	})

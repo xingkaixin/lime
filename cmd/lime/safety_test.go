@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -547,5 +548,92 @@ func TestAutosaveSkipsLargeUnsavedAndCoalesces(t *testing.T) {
 			t.Fatalf("coalesced autosave did not persist latest text, got %q err=%v", string(raw), err)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestMemoryReclaimAndClipTrim(t *testing.T) {
+	prevDelay := releaseDelay
+	prevFree := freeOSMemory
+	prevHeap := unreturnedHeap
+	prevClip := editorClip
+	t.Cleanup(func() {
+		releaseMu.Lock()
+		if releaseTimer != nil {
+			releaseTimer.Stop()
+			releaseTimer = nil
+		}
+		releaseDelay = prevDelay
+		freeOSMemory = prevFree
+		releaseMu.Unlock()
+		unreturnedHeap = prevHeap
+		editorClip = prevClip
+	})
+
+	var calls atomic.Int32
+	releaseDelay = time.Millisecond
+	freeOSMemory = func() { calls.Add(1) }
+	var fakeFree atomic.Uint64
+	unreturnedHeap = func() uint64 { return fakeFree.Load() }
+
+	waitCalls := func(want int32) {
+		t.Helper()
+		deadline := time.Now().Add(time.Second)
+		for calls.Load() < want {
+			if time.Now().After(deadline) {
+				t.Fatalf("freeOSMemory calls = %d, want >= %d", calls.Load(), want)
+			}
+			time.Sleep(2 * time.Millisecond)
+		}
+	}
+
+	editorClip.text = "small"
+	editorClip.pieces = []string{"small"}
+	editorClip.lines = []bool{false}
+	if trimEditorClip() || editorClip.text != "small" {
+		t.Fatal("trimEditorClip cleared small clipboard cache")
+	}
+
+	editorClip.text = strings.Repeat("x", largeFile+1)
+	editorClip.pieces = []string{editorClip.text}
+	editorClip.lines = []bool{false}
+	if !trimEditorClip() || editorClip.text != "" || editorClip.pieces != nil || editorClip.lines != nil {
+		t.Fatal("trimEditorClip did not clear oversized clipboard cache")
+	}
+
+	l := newLime("")
+	a := l.newWindow()
+	a.newFile()
+	d := a.current()
+	d.st.Buffer.Set(strings.Repeat("a", largeFile+1))
+	l.reclaimMemory(true)
+	if d.peak <= largeFile {
+		t.Fatalf("doc peak = %d, want > %d", d.peak, largeFile)
+	}
+
+	d.st.Buffer.Set("tiny")
+	l.reclaimMemory(true)
+	if !l.needReclaim {
+		t.Fatal("large shrink did not mark needReclaim")
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("reclaim ran while active: calls=%d", calls.Load())
+	}
+
+	l.reclaimMemory(false)
+	waitCalls(1)
+
+	d.peak = largeFile + 1
+	release(d)
+	waitCalls(2)
+
+	l.lastReclaim = time.Now().Add(-reclaimCooldown)
+	fakeFree.Store(idleFreeThreshold)
+	l.reclaimMemory(false)
+	waitCalls(3)
+
+	l.reclaimMemory(false)
+	time.Sleep(15 * time.Millisecond)
+	if got := calls.Load(); got != 3 {
+		t.Fatalf("reclaim cooldown did not prevent repeat free: calls=%d", got)
 	}
 }
