@@ -248,7 +248,7 @@ func (a *app) generalPage(c *ui.Context) {
 			var list []*fileEncoding
 			var options []string
 			for _, e := range encodings {
-				if e.enc != nil && e.bom == "" {
+				if e.codec != nil && e.bom == "" {
 					list = append(list, e)
 					options = append(options, e.title(m))
 				}
