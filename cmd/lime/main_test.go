@@ -254,6 +254,181 @@ func TestTabOverflow(t *testing.T) {
 	}
 }
 
+func TestTabOverflowControls(t *testing.T) {
+	a := newApp("")
+	for i := range 3 {
+		a.add(fmt.Sprintf("/tmp/a/%02d.go", i), "")
+	}
+	tt := ui.NewTester(a.view, 900, 300)
+	tt.Frame()
+	if _, ok := tt.Find(locales.TabList()); ok {
+		t.Fatal("overflow controls shown when tabs fit")
+	}
+
+	for i := 3; i < 30; i++ {
+		a.add(fmt.Sprintf("/tmp/a/%02d.go", i), "")
+	}
+	a.add("/tmp/b/00.go", "")
+	a.current().st.Buffer.Set("edited")
+	tt.Frame()
+	tt.Advance(time.Second)
+
+	g := a.groups[0]
+	if _, ok := tt.Find(locales.TabScrollLeft()); !ok {
+		t.Fatal("left scroll button missing on overflow")
+	}
+	if _, ok := tt.Find(locales.TabScrollRight()); !ok {
+		t.Fatal("right scroll button missing on overflow")
+	}
+	if _, ok := tt.Find(locales.TabList()); !ok {
+		t.Fatal("open tabs button missing on overflow")
+	}
+
+	atEnd := g.scroll
+	if err := tt.Click(locales.TabScrollRight()); err != nil {
+		t.Fatalf("click right scroll: %v", err)
+	}
+	if g.scroll != atEnd {
+		t.Fatalf("disabled right scroll moved from %v to %v", atEnd, g.scroll)
+	}
+
+	if err := tt.Click(locales.TabScrollLeft()); err != nil {
+		t.Fatalf("click left scroll: %v", err)
+	}
+	if g.scroll >= atEnd {
+		t.Fatalf("left scroll did not move left: %v -> %v", atEnd, g.scroll)
+	}
+	afterLeft := g.scroll
+	if err := tt.Click(locales.TabScrollRight()); err != nil {
+		t.Fatalf("click right scroll after left: %v", err)
+	}
+	if g.scroll <= afterLeft {
+		t.Fatalf("right scroll did not move right: %v -> %v", afterLeft, g.scroll)
+	}
+
+	if err := tt.Click(locales.TabList()); err != nil {
+		t.Fatalf("click open tabs menu: %v", err)
+	}
+	items := tt.Menu()
+	if !slices.Contains(items, "00.go — a") || !slices.Contains(items, "00.go — b •") {
+		t.Fatalf("open tabs menu missing expected entries: %q", items)
+	}
+	if err := tt.ChooseMenuItem("00.go — a"); err != nil {
+		t.Fatalf("choose tab from menu: %v", err)
+	}
+	tt.Frame()
+	if a.current().path != "/tmp/a/00.go" {
+		t.Fatalf("chose /tmp/a/00.go from menu, got %q", a.current().path)
+	}
+	if r, ok := tt.Find("00.go"); !ok || r.W != tabMinW {
+		t.Fatalf("tab chosen from menu is not scrolled into view: found=%v rect=%v scroll=%v", ok, r, g.scroll)
+	}
+
+	a.closeTabs(g.docs[3:], func(*doc) bool { return true })
+	a.remove(g.docs[len(g.docs)-1])
+	tt.Frame()
+	tt.Frame()
+	if _, ok := tt.Find(locales.TabList()); ok {
+		t.Fatal("overflow controls stayed visible after tabs fit again")
+	}
+	if g.scroll != 0 {
+		t.Fatalf("scroll did not reset when tabs fit again: %v", g.scroll)
+	}
+}
+
+func TestTabSwitcher(t *testing.T) {
+	a := newApp("")
+	a.add("/tmp/proj/one.go", "one")
+	tt := ui.NewTester(a.view, 900, 500)
+	tt.HoldModifiers(ui.Ctrl)
+	tt.Key(ui.Ctrl, ui.KeyTab)
+	if _, ok := tt.Find(locales.TabSwitcher()); ok {
+		t.Fatal("tab switcher opened with a single tab")
+	}
+	tt.HoldModifiers(0)
+	tt.Frame()
+
+	a.add("/tmp/proj/two.go", "two")
+	a.add("/tmp/proj/three.go", "three")
+	docs := a.allDocs()
+	tt.Frame()
+
+	// Ctrl+Tab opens the switcher overlay and previews MRU[1] (two.go).
+	tt.HoldModifiers(ui.Ctrl)
+	tt.Key(ui.Ctrl, ui.KeyTab)
+	if _, ok := tt.Find(locales.TabSwitcher()); !ok {
+		t.Fatal("tab switcher did not open on Ctrl+Tab")
+	}
+	if a.current() != docs[1] {
+		t.Fatalf("Ctrl+Tab previewed %q, want two.go", a.current().name())
+	}
+
+	// Ctrl+Down moves further down the stack; Ctrl+Escape cancels and restores.
+	tt.Key(ui.Ctrl, ui.KeyDown)
+	if a.current() != docs[0] {
+		t.Fatalf("Ctrl+Down previewed %q, want one.go", a.current().name())
+	}
+	tt.Key(ui.Ctrl, ui.KeyEscape)
+	if _, ok := tt.Find(locales.TabSwitcher()); ok {
+		t.Fatal("Ctrl+Escape did not close tab switcher")
+	}
+	if a.current() != docs[2] {
+		t.Fatalf("Ctrl+Escape did not restore three.go, got %q", a.current().name())
+	}
+	if !slices.Equal(a.mru, []*doc{docs[2], docs[1], docs[0]}) {
+		t.Fatalf("Ctrl+Escape changed MRU order")
+	}
+	tt.HoldModifiers(0)
+	tt.Frame()
+
+	// Ctrl+Tab then Ctrl+Enter commits immediately.
+	tt.HoldModifiers(ui.Ctrl)
+	tt.Key(ui.Ctrl, ui.KeyTab)
+	tt.Key(ui.Ctrl, ui.KeyEnter)
+	if _, ok := tt.Find(locales.TabSwitcher()); ok {
+		t.Fatal("Ctrl+Enter did not close tab switcher")
+	}
+	if a.current() != docs[1] || !slices.Equal(a.mru, []*doc{docs[1], docs[2], docs[0]}) {
+		t.Fatalf("Ctrl+Enter did not commit two.go: cur=%q", a.current().name())
+	}
+	tt.HoldModifiers(0)
+	tt.Frame()
+
+	// Clicking a row in the switcher while holding Ctrl commits that tab.
+	tt.HoldModifiers(ui.Ctrl)
+	tt.Key(ui.Ctrl, ui.KeyTab)
+	box, ok := tt.Find(locales.TabSwitcher())
+	if !ok {
+		t.Fatal("tab switcher missing before click")
+	}
+	// Rows in order: two.go (0), three.go (1), one.go (2). Click the bottom row.
+	tt.ClickAtWith(ui.Ctrl, box.X+box.W/2, box.Y+box.H-16)
+	tt.Frame()
+	if _, ok := tt.Find(locales.TabSwitcher()); ok {
+		t.Fatal("clicking a row did not close tab switcher")
+	}
+	if a.current() != docs[0] || a.mru[0] != docs[0] {
+		t.Fatalf("clicking bottom row got %q, want one.go", a.current().name())
+	}
+	tt.HoldModifiers(0)
+	tt.Frame()
+
+	// Releasing Ctrl commits the previewed tab and updates MRU.
+	tt.HoldModifiers(ui.Ctrl)
+	tt.Key(ui.Ctrl, ui.KeyTab)
+	if _, ok := tt.Find(locales.TabSwitcher()); !ok {
+		t.Fatal("tab switcher missing before release")
+	}
+	tt.HoldModifiers(0)
+	tt.Frame()
+	if _, ok := tt.Find(locales.TabSwitcher()); ok {
+		t.Fatal("releasing Ctrl did not close tab switcher")
+	}
+	if a.current() != docs[1] || a.mru[0] != docs[1] {
+		t.Fatalf("releasing Ctrl got %q, want two.go", a.current().name())
+	}
+}
+
 func TestTabDirs(t *testing.T) {
 	a := newApp("")
 	want := map[string]string{

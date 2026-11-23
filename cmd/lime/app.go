@@ -360,10 +360,12 @@ type app struct {
 	rows       []float32
 	focus      int
 	focused    place
-	mru        []*doc
-	cycle      []*doc
-	cycleAt    int
-	closed     []string
+	mru         []*doc
+	cycle       []*doc
+	cycleAt     int
+	cycleFrom   *doc
+	cycleReveal bool
+	closed      []string
 	chordKeyUp ui.Key
 	revealPath string
 	chord      bool
@@ -516,7 +518,7 @@ func (a *app) touch(d *doc) {
 
 func (a *app) syncFocus(ctrlHeld bool) {
 	if a.cycle != nil && !ctrlHeld {
-		a.cycle = nil
+		a.commitCycle()
 	}
 	p := a.focused
 	if p.d == nil {
@@ -539,14 +541,46 @@ func (a *app) syncFocus(ctrlHeld bool) {
 // tabs in the order they were used for as long as Ctrl is held.
 func (a *app) cycleTabs(step int) {
 	if a.cycle == nil {
-		a.cycle, a.cycleAt = slices.Clone(a.mru), 0
+		if len(a.mru) < 2 {
+			return
+		}
+		if a.panel != nil {
+			a.cancelPanel()
+		}
+		a.cycle, a.cycleAt, a.cycleFrom = slices.Clone(a.mru), 0, a.current()
 	}
 	n := len(a.cycle)
 	if n == 0 {
 		return
 	}
 	a.cycleAt = ((a.cycleAt+step)%n + n) % n
+	a.cycleReveal = true
 	a.show(a.cycle[a.cycleAt])
+}
+
+func (a *app) commitCycle() {
+	if a.cycle == nil {
+		return
+	}
+	var d *doc
+	if a.cycleAt >= 0 && a.cycleAt < len(a.cycle) {
+		d = a.cycle[a.cycleAt]
+	}
+	a.cycle, a.cycleAt, a.cycleFrom, a.cycleReveal = nil, 0, nil, false
+	if d != nil {
+		a.show(d)
+	}
+}
+
+func (a *app) cancelCycle() {
+	if a.cycle == nil {
+		return
+	}
+	from := a.cycleFrom
+	a.cycle, a.cycleAt, a.cycleFrom, a.cycleReveal = nil, 0, nil, false
+	if from != nil {
+		a.show(from)
+	}
 }
 
 func newDoc(path, text string) *doc {
@@ -1436,6 +1470,18 @@ func (l *lime) reclaimMemory(changed bool) {
 
 func (a *app) take(d *doc) bool {
 	a.mru = slices.DeleteFunc(a.mru, func(x *doc) bool { return x == d })
+	if a.cycleFrom == d {
+		a.cycleFrom = nil
+	}
+	if i := slices.Index(a.cycle, d); i >= 0 {
+		a.cycle = slices.Delete(a.cycle, i, i+1)
+		switch {
+		case len(a.cycle) < 2:
+			a.cycle, a.cycleAt, a.cycleFrom, a.cycleReveal = nil, 0, nil, false
+		case i < a.cycleAt || a.cycleAt >= len(a.cycle):
+			a.cycleAt = max(a.cycleAt-1, 0)
+		}
+	}
 	a.jumps.forget(d)
 	return a.detach(d)
 }
