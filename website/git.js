@@ -6,17 +6,46 @@
   let repo
 
   const load = (root, demo) => {
-    const tree = (t) => new Map(Object.entries(t).map(([p, i]) => [p, demo.blobs[i]]))
+    const baseCount = demo.blobs.length
+    const cache = demo.blobs.slice()
+    const deltas = demo.deltas || []
+    const getBlob = (i) => {
+      if (cache[i] !== undefined) return cache[i]
+      const entry = deltas[i - baseCount]
+      const base = getBlob(entry[0]).split("\n")
+      const out = []
+      let cur = 0
+      for (let k = 1; k < entry.length; k++) {
+        const op = entry[k]
+        if (typeof op === "number") {
+          if (op > 0) {
+            for (let j = 0; j < op; j++) out.push(base[cur++])
+          } else {
+            cur -= op
+          }
+        } else {
+          out.push(op)
+        }
+      }
+      return (cache[i] = out.join("\n"))
+    }
+    const materialize = (raw) => new Map(Object.entries(raw).map(([p, i]) => [p, getBlob(i)]))
+    const lazyTree = (raw) => {
+      let m = null
+      return () => (m || (m = materialize(raw)))
+    }
+    const headTree = materialize(demo.commits[0].tree)
     repo = {
       root, branch: "main",
-      commits: demo.commits.map((c) => ({ ...c, tree: tree(c.tree) })),
-      base: tree(demo.parent),
+      commits: demo.commits.map((c, idx) => ({ ...c, getTree: idx === 0 ? () => headTree : lazyTree(c.tree) })),
+      getBase: lazyTree(demo.parent),
     }
-    repo.index = new Map(head().tree)
-    return head().tree
+    repo.index = new Map(headTree)
+    return headTree
   }
 
   const head = () => repo.commits[0]
+  const treeOfCommit = (c) => c.tree instanceof Map ? c.tree : c.getTree()
   const short = (hash) => hash.slice(0, 7)
   const subject = (c) => c.body.split("\n")[0]
   const work = () => limeFS.files(repo.root)
@@ -40,10 +69,13 @@
     if (!c) throw new Error(`fatal: bad revision '${rev}'`)
     return c
   }
-  const parentTree = (c) => repo.commits[repo.commits.indexOf(c) + 1]?.tree ?? repo.base
+  const parentTree = (c) => {
+    const next = repo.commits[repo.commits.indexOf(c) + 1]
+    return next ? treeOfCommit(next) : repo.getBase()
+  }
   const treeOf = (rev) => {
     if (rev === "") return repo.index
-    return rev.endsWith("^") ? parentTree(commitOf(rev.slice(0, -1))) : commitOf(rev).tree
+    return rev.endsWith("^") ? parentTree(commitOf(rev.slice(0, -1))) : treeOfCommit(commitOf(rev))
   }
 
   const format = (fmt, c) => fmt.replace(/%(x[0-9a-fA-F]{2}|H|h|s|an|ae|at|B|n)/g, (_, k) =>
@@ -52,7 +84,7 @@
   const option = (args, name) => args.find((a) => a.startsWith(name))?.slice(name.length)
 
   const status = () => {
-    const h = head().tree, index = repo.index, w = work()
+    const h = treeOfCommit(head()), index = repo.index, w = work()
     const all = [...new Set([...h.keys(), ...index.keys(), ...w.keys()])].sort()
     let out = ""
     for (const p of all) {
@@ -77,7 +109,7 @@
         else repo.index.delete(p)
       }
     }
-    const h = head().tree
+    const h = treeOfCommit(head())
     if (!amend && h.size === repo.index.size && [...h].every(([p, t]) => repo.index.get(p) === t)) {
       throw new Error("nothing to commit, working tree clean")
     }
@@ -289,7 +321,7 @@
         return status()
       case "add":
       case "reset": {
-        const w = work(), h = head().tree
+        const w = work(), h = treeOfCommit(head())
         const from = cmd === "add" ? w : h
         for (const p of paths(input)) {
           if (from.has(p)) repo.index.set(p, from.get(p))
@@ -302,7 +334,7 @@
       case "log": {
         const n = +(option(rest, "-n") ?? Infinity)
         const path = rest[rest.indexOf("--") + 1]
-        const cs = rest.includes("--") ? repo.commits.filter((c) => c.tree.get(path) !== parentTree(c).get(path)) : repo.commits
+        const cs = rest.includes("--") ? repo.commits.filter((c) => treeOfCommit(c).get(path) !== parentTree(c).get(path)) : repo.commits
         const names = has(rest, "--name-only") ? `\0\n${path}\0` : "\n"
         return cs.slice(0, n).map((c) => format(option(rest, "--format=") ?? "%H", c) + names).join("")
       }
@@ -310,10 +342,10 @@
         return format(option(rest, "--format=") ?? "%B", commitOf(rest.at(-1))) + "\n"
       case "diff-tree": {
         const c = commitOf(rest.at(-1))
-        return has(rest, "-p") ? patch(parentTree(c), c.tree) : nameStatus(parentTree(c), c.tree)
+        return has(rest, "-p") ? patch(parentTree(c), treeOfCommit(c)) : nameStatus(parentTree(c), treeOfCommit(c))
       }
       case "diff":
-        return has(rest, "--cached") ? patch(head().tree, repo.index) : patch(repo.index, tracked(), rest)
+        return has(rest, "--cached") ? patch(treeOfCommit(head()), repo.index) : patch(repo.index, tracked(), rest)
       case "cat-file":
         return catFile(dir, input, has(rest, "--batch-check=%(objectsize)"))
       case "apply":
