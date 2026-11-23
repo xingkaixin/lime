@@ -5,10 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lime — a plain text editor on Sublime Text's keys</title>
 <meta name="description" content="Lime is a native text editor in the manner of Sublime Text: tabs, groups, Goto Anything and multiple carets, written in pure Go.">
-<link rel="icon" href="icon.png">
+<link rel="icon" href="__ICON_URL__">
+<link rel="preload" href="__WASM_URL__" as="fetch" crossorigin>
+<link rel="preload" href="__DEMO_URL__" as="fetch" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap"></noscript>
+<script>
+window.__limePreload = {
+  wasm: fetch("__WASM_URL__"),
+  demo: fetch("__DEMO_URL__").then((r) => {
+    if (!r.ok) throw new Error("__DEMO_URL__: " + r.status)
+    return r.json()
+  }),
+}
+</script>
 <style>
   :root {
     --bg: #f4f5ef;
@@ -245,7 +257,7 @@
 <body>
 <header class="nav">
   <div class="col">
-    <a class="brand" href="#"><img src="icon.png" alt="">Lime</a>
+    <a class="brand" href="#"><img src="__ICON_URL__" width="26" height="26" decoding="async" alt="">Lime</a>
     <nav class="links">
       <a href="#features">Features</a>
       <a href="#download">Download</a>
@@ -281,7 +293,7 @@
       <div class="titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="title" id="title">Lime</span></div>
       <div class="screen" id="screen">
         <iframe id="app" src="app.html" title="Lime, running in this page"></iframe>
-        <div class="boot" id="boot"><img src="icon.png" alt=""><span id="boot-text">Starting Lime…</span><progress id="boot-bar" max="1" value="0"></progress></div>
+        <div class="boot" id="boot"><img src="__ICON_URL__" width="64" height="64" decoding="async" alt=""><span id="boot-text">Starting Lime…</span><progress id="boot-bar" max="1" value="0"></progress></div>
       </div>
     </div>
     <div class="try" id="try">
@@ -334,7 +346,7 @@
 
 <footer>
   <div class="col">
-    <a class="brand" href="#"><img src="icon.png" alt="">Lime</a>
+    <a class="brand" href="#"><img src="__ICON_URL__" width="26" height="26" decoding="async" alt="">Lime</a>
     <a href="https://github.com/egoist/mygo">Built with MyGo</a>
     <a href="https://github.com/xingkaixin/lime">GitHub</a>
   </div>
@@ -470,6 +482,7 @@
     sync()
   })
 
+  let bootFallback = 0
   addEventListener("message", (e) => {
     if (e.source !== frame.contentWindow) return
     const boot = document.getElementById("boot")
@@ -478,7 +491,10 @@
     } else if (e.data?.lime === "running") {
       running = true
       for (const b of document.querySelectorAll(".key-btn")) b.disabled = false
-      setTimeout(() => boot.classList.add("done"), 300)
+      bootFallback = setTimeout(() => boot.classList.add("done"), 120)
+    } else if (e.data?.lime === "painted") {
+      clearTimeout(bootFallback)
+      boot.classList.add("done")
     } else if (e.data?.lime === "failed") {
       document.getElementById("boot-text").textContent = "Lime didn't start in this browser: " + e.data.error
     }

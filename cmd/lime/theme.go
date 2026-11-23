@@ -22,6 +22,8 @@ type scheme struct {
 	code *editor.Theme
 	// caretless is code without carets, under carets drawn over the editor.
 	caretless *editor.Theme
+	chSet     bool
+	ch        chrome
 }
 
 var schemes = []*scheme{
@@ -260,6 +262,9 @@ type chrome struct {
 }
 
 func (s *scheme) chrome() chrome {
+	if s.chSet {
+		return s.ch
+	}
 	shade := func(dark, light float32) ui.Color {
 		if s.dark {
 			return s.bg.Mix(black, dark)
@@ -270,10 +275,12 @@ func (s *scheme) chrome() chrome {
 	if !s.dark {
 		panel = s.bg
 	}
-	return chrome{
+	s.ch = chrome{
 		bg: shade(0.2, 0.05), hover: shade(0.1, 0.025), line: shade(0.38, 0.13), panel: panel, tab: s.bg,
 		text: s.fg, muted: s.fg.Mix(s.bg, 0.4),
 	}
+	s.chSet = true
+	return s.ch
 }
 
 // shell is the chrome of the side bar, the tab bars and the status bar,

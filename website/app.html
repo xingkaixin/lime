@@ -12,10 +12,14 @@
      otherwise hold the page still: on touch screens the page scrolls. */
   @media (pointer: coarse) { #mygo canvas { touch-action: pan-y; } }
 </style>
-<script src="fs.js"></script>
-<script src="git.js"></script>
-<script src="wasm_exec.js"></script>
+<script>/*__INLINE_SCRIPTS__*/</script>
 <script>
+const WASM_URL = "__WASM_URL__"
+const WASM_SIZE = __WASM_SIZE__
+const DEMO_URL = "__DEMO_URL__"
+const FONT_URLS = __FONT_URLS__
+globalThis.limeFontURL = (name) => FONT_URLS[name] || ("fonts/" + name + ".ttf")
+
 const home = "/home/you", project = "/lime"
 const config = home + "/.config/Lime"
 process.cwd = () => project
@@ -108,33 +112,68 @@ if (parent !== window) {
   }, { passive: true })
 }
 
-async function fetchWasm(size) {
-  const res = await fetch("lime.wasm", { cache: "no-cache" })
-  if (!res.ok) throw new Error(`lime.wasm: ${res.status}`)
-  const [counted, compiled] = res.body.tee()
-  ;(async () => {
-    const r = counted.getReader()
+async function compileWasm(resPromise) {
+  const res = await resPromise
+  if (!res.ok) throw new Error(`${WASM_URL}: ${res.status}`)
+  const total = WASM_SIZE
+  if (res.body && typeof TransformStream === "function" && parent !== window) {
     let got = 0, told = 0
-    for (;;) {
-      const { done, value } = await r.read()
-      if (done) break
-      got += value.length
-      const part = size() ? Math.min(got / size(), 1) : 0
-      if (part - told >= 0.01) {
-        told = part
-        parent.postMessage({ lime: "progress", value: part }, "*")
-      }
+    const meter = new TransformStream({
+      transform(chunk, ctrl) {
+        got += chunk.byteLength
+        const part = total ? Math.min(got / total, 1) : 0
+        if (part - told >= 0.01 || (part === 1 && told < 1)) {
+          told = part
+          parent.postMessage({ lime: "progress", value: part }, "*")
+        }
+        ctrl.enqueue(chunk)
+      },
+    })
+    const streamed = new Response(res.body.pipeThrough(meter), {
+      headers: { "Content-Type": "application/wasm" },
+    })
+    return WebAssembly.compileStreaming(streamed)
+  }
+  if (WebAssembly.compileStreaming) {
+    return WebAssembly.compileStreaming(res)
+  }
+  return WebAssembly.compile(await res.arrayBuffer())
+}
+
+function notifyFirstPaint() {
+  if (parent === window) return
+  const host = document.getElementById("mygo")
+  const finish = () => requestAnimationFrame(() => requestAnimationFrame(() => parent.postMessage({ lime: "painted" }, "*")))
+  if (host && host.querySelector("canvas")) {
+    finish()
+    return
+  }
+  const obs = new MutationObserver(() => {
+    if (host && host.querySelector("canvas")) {
+      obs.disconnect()
+      finish()
     }
-  })()
-  return new Response(compiled, { headers: { "Content-Type": "application/wasm" } })
+  })
+  if (host) obs.observe(host, { childList: true })
 }
 
 async function start() {
-  let demo
-  const [wasm] = await Promise.all([
-    fetchWasm(() => demo?.wasmSize),
-    fetch("demo.json", { cache: "no-cache" }).then((r) => r.json()).then((d) => { demo = d }),
-  ])
+  let preload = null
+  try {
+    if (parent !== window && parent.__limePreload) {
+      preload = parent.__limePreload
+      delete parent.__limePreload
+    }
+  } catch {}
+  const wasmPromise = compileWasm(preload?.wasm || fetch(WASM_URL))
+  const demoPromise = preload?.demo || fetch(DEMO_URL).then((r) => {
+    if (!r.ok) throw new Error(`${DEMO_URL}: ${r.status}`)
+    return r.json()
+  })
+
+  // Populate the in-memory workspace as soon as demo.json arrives while WASM
+  // continues streaming and compiling in parallel.
+  const demo = await demoPromise
   const files = Object.fromEntries(limeGit.load(project, demo))
   for (const [p, text] of Object.entries(files)) limeFS.put(project + "/" + p, text)
   limeFS.mkdirs("/tmp")
@@ -153,10 +192,13 @@ async function start() {
       bounds: { x: 0, y: 0, width: 0, height: 0 },
     }],
   }))
+
   const go = new Go()
   go.argv = ["lime"]
   go.env = { HOME: home, XDG_CONFIG_HOME: home + "/.config", TMPDIR: "/tmp" }
-  const { instance } = await WebAssembly.instantiateStreaming(wasm, go.importObject)
+  const mod = await wasmPromise
+  const instance = await WebAssembly.instantiate(mod, go.importObject)
+  notifyFirstPaint()
   parent.postMessage({ lime: "running" }, "*")
   await go.run(instance)
 }

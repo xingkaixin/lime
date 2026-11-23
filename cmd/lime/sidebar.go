@@ -43,13 +43,7 @@ func (a *app) sideBar(c *ui.Context) {
 			if !slices.Equal(a.marks.folders, a.proj.folders) {
 				a.readMarks()
 			}
-			ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-				ui.Column(c).FillWidth().Role(ui.RoleTree).Children(func() {
-					for _, f := range a.proj.folders {
-						a.treeDir(c, f, 0, cur)
-					}
-				})
-			})
+			a.filesTree(c, cur)
 		}
 	})
 	a.proj.forgetHidden()
@@ -206,10 +200,6 @@ var treeMotion = ui.ElementTransition{Position: true, Colors: true, Enter: &ui.M
 
 type treeDrag string
 
-// treeBox keys the box of a folder's row and what it holds, apart from
-// both.
-type treeBox string
-
 // copyMods held as a drag is let go copy rather than move, as Finder's
 // Option and Explorer's Ctrl do.
 var copyMods = func() ui.Modifiers {
@@ -219,43 +209,96 @@ var copyMods = func() ui.Modifiers {
 	return ui.Ctrl
 }()
 
-func (a *app) treeDir(c *ui.Context, dir string, depth int, cur *doc) {
-	open := a.proj.isOpen(dir, depth == 0)
-	ic := a.folderIcon(*open)
-	box := ui.Column(c.Key(treeBox(dir))).FillWidth().Radius(c.Theme().Radius).Transition(colorFade)
-	if p, ok := ui.Drop[treeDrag](box); ok && canDrop(string(p), dir) {
-		a.dropInto(string(p), dir, c.Modifiers()&copyMods != 0)
-	}
-	if p, ok := ui.DragOver[treeDrag](box); ok && canDrop(string(p), dir) {
-		box.Background(a.scheme.accent.Alpha(0.08))
-	}
-	box.Children(func() {
-		row := a.treeRow(c, dir, depth, ic, false).Expanded(*open).OnClick(func() { *open = !*open }).
-			ContextMenu(func(m *ui.Menu) { a.folderMenu(c, m, dir, depth == 0) })
-		if depth > 0 {
-			treeSource(c, row, dir)
-		}
+func (a *app) flattenTree() []treeRowItem {
+	rows := a.proj.treeRows[:0]
+	var walk func(root int, dir, name string, depth int)
+	walk = func(root int, dir, name string, depth int) {
+		open := a.proj.isOpen(dir, depth == 0)
+		rows = append(rows, treeRowItem{
+			root: root, path: dir, name: name, parent: dir, depth: depth, isDir: true, open: open,
+		})
 		if !*open {
 			return
 		}
-		// Keyed dir/, apart from dir's row.
-		ui.Column(c.Key(dir + string(filepath.Separator))).FillWidth().Transition(treeMotion).Children(func() {
-			if cr := a.proj.create; cr != nil && cr.dir == dir {
-				a.treeInput(c, cr, depth+1)
+		if cr := a.proj.create; cr != nil && cr.dir == dir {
+			rows = append(rows, treeRowItem{
+				root: root, path: dir + "\x00create", parent: dir, depth: depth + 1, create: cr,
+			})
+		}
+		for _, e := range a.shownDirItems(dir) {
+			if e.isDir {
+				walk(root, e.path, e.name, depth+1)
+				continue
 			}
-			for _, e := range a.shownDir(dir) {
-				p := filepath.Join(dir, e.Name())
-				if e.IsDir() {
-					a.treeDir(c, p, depth+1, cur)
-					continue
+			rows = append(rows, treeRowItem{
+				root: root, path: e.path, name: e.name, parent: dir, depth: depth + 1,
+			})
+		}
+	}
+	for i, f := range a.proj.folders {
+		walk(i, f, filepath.Base(f), 0)
+	}
+	a.proj.treeRows = rows
+	return rows
+}
+
+func (a *app) filesTree(c *ui.Context, cur *doc) {
+	rows := a.flattenTree()
+	if a.revealPath != "" {
+		for i := range rows {
+			if rows[i].create == nil && rows[i].path == a.revealPath {
+				a.proj.listState.ScrollIntoView(i)
+				break
+			}
+		}
+		a.revealPath = ""
+	}
+	curPath := ""
+	if cur != nil {
+		curPath = cur.path
+	}
+	list := ui.List(c.Key("files"), &a.proj.listState, len(rows)).
+		ItemKey(func(i int) any {
+			if rows[i].create != nil {
+				return rows[i].create
+			}
+			return treeRowKey{rows[i].root, rows[i].path}
+		}).
+		Rows(func(r ui.ListRow) {
+			it := rows[r.Index]
+			if it.create != nil {
+				a.treeInput(r.Context, it.create, it.depth)
+				return
+			}
+			if it.isDir {
+				open := it.open
+				row := a.treeRow(r.Context, it.path, it.name, it.depth, a.folderIcon(*open), false, r.Hovered()).
+					Expanded(*open).
+					OnClick(func() { *open = !*open }).
+					ContextMenu(func(m *ui.Menu) { a.folderMenu(r.Context, m, it.path, it.depth == 0) })
+				if p, ok := ui.Drop[treeDrag](row); ok && canDrop(string(p), it.path) {
+					a.dropInto(string(p), it.path, r.Context.Modifiers()&copyMods != 0)
 				}
-				row := a.treeRow(c, p, depth+1, a.fileIcon(p), cur != nil && cur.path == p).
-					OnClick(func() { a.open([]string{p}) }).
-					ContextMenu(func(m *ui.Menu) { a.fileMenu(c, m, p) })
-				treeSource(c, row, p)
+				if p, ok := ui.DragOver[treeDrag](row); ok && canDrop(string(p), it.path) {
+					row.Background(a.scheme.accent.Alpha(0.08))
+				}
+				if it.depth > 0 {
+					treeSource(r.Context, row, it.path)
+				}
+				return
 			}
+			row := a.treeRow(r.Context, it.path, it.name, it.depth, a.fileIcon(it.path), curPath != "" && curPath == it.path, r.Hovered()).
+				OnClick(func() { a.open([]string{it.path}) }).
+				ContextMenu(func(m *ui.Menu) { a.fileMenu(r.Context, m, it.path) })
+			if p, ok := ui.Drop[treeDrag](row); ok && canDrop(string(p), it.parent) {
+				a.dropInto(string(p), it.parent, r.Context.Modifiers()&copyMods != 0)
+			}
+			if p, ok := ui.DragOver[treeDrag](row); ok && canDrop(string(p), it.parent) {
+				row.Background(a.scheme.accent.Alpha(0.08))
+			}
+			treeSource(r.Context, row, it.path)
 		})
-	})
+	list.Grow(1).FillWidth().Role(ui.RoleTree)
 }
 
 // treeSource makes row drag path, showing the copy cursor while copyMods
@@ -296,24 +339,16 @@ func (a *app) treeInput(c *ui.Context, cr *creation, depth int) {
 		})
 }
 
-func (a *app) treeRow(c *ui.Context, path string, depth int, ic rowIcon, selected bool) ui.Element {
+func (a *app) treeRow(c *ui.Context, path, name string, depth int, ic rowIcon, selected, hovered bool) ui.Element {
 	t := c.Theme()
-	name := filepath.Base(path)
-	motion := treeMotion
-	// The selection shows at once, as its text turns AccentText at once.
-	motion.Colors = !selected
-	row := ui.Row(c.Key(path)).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
+	row := ui.Row(c).FillWidth().Height(t.Space(7)).Gap(treeGap).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).PaddingStart(t.Space(2) + (treeIcon+treeGap)*float32(depth)).Radius(t.Radius).
-		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected).Transition(motion)
-	if a.revealPath == path {
-		row.ScrollIntoView()
-		a.revealPath = ""
-	}
+		Role(ui.RoleTreeItem).Level(depth + 1).Label(name).Selected(selected)
 	tint, text := ic.tint(a.scheme.chrome().muted), t.Text
 	if selected {
 		tint, text = t.AccentText, t.AccentText
 	} else {
-		if row.Hovered() {
+		if hovered {
 			hover := t.SurfaceHover
 			if c.Vibrancy() {
 				hover = a.shell(c).hover

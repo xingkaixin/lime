@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"maps"
+	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
-	"strings"
+	"strconv"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo"
@@ -169,21 +171,72 @@ func (l *lime) writeSession(s session, gen uint64) error {
 // sessionChanged tells the sessions apart cheaply, by what an edit, a
 // tab or the layout changes.
 func (l *lime) sessionChanged() bool {
-	var b strings.Builder
-	fmt.Fprint(&b, l.recent)
+	b := l.sessionKeyBuf[:0]
+	writeBool := func(v bool) {
+		if v {
+			b = append(b, '1')
+		} else {
+			b = append(b, '0')
+		}
+	}
+	for _, f := range l.recent.Files {
+		b = append(b, 'F')
+		b = append(b, f...)
+		b = append(b, 0)
+	}
+	for _, f := range l.recent.Folders {
+		b = append(b, 'D')
+		b = append(b, f...)
+		b = append(b, 0)
+	}
 	for _, a := range l.wins {
-		fmt.Fprint(&b, "#", a.layout.name, a.cols, a.rows, a.focus, a.proj.path, a.proj.folders, a.side)
+		b = append(b, '#')
+		b = append(b, a.layout.name...)
+		for _, v := range a.cols {
+			b = append(b, ':')
+			b = strconv.AppendUint(b, uint64(math.Float32bits(v)), 10)
+		}
+		b = append(b, ';')
+		for _, v := range a.rows {
+			b = append(b, ':')
+			b = strconv.AppendUint(b, uint64(math.Float32bits(v)), 10)
+		}
+		b = append(b, ':')
+		b = strconv.AppendInt(b, int64(a.focus), 10)
+		b = append(b, 0)
+		b = append(b, a.proj.path...)
+		for _, f := range a.proj.folders {
+			b = append(b, 0)
+			b = append(b, f...)
+		}
+		b = append(b, ':')
+		b = strconv.AppendInt(b, int64(a.side), 10)
 		for _, g := range a.groups {
-			fmt.Fprint(&b, "|", g.active)
+			b = append(b, '|')
+			b = strconv.AppendInt(b, int64(g.active), 10)
 			for _, d := range g.docs {
-				fmt.Fprint(&b, ",", d.path, d.st.Buffer.Version(), d.dirty(), syntaxName(d.st.Buffer.Language()), d.tabSize, d.indent, d.lineEnding(), d.encoding().name)
+				b = append(b, ',')
+				b = append(b, d.path...)
+				b = append(b, 0)
+				b = strconv.AppendUint(b, d.st.Buffer.Version(), 10)
+				writeBool(d.dirty())
+				b = append(b, syntaxName(d.st.Buffer.Language())...)
+				b = append(b, ':')
+				b = strconv.AppendInt(b, int64(d.tabSize), 10)
+				b = append(b, ':')
+				b = strconv.AppendInt(b, int64(d.indent), 10)
+				b = append(b, d.lineEnding()...)
+				b = append(b, 0)
+				b = append(b, d.encoding().name...)
 			}
 		}
 	}
-	key := b.String()
+	l.sessionKeyBuf = b
 	l.sessionMu.Lock()
-	changed := key != l.sessionKey
-	l.sessionKey = key
+	changed := string(b) != l.sessionKey
+	if changed {
+		l.sessionKey = string(b)
+	}
 	l.sessionMu.Unlock()
 	return changed
 }
@@ -235,6 +288,92 @@ func (l *lime) restoreSession() {
 	l.sessionChanged()
 }
 
+var syntaxByName = sync.OnceValue(func() map[string]*editor.Language {
+	list := syntaxes()
+	m := make(map[string]*editor.Language, len(list))
+	for _, l := range list {
+		m[syntaxName(l)] = l
+	}
+	return m
+})
+
+type restoredFile struct {
+	sd   sessionDoc
+	kind docKind
+	disk string
+	enc  *fileEncoding
+	st   stamp
+	ok   bool
+}
+
+func prepareRestoreDoc(sd sessionDoc, fallback string) restoredFile {
+	if sd.Raw != nil {
+		text := string(sd.Raw)
+		sd.Text = &text
+	}
+	res := restoredFile{sd: sd, kind: textDoc, enc: encodingNamed(sd.Encoding), ok: true}
+	if sd.Path == "" {
+		return res
+	}
+	if k := fileKind(sd.Path); k != textDoc && sd.Text == nil {
+		res.kind = k
+		res.st = stampOf(sd.Path)
+		return res
+	}
+	raw, st, err := readTextWithStamp(sd.Path)
+	if err != nil && sd.Text == nil {
+		res.ok = false
+		return res
+	}
+	res.st = st
+	switch {
+	case res.enc != nil:
+		res.disk, res.enc = reopenText(raw, res.enc, fallback)
+	// The bytes kept of a file that isn't UTF-8 are the file's own,
+	// which the buffer held as they were.
+	case sd.Raw != nil:
+		res.disk, res.enc = reopenText(raw, utf8Encoding, fallback)
+	default:
+		res.disk, res.enc = openText(raw, fallback)
+	}
+	return res
+}
+
+func buildRestoredDoc(r restoredFile) *doc {
+	if !r.ok {
+		return nil
+	}
+	sd := r.sd
+	if r.kind != textDoc {
+		d := newDocWithStamp(sd.Path, "", r.st)
+		d.kind = r.kind
+		return d
+	}
+	d := newDocWithStamp(sd.Path, r.disk, r.st)
+	d.enc = r.enc
+	d.tabSize, d.indent = sd.TabSize, indentStyle(sd.TranslateTabsToSpaces)
+	if sd.Text != nil {
+		d.st.Buffer.Set(*sd.Text)
+	}
+	for _, e := range lineEndings {
+		if e.typ == sd.LineEnding {
+			d.setLineEnding(e.text)
+		}
+	}
+	if l, ok := syntaxByName()[sd.Syntax]; ok {
+		d.st.Buffer.SetLanguage(l)
+	}
+	var sels []editor.Selection
+	n := d.st.Buffer.Len()
+	for _, s := range sd.Sels {
+		sels = append(sels, editor.Selection{Anchor: min(max(s[0], 0), n), Head: min(max(s[1], 0), n)})
+	}
+	if len(sels) > 0 {
+		d.st.SetSelections(sels...)
+	}
+	return d
+}
+
 func (a *app) restore(s sessionWindow) {
 	for _, l := range layouts {
 		if l.name == s.Layout {
@@ -242,13 +381,43 @@ func (a *app) restore(s sessionWindow) {
 		}
 	}
 	a.cols, a.rows, a.bounds = s.Cols, s.Rows, s.Bounds
+	totalDocs := 0
 	for gi, sg := range s.Groups {
 		if gi >= len(a.groups) {
 			break
 		}
+		totalDocs += len(sg.Docs)
+	}
+	prepared := make([][]restoredFile, min(len(s.Groups), len(a.groups)))
+	fallback := a.set.FallbackEncoding
+	if totalDocs > 1 {
+		var wg sync.WaitGroup
+		slots := make(chan struct{}, min(totalDocs, max(runtime.GOMAXPROCS(0), 2)))
+		for gi := range prepared {
+			sg := s.Groups[gi]
+			prepared[gi] = make([]restoredFile, len(sg.Docs))
+			for di, sd := range sg.Docs {
+				wg.Go(func() {
+					slots <- struct{}{}
+					defer func() { <-slots }()
+					prepared[gi][di] = prepareRestoreDoc(sd, fallback)
+				})
+			}
+		}
+		wg.Wait()
+	} else {
+		for gi := range prepared {
+			sg := s.Groups[gi]
+			prepared[gi] = make([]restoredFile, len(sg.Docs))
+			for di, sd := range sg.Docs {
+				prepared[gi][di] = prepareRestoreDoc(sd, fallback)
+			}
+		}
+	}
+	for gi, files := range prepared {
 		g := a.groups[gi]
-		for _, sd := range sg.Docs {
-			if d := restoreDoc(sd, a.set.FallbackEncoding); d != nil {
+		for _, rf := range files {
+			if d := buildRestoredDoc(rf); d != nil {
 				// A file following the settings, as all did in sessions before
 				// files had their own indentation, detects its own.
 				if d.tabSize == 0 && d.indent == editor.IndentAuto && a.set.DetectIndentation {
@@ -257,7 +426,7 @@ func (a *app) restore(s sessionWindow) {
 				g.docs = append(g.docs, d)
 			}
 		}
-		g.active = min(max(sg.Active, 0), len(g.docs)-1)
+		g.active = min(max(s.Groups[gi].Active, 0), len(g.docs)-1)
 	}
 	a.proj.meta, a.proj.folderMeta = s.ProjectMeta, s.FolderMeta
 	if s.Project != "" && s.ProjectMeta == nil && s.FolderMeta == nil {
@@ -277,56 +446,5 @@ func (a *app) restore(s sessionWindow) {
 // nothing unsaved is left out. A file of a session before encodings opens
 // in the one it has, or fallback names.
 func restoreDoc(sd sessionDoc, fallback string) *doc {
-	if sd.Raw != nil {
-		text := string(sd.Raw)
-		sd.Text = &text
-	}
-	var disk string
-	enc := encodingNamed(sd.Encoding)
-	if sd.Path != "" {
-		if k := fileKind(sd.Path); k != textDoc && sd.Text == nil {
-			d := newDoc(sd.Path, "")
-			d.kind = k
-			return d
-		}
-		raw, err := readText(sd.Path)
-		if err != nil && sd.Text == nil {
-			return nil
-		}
-		switch {
-		case enc != nil:
-			disk, enc = reopenText(raw, enc, fallback)
-		// The bytes kept of a file that isn't UTF-8 are the file's own,
-		// which the buffer held as they were.
-		case sd.Raw != nil:
-			disk, enc = reopenText(raw, utf8Encoding, fallback)
-		default:
-			disk, enc = openText(raw, fallback)
-		}
-	}
-	d := newDoc(sd.Path, disk)
-	d.enc = enc
-	d.tabSize, d.indent = sd.TabSize, indentStyle(sd.TranslateTabsToSpaces)
-	if sd.Text != nil {
-		d.st.Buffer.Set(*sd.Text)
-	}
-	for _, e := range lineEndings {
-		if e.typ == sd.LineEnding {
-			d.setLineEnding(e.text)
-		}
-	}
-	for _, l := range syntaxes() {
-		if syntaxName(l) == sd.Syntax {
-			d.st.Buffer.SetLanguage(l)
-		}
-	}
-	var sels []editor.Selection
-	n := d.st.Buffer.Len()
-	for _, s := range sd.Sels {
-		sels = append(sels, editor.Selection{Anchor: min(max(s[0], 0), n), Head: min(max(s[1], 0), n)})
-	}
-	if len(sels) > 0 {
-		d.st.SetSelections(sels...)
-	}
-	return d
+	return buildRestoredDoc(prepareRestoreDoc(sd, fallback))
 }

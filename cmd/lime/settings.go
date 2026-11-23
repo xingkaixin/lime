@@ -223,6 +223,9 @@ func (p *pastEnd) UnmarshalJSON(b []byte) error {
 }
 
 func (s *settings) font() ui.Font {
+	if len(s.FontOptions) == 0 {
+		return ui.Font{Family: s.ContentFont, Size: s.FontSize}
+	}
 	var off []string
 	for _, o := range s.FontOptions {
 		switch o {
