@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"runtime/metrics"
 	"slices"
 	"strings"
 	"sync"
@@ -30,6 +31,7 @@ type doc struct {
 	path         string
 	st           *editor.State
 	columns      bool
+	peak         int
 	saved        editor.Snapshot
 	disk         stamp
 	base         string
@@ -328,18 +330,23 @@ type lime struct {
 	// file until it does.
 	setErr error
 
-	themeSource   mygo.ThemeSource
-	menuState     menuStateKey
-	avatars       map[string]*ui.Bitmap
-	fonts         *fontLists
-	sessionMu     sync.Mutex
-	sessionKey    string
-	sessionKeyBuf []byte
-	sessionKeyGen uint64
-	sessionGen    uint64
-	writing       sync.Mutex
-	written       uint64
-	quitting      bool
+	themeSource    mygo.ThemeSource
+	menuState      menuStateKey
+	avatars        map[string]*ui.Bitmap
+	fonts          *fontLists
+	sessionMu      sync.Mutex
+	sessionKey     string
+	sessionKeyBuf  []byte
+	sessionKeyGen  uint64
+	sessionGen     uint64
+	autosaving     bool
+	pendingSession *session
+	pendingGen     uint64
+	writing        sync.Mutex
+	written        uint64
+	lastReclaim    time.Time
+	needReclaim    bool
+	quitting       bool
 }
 
 type app struct {
@@ -553,7 +560,7 @@ func newDoc(path, text string) *doc {
 func newDocWithStamp(path, text string, disk stamp) *doc {
 	text, ending := splitLines(text)
 	buf := editor.NewBuffer(text)
-	d := &doc{keyAny: docElemKey(nextElemID.Add(1)), path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, saved: buf.Snapshot(), savedEnding: ending}
+	d := &doc{keyAny: docElemKey(nextElemID.Add(1)), path: path, st: &editor.State{Buffer: buf, Bindings: editorKeys, NoActiveLine: true}, peak: buf.Len(), saved: buf.Snapshot(), savedEnding: ending}
 	d.setLineEnding(ending)
 	if path != "" {
 		buf.SetLanguage(editor.LanguageFor(path))
@@ -1345,13 +1352,85 @@ func (a *app) closeViews(d *doc) {
 	}
 }
 
+const (
+	idleFreeThreshold = 64 << 20
+	reclaimCooldown   = 15 * time.Second
+)
+
+var (
+	releaseMu      sync.Mutex
+	releaseTimer   *time.Timer
+	releaseDelay   = time.Second
+	freeOSMemory   = debug.FreeOSMemory
+	unreturnedHeap = unreturnedHeapBytes
+)
+
+func unreturnedHeapBytes() uint64 {
+	s := [1]metrics.Sample{{Name: "/memory/classes/heap/free:bytes"}}
+	metrics.Read(s[:])
+	if s[0].Value.Kind() == metrics.KindUint64 {
+		return s[0].Value.Uint64()
+	}
+	return 0
+}
+
+func scheduleRelease() {
+	releaseMu.Lock()
+	if releaseTimer == nil {
+		delay := releaseDelay
+		releaseTimer = time.AfterFunc(delay, func() {
+			releaseMu.Lock()
+			releaseTimer = nil
+			fn := freeOSMemory
+			releaseMu.Unlock()
+			fn()
+		})
+	}
+	releaseMu.Unlock()
+}
+
 // release gives the memory of large docs just closed back to the system,
 // once the frames that showed them are gone: the runtime would collect
 // them only as the heap grows again, and give back the memory over
 // minutes.
 func release(docs ...*doc) {
-	if slices.ContainsFunc(docs, func(d *doc) bool { return d.st.Buffer.Len() > largeFile }) {
-		time.AfterFunc(time.Second, debug.FreeOSMemory)
+	if slices.ContainsFunc(docs, func(d *doc) bool { return d.peak > largeFile || d.st.Buffer.Len() > largeFile }) {
+		scheduleRelease()
+	}
+}
+
+func (l *lime) tick() {
+	changed := l.autosave()
+	l.reclaimMemory(changed)
+}
+
+func (l *lime) reclaimMemory(changed bool) {
+	if trimEditorClip() {
+		l.needReclaim = true
+	}
+	for _, a := range l.wins {
+		for _, d := range a.allDocs() {
+			n := d.st.Buffer.Len()
+			if n > d.peak {
+				d.peak = n
+			} else if d.peak > largeFile && d.peak-n >= largeFile/2 {
+				d.peak = n
+				l.needReclaim = true
+			}
+		}
+	}
+	if changed {
+		return
+	}
+	if l.needReclaim {
+		l.needReclaim = false
+		l.lastReclaim = time.Now()
+		scheduleRelease()
+		return
+	}
+	if (l.lastReclaim.IsZero() || time.Since(l.lastReclaim) >= reclaimCooldown) && unreturnedHeap() >= idleFreeThreshold {
+		l.lastReclaim = time.Now()
+		scheduleRelease()
 	}
 }
 
