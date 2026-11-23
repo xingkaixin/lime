@@ -3352,6 +3352,16 @@ func (msgs Messages) TabList() string {
 	return Catalog.Format(msgs.locale, "tabList", nil)
 }
 
+// TabSwitcher says "Switch Tab"
+// in the language the app shows.
+func TabSwitcher() string { return In(i18n.Locale()).TabSwitcher() }
+
+// TabSwitcher says "Switch Tab"
+// in the language of msgs.
+func (msgs Messages) TabSwitcher() string {
+	return Catalog.Format(msgs.locale, "tabSwitcher", nil)
+}
+
 // TabClose says "Close {name}"
 // in the language the app shows.
 //

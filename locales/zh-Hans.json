@@ -336,6 +336,7 @@
   "tabScrollLeft": "向左滚动标签页",
   "tabScrollRight": "向右滚动标签页",
   "tabList": "已打开的标签页",
+  "tabSwitcher": "切换标签页",
   "tabClose": "关闭 {name}",
   "tabUnsavedChanges": "{name}：未保存的修改",
   "tabPreview": "预览：{name}",

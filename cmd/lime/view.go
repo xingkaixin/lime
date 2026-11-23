@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"math"
+	"path/filepath"
 	"time"
 	"unicode/utf8"
 
@@ -91,6 +92,7 @@ func (a *app) view(c *ui.Context) {
 	})
 	a.scrollBack()
 	a.panelView(c)
+	a.tabSwitcherView(c)
 	a.settingsView(c)
 }
 
@@ -462,6 +464,73 @@ func (a *app) tabOverflowControls(c *ui.Context, g *group, dirs map[*doc]string,
 			ui.Icon(c, tabListIcon).Size(12, 12).TextColor(fg)
 		})
 	})
+}
+
+func (a *app) tabSwitcherView(c *ui.Context) {
+	if len(a.cycle) < 2 {
+		return
+	}
+	s, ch := a.scheme, a.scheme.chrome()
+	w, h := c.Size()
+	width := min(480, w-32)
+	maxH := min(360, max(h-120, 120))
+	ui.Overlay(c, func() {
+		box := ui.Column(c).Absolute().Top(48).Left((w-width)/2).Width(width).Padding(6).Gap(2).
+			Background(ch.panel).Radius(8).Border(1, ch.line).Shadow(0, 8, 28, 0, black.Alpha(0.35)).
+			KeepFocus().Label(locales.TabSwitcher())
+		if box.PressedOutside() {
+			a.commitCycle()
+		}
+		box.Children(func() {
+			ui.Scroll(c).FillWidth().MaxHeight(maxH).Children(func() {
+				for i, d := range a.cycle {
+					selected := i == a.cycleAt
+					row := ui.Row(c.Key(key(d))).FillWidth().Padding(6, 10).Gap(8).Radius(4).
+						AlignItems(ui.Center).Label(d.name()).OnClick(func() {
+						a.cycleAt = i
+						a.commitCycle()
+					})
+					switch {
+					case selected:
+						row.Background(ch.panel.Mix(s.accent, 0.28))
+						if a.cycleReveal {
+							row.ScrollIntoView()
+						}
+					case row.Hovered():
+						row.Background(ch.hover)
+					}
+					row.Children(func() {
+						fg := ch.muted
+						if selected {
+							fg = ch.text
+						}
+						a.tabIcon(c, d, fg)
+						ui.Text(c, d.name()).FontSize(13).TextColor(ch.text).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
+						if dir := a.tabDirLabel(d); dir != "" {
+							ui.Text(c, dir).FontSize(12).TextColor(ch.muted).SingleLine().Ellipsis("…").Grow(1).Shrink(1).MinWidth(0)
+						} else {
+							ui.Box(c).Grow(1)
+						}
+						if d.dirty() {
+							ui.Text(c, "●").FontSize(10).TextColor(ch.muted).Shrink(0)
+						}
+					})
+				}
+			})
+			a.cycleReveal = false
+		})
+	})
+}
+
+func (a *app) tabDirLabel(d *doc) string {
+	if d.path == "" {
+		return ""
+	}
+	rel := a.proj.rel(d.path)
+	if dir := filepath.Dir(rel); dir != "." {
+		return dir
+	}
+	return ""
 }
 
 // scrollTabs scrolls the tabs of g that do not fit in room, the width the
@@ -866,6 +935,16 @@ func (a *app) shortcuts(c *ui.Context) {
 		c.OnShortcut(0, ui.KeyEscape, func() { a.chord = false })
 		c.OnShortcut(0, ui.KeyK, func() { a.chord = false })
 		return
+	}
+	if len(a.cycle) > 1 {
+		c.OnShortcut(ui.Ctrl, ui.KeyDown, func() { a.cycleTabs(1) })
+		c.OnShortcut(ui.Ctrl, ui.KeyUp, func() { a.cycleTabs(-1) })
+		c.OnShortcut(0, ui.KeyDown, func() { a.cycleTabs(1) })
+		c.OnShortcut(0, ui.KeyUp, func() { a.cycleTabs(-1) })
+		c.OnShortcut(ui.Ctrl, ui.KeyEscape, a.cancelCycle)
+		c.OnShortcut(0, ui.KeyEscape, a.cancelCycle)
+		c.OnShortcut(ui.Ctrl, ui.KeyEnter, a.commitCycle)
+		c.OnShortcut(0, ui.KeyEnter, a.commitCycle)
 	}
 	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.chord = true })
 	// A mouse's side buttons, as in Zed: Sublime Text's switch tabs.
