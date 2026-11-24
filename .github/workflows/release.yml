@@ -1,0 +1,245 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Verify Version & Draft Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check tag matches mygo.json version
+        run: |
+          version="$(jq -r .version mygo.json)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match mygo.json version v$version" >&2
+            exit 1
+          fi
+      - name: Create draft release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --draft --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+          fi
+
+  build-macos:
+    name: Build macOS
+    needs: prepare
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Configure signing keychain and notarization
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -base64 24)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+
+          printf '%s' "$MAC_CSC_LINK" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
+            -P "$MAC_CSC_KEY_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/certificate.p12"
+
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain
+
+          printf '%s' "$APPLE_API_KEY" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          notary_args=(
+            notarytool store-credentials notary
+            --key "$RUNNER_TEMP/AuthKey.p8"
+            --key-id "$APPLE_API_KEY_ID"
+            --keychain "$keychain"
+          )
+          if [ -n "$APPLE_API_ISSUER" ]; then
+            notary_args+=(--issuer "$APPLE_API_ISSUER")
+          fi
+          xcrun "${notary_args[@]}"
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+          echo "NOTARY_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+      - name: Patch mygo.json for CI notarization
+        run: |
+          tmp="$(mktemp)"
+          jq --arg kc "$NOTARY_KEYCHAIN" \
+            '.macos.notarize = {"keychainProfile": "notary", "keychain": $kc}' \
+            mygo.json > "$tmp"
+          mv "$tmp" mygo.json
+      - name: Build signed and notarized macOS releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+          MAC_CSC_NAME: ${{ secrets.MAC_CSC_NAME }}
+        run: |
+          go tool mygo build -platform "darwin/arm64,darwin/amd64" -sign "$MAC_CSC_NAME"
+      - name: Repack DMGs with custom background (if present)
+        env:
+          MAC_CSC_NAME: ${{ secrets.MAC_CSC_NAME }}
+        run: |
+          bg=""
+          if [ -f "assets/dmg/background.tiff" ]; then
+            bg="assets/dmg/background.tiff"
+          elif [ -f "assets/dmg/background.png" ]; then
+            bg="assets/dmg/background.png"
+          fi
+          if [ -z "$bg" ]; then
+            echo "No custom DMG background at assets/dmg/background.{png,tiff}; keeping default DMGs."
+            exit 0
+          fi
+
+          repacked=()
+          for arch in arm64 amd64; do
+            dir="build/darwin-${arch}"
+            app="${dir}/Lime.app"
+            dmg="$(find "$dir" -maxdepth 1 -name 'lime-*.dmg' -print -quit)"
+            if [ -z "$dmg" ] || [ ! -d "$app" ]; then
+              echo "Expected Lime.app and lime-*.dmg in $dir" >&2
+              exit 1
+            fi
+            go run ./scripts/repack-dmg \
+              -app "$app" \
+              -out "$dmg" \
+              -bg "$bg" \
+              -volname "Lime"
+            codesign --force --timestamp --sign "$MAC_CSC_NAME" "$dmg"
+            xcrun notarytool submit "$dmg" \
+              --keychain-profile notary \
+              --keychain "$NOTARY_KEYCHAIN" \
+              --wait
+            xcrun stapler staple "$dmg"
+            repacked+=("$dmg")
+          done
+          go run ./scripts/repack-dmg -update-checksums build/SHA256SUMS "${repacked[@]}"
+      - name: Upload macOS build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-macos
+          if-no-files-found: error
+          path: |
+            build/darwin-*/*.dmg
+            build/darwin-*/*.tar.gz
+            build/darwin-*/*.delta
+            build/darwin-*/install.sh
+            build/darwin-*/update-*.json
+            build/SHA256SUMS
+      - name: Clean up temporary keychain
+        if: always()
+        run: |
+          if [ -n "${NOTARY_KEYCHAIN:-}" ] && [ -f "$NOTARY_KEYCHAIN" ]; then
+            security delete-keychain "$NOTARY_KEYCHAIN" || true
+          fi
+
+  build-windows:
+    name: Build Windows
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Install NSIS
+        run: sudo apt-get update && sudo apt-get install -y nsis
+      - name: Build Windows releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: |
+          go tool mygo build -platform "windows/amd64,windows/arm64"
+      - name: Upload Windows build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-windows
+          if-no-files-found: error
+          path: |
+            build/windows-*/*-setup-*.exe
+            build/windows-*/*.tar.gz
+            build/windows-*/*.delta
+            build/windows-*/install.ps1
+            build/windows-*/update-*.json
+            build/SHA256SUMS
+
+  upload-release:
+    name: Upload to Draft Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download platform artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: artifacts
+      - name: Stage release assets and merge SHA256SUMS
+        run: |
+          mkdir -p stage/files stage/manifests
+
+          python3 -c '
+          import glob, re, sys
+          sums = {}
+          for path in sorted(glob.glob(sys.argv[1])):
+              with open(path, encoding="utf-8") as f:
+                  for line in f:
+                      m = re.match(r"^([0-9a-f]{64}) [ *](.+)$", line.rstrip("\r\n"))
+                      if m:
+                          sums[m.group(2)] = m.group(1)
+          if not sums:
+              sys.exit("no checksums found in platform artifacts")
+          with open(sys.argv[2], "w", encoding="utf-8") as out:
+              for name in sorted(sums):
+                  out.write(f"{sums[name]}  {name}\n")
+          ' "artifacts/*/SHA256SUMS" "stage/files/SHA256SUMS"
+
+          while IFS= read -r -d '' f; do
+            base="$(basename "$f")"
+            case "$base" in
+              update-*.json)
+                cp "$f" "stage/manifests/$base"
+                ;;
+              *.dmg|*-setup-*.exe|*.tar.gz|*.delta|install.sh|install.ps1)
+                cp "$f" "stage/files/$base"
+                ;;
+            esac
+          done < <(find artifacts -type f -print0)
+
+          echo "=== Release files ==="
+          ls -la stage/files
+          echo "=== Update manifests ==="
+          ls -la stage/manifests
+
+          if [ -z "$(ls -A stage/files)" ] || [ -z "$(ls -A stage/manifests)" ]; then
+            echo "Missing release files or update manifests" >&2
+            exit 1
+          fi
+      - name: Upload installers, archives, scripts, and SHA256SUMS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(stage/files/*)
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
+      - name: Upload update manifests last
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          manifests=(stage/manifests/*)
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber "${manifests[@]}"
+          echo "Draft release $GITHUB_REF_NAME updated. Review and publish with:"
+          echo "  gh release edit $GITHUB_REF_NAME --repo $GITHUB_REPOSITORY --draft=false"
