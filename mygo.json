@@ -6,6 +6,10 @@
   "out": "build",
   "resources": ["cmd/lime/fileicons/LICENSE-pierre-icons.md"],
   "i18n": { "dir": "locales", "source": "en" },
+  "updates": {
+    "publicKey": "ZEjKEsm/54wjyUcbbHClx+yhQ2rcUHrWZYYD/OXCgpk=",
+    "github": "xingkaixin/lime"
+  },
   "macos": {
     "infoPlist": {
       "CFBundleDocumentTypes": [

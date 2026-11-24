@@ -49,6 +49,7 @@ func (a *app) makeWindow(r mygo.Rectangle) {
 }
 
 func main() {
+	initUpdater()
 	l := newLime(dataDir())
 	onIconFontLoaded = l.redraw
 	l.restoreSession()
