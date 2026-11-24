@@ -190,6 +190,22 @@ func main() {
 	if err := os.WriteFile(filepath.Join(out, "index.html"), []byte(indexHTML), 0o644); err != nil {
 		log.Fatal(err)
 	}
+
+	const robotsTxt = "User-agent: *\nAllow: /\nDisallow: /app.html\n\nSitemap: https://lime.xingkaixin.me/sitemap.xml\n"
+	if err := os.WriteFile(filepath.Join(out, "robots.txt"), []byte(robotsTxt), 0o644); err != nil {
+		log.Fatal(err)
+	}
+
+	const sitemapXML = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://lime.xingkaixin.me/</loc>
+  </url>
+</urlset>
+`
+	if err := os.WriteFile(filepath.Join(out, "sitemap.xml"), []byte(sitemapXML), 0o644); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func shortHash(b []byte) string {
