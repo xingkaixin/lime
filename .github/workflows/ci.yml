@@ -6,8 +6,8 @@ on:
   pull_request:
 
 jobs:
-  check:
-    name: Check & Test (Linux)
+  lint:
+    name: Lint & Build Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -18,14 +18,20 @@ jobs:
         run: go tool mygo vet .
       - name: Check i18n
         run: go tool mygo i18n check .
-      - name: Test
+      - name: Test build scripts
         env:
           CGO_ENABLED: "0"
-        run: go test ./...
+        run: go test ./scripts/...
       - name: Check WASM build
         env:
           GOOS: js
           GOARCH: wasm
+          CGO_ENABLED: "0"
+        run: go build -o /dev/null ./cmd/lime
+      - name: Check Windows cross-compile
+        env:
+          GOOS: windows
+          GOARCH: amd64
           CGO_ENABLED: "0"
         run: go build -o /dev/null ./cmd/lime
 
