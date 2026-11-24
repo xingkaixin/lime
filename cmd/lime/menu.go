@@ -107,19 +107,27 @@ func (l *lime) newMenu() *mygo.Menu {
 			{Role: mygo.RoleStartSpeaking}, {Role: mygo.RoleStopSpeaking},
 		}})
 	}
-	// Settings go in the app's menu on macOS, and in File elsewhere.
+	// Settings and updates go in the app's menu on macOS, and in File elsewhere.
 	settingsItem := l.menuItem(locales.MenuSettings(), "show_settings")
+	updateItem := updaterMenuItem()
 	appMenu := &mygo.MenuItem{Role: mygo.RoleAppMenu}
 	var fileSettings []*mygo.MenuItem
 	if mac {
-		appMenu.Submenu = []*mygo.MenuItem{
-			{Role: mygo.RoleAbout}, mygo.Separator(), settingsItem, mygo.Separator(),
+		appMenu.Submenu = []*mygo.MenuItem{{Role: mygo.RoleAbout}}
+		if updateItem != nil {
+			appMenu.Submenu = append(appMenu.Submenu, updateItem)
+		}
+		appMenu.Submenu = append(appMenu.Submenu, []*mygo.MenuItem{
+			mygo.Separator(), settingsItem, mygo.Separator(),
 			{Role: mygo.RoleServices}, mygo.Separator(),
 			{Role: mygo.RoleHide}, {Role: mygo.RoleHideOthers}, {Role: mygo.RoleUnhide}, mygo.Separator(),
 			{Role: mygo.RoleQuit},
-		}
+		}...)
 	} else {
 		fileSettings = []*mygo.MenuItem{mygo.Separator(), settingsItem}
+		if updateItem != nil {
+			fileSettings = append(fileSettings, updateItem)
+		}
 	}
 	revertItem := l.menuItem(locales.MenuRevertFile(), "revert")
 	revertItem.ID = "revert"
