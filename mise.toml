@@ -33,3 +33,7 @@ run = "go run website/build.go"
 [tasks."site:dev"]
 depends = ["site:build"]
 run = "python3 -m http.server 5180 -d build/site"
+
+[tasks."site:deploy"]
+depends = ["site:build"]
+run = "cf deploy build/site"

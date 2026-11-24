@@ -1,4 +1,5 @@
 /build/
+/.cloudflare/
 /.mygo/
 mygo_windows_*.syso
 /lime
