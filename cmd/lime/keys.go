@@ -125,7 +125,8 @@ func pcEditorKeys(windows bool) []editor.Binding {
 		bind(ctrl|sh, ui.KeySpace, editor.SelectLarger), bind(ctrl|sh, ui.KeyA, editor.SelectLarger),
 		bind(ctrl|sh, ui.KeyM, editor.SelectLarger), bind(ctrl, ui.KeyM, editor.MoveToBracket),
 		bind(0, ui.KeyF12, editor.GoToDefinition), bind(ctrl, ui.KeySpace, editor.ShowCompletions),
-		bind(ctrl, ui.KeyPeriod, editor.NextHunk), bind(ctrl, ui.KeyComma, editor.PreviousHunk),
+		// Ctrl+, opens Settings on non-macOS, so hunk navigation moves to Alt.
+		bind(alt, ui.KeyPeriod, editor.NextHunk), bind(alt, ui.KeyComma, editor.PreviousHunk),
 		bind(ctrl|sh, ui.KeyUp, editor.MoveLinesUp), bind(ctrl|sh, ui.KeyDown, editor.MoveLinesDown),
 		bind(ctrl, ui.KeyBackspace, editor.DeleteWordLeft), bind(ctrl, ui.KeyDelete, editor.DeleteWordRight),
 		bind(ctrl|sh, ui.KeyBackspace, editor.DeleteToLineStart), bind(ctrl|sh, ui.KeyDelete, editor.DeleteToLineEnd),
