@@ -18,10 +18,10 @@ jobs:
         run: go tool mygo vet .
       - name: Check i18n
         run: go tool mygo i18n check .
-      - name: Test build scripts
+      - name: Test
         env:
           CGO_ENABLED: "0"
-        run: go test ./scripts/...
+        run: go test ./...
       - name: Check WASM build
         env:
           GOOS: js
@@ -38,6 +38,19 @@ jobs:
   test-macos:
     name: Test (macOS)
     runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Test
+        env:
+          CGO_ENABLED: "0"
+        run: go test ./...
+
+  test-windows:
+    name: Test (Windows)
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7

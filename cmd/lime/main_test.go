@@ -104,7 +104,11 @@ func TestTabs(t *testing.T) {
 	a.newFile()
 	tt.Frame()
 	tt.Advance(time.Second)
-	tt.Key(ui.Cmd, ui.Key1)
+	tabMod := ui.Cmd
+	if !mac {
+		tabMod = ui.Alt
+	}
+	tt.Key(tabMod, ui.Key1)
 	if a.current().path != p {
 		t.Fatalf("Cmd+1: tab %d", a.group().active)
 	}
@@ -1416,6 +1420,8 @@ func newRepo(t *testing.T) (string, func(...string)) {
 		}
 	}
 	git("init", "-q", "-b", "main")
+	git("config", "user.name", "t")
+	git("config", "user.email", "t@t")
 	return dir, git
 }
 
