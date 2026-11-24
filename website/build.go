@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"image"
+	_ "image/jpeg"
 	"image/png"
 	"io"
 	"log"
@@ -82,11 +83,27 @@ func main() {
 		log.Fatal(err)
 	}
 
-	iconBytes := buildIconPNG("resources/icon.png", 128)
-	iconName := "icon." + shortHash(iconBytes) + ".png"
-	if err := os.WriteFile(filepath.Join(out, iconName), iconBytes, 0o644); err != nil {
+	rawIconPNG := renderIconPNG("resources/icon.png", 128)
+	iconPNG := optimizePNG(rawIconPNG)
+	iconName := "icon." + shortHash(iconPNG) + ".png"
+	if err := os.WriteFile(filepath.Join(out, iconName), iconPNG, 0o644); err != nil {
 		log.Fatal(err)
 	}
+	var iconAVIFName, iconWEBPName string
+	if b := encodeAVIF(rawIconPNG); len(b) > 0 {
+		iconAVIFName = "icon." + shortHash(b) + ".avif"
+		if err := os.WriteFile(filepath.Join(out, iconAVIFName), b, 0o644); err != nil {
+			log.Fatal(err)
+		}
+	}
+	if b := encodeWebP(rawIconPNG); len(b) > 0 {
+		iconWEBPName = "icon." + shortHash(b) + ".webp"
+		if err := os.WriteFile(filepath.Join(out, iconWEBPName), b, 0o644); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	ogName, ogW, ogH, hasOG := buildOGImage()
 
 	copyFile("cmd/lime/fileicons/LICENSE-pierre-icons.md", "LICENSE-pierre-icons.md")
 
@@ -141,6 +158,30 @@ func main() {
 	}
 
 	indexHTML := mustRead("website/index.html")
+	if iconAVIFName != "" {
+		indexHTML = strings.ReplaceAll(indexHTML, "__ICON_AVIF_URL__", iconAVIFName)
+	} else {
+		indexHTML = strings.ReplaceAll(indexHTML, `<source srcset="__ICON_AVIF_URL__" type="image/avif">`, "")
+	}
+	if iconWEBPName != "" {
+		indexHTML = strings.ReplaceAll(indexHTML, "__ICON_WEBP_URL__", iconWEBPName)
+	} else {
+		indexHTML = strings.ReplaceAll(indexHTML, `<source srcset="__ICON_WEBP_URL__" type="image/webp">`, "")
+	}
+	if hasOG {
+		indexHTML = strings.NewReplacer(
+			"<!--__OG_IMAGE_START__-->\n", "",
+			"<!--__OG_IMAGE_END__-->\n", "",
+			"<!--__TWITTER_IMAGE_START__-->\n", "",
+			"<!--__TWITTER_IMAGE_END__-->\n", "",
+			"__OG_URL__", ogName,
+			"__OG_WIDTH__", strconv.Itoa(ogW),
+			"__OG_HEIGHT__", strconv.Itoa(ogH),
+		).Replace(indexHTML)
+	} else {
+		indexHTML = stripBlock(indexHTML, "<!--__OG_IMAGE_START__-->", "<!--__OG_IMAGE_END__-->")
+		indexHTML = stripBlock(indexHTML, "<!--__TWITTER_IMAGE_START__-->", "<!--__TWITTER_IMAGE_END__-->")
+	}
 	indexHTML = strings.NewReplacer(
 		"__ICON_URL__", iconName,
 		"__WASM_URL__", wasmName,
@@ -164,9 +205,9 @@ func mustRead(path string) string {
 	return string(b)
 }
 
-// buildIconPNG downsamples the 1024x1024 app icon to size x size (2x Retina
-// for the 64px boot spinner) and optimizes it with pngquant/oxipng if available.
-func buildIconPNG(srcPath string, size int) []byte {
+// renderIconPNG downsamples the 1024x1024 app icon to size x size (2x Retina
+// for the 64px boot spinner) as a lossless PNG source for format encoders.
+func renderIconPNG(srcPath string, size int) []byte {
 	f, err := os.Open(srcPath)
 	if err != nil {
 		log.Fatal(err)
@@ -183,7 +224,11 @@ func buildIconPNG(srcPath string, size int) []byte {
 	if err := enc.Encode(&buf, dst); err != nil {
 		log.Fatal(err)
 	}
-	best := buf.Bytes()
+	return buf.Bytes()
+}
+
+func optimizePNG(src []byte) []byte {
+	best := src
 	if pq, err := exec.LookPath("pngquant"); err == nil {
 		cmd := exec.Command(pq, "--quality=80-95", "--speed=1", "--strip", "-")
 		cmd.Stdin = bytes.NewReader(best)
@@ -192,17 +237,157 @@ func buildIconPNG(srcPath string, size int) []byte {
 		}
 	}
 	if oxi, err := exec.LookPath("oxipng"); err == nil {
-		tmp := filepath.Join(os.TempDir(), "lime-icon-opt.png")
-		if os.WriteFile(tmp, best, 0o600) == nil {
-			defer os.Remove(tmp)
-			if exec.Command(oxi, "-o", "4", "--strip", "safe", "-q", tmp).Run() == nil {
-				if opt, err := os.ReadFile(tmp); err == nil && len(opt) > 0 && len(opt) < len(best) {
-					best = opt
+		dir, err := os.MkdirTemp("", "lime-png-*")
+		if err == nil {
+			defer os.RemoveAll(dir)
+			tmp := filepath.Join(dir, "img.png")
+			if os.WriteFile(tmp, best, 0o600) == nil {
+				if exec.Command(oxi, "-o", "4", "--strip", "safe", "-q", tmp).Run() == nil {
+					if opt, err := os.ReadFile(tmp); err == nil && len(opt) > 0 && len(opt) < len(best) {
+						best = opt
+					}
 				}
 			}
 		}
 	}
 	return best
+}
+
+func optimizeJPEG(src []byte) []byte {
+	magick, err := exec.LookPath("magick")
+	if err != nil {
+		return src
+	}
+	dir, err := os.MkdirTemp("", "lime-jpg-*")
+	if err != nil {
+		return src
+	}
+	defer os.RemoveAll(dir)
+	inPath := filepath.Join(dir, "in.jpg")
+	outPath := filepath.Join(dir, "out.jpg")
+	if err := os.WriteFile(inPath, src, 0o600); err != nil {
+		return src
+	}
+	if err := exec.Command(magick, inPath, "-strip", "-interlace", "Plane", "-sampling-factor", "4:2:0", "-quality", "85", outPath).Run(); err != nil {
+		return src
+	}
+	if opt, err := os.ReadFile(outPath); err == nil && len(opt) > 0 && len(opt) < len(src) {
+		return opt
+	}
+	return src
+}
+
+func encodeAVIF(pngBytes []byte) []byte {
+	magick, err := exec.LookPath("magick")
+	if err != nil {
+		log.Printf("warning: magick not found; skipping AVIF encoding")
+		return nil
+	}
+	dir, err := os.MkdirTemp("", "lime-avif-*")
+	if err != nil {
+		log.Printf("warning: AVIF temp dir: %v", err)
+		return nil
+	}
+	defer os.RemoveAll(dir)
+	inPath := filepath.Join(dir, "in.png")
+	outPath := filepath.Join(dir, "out.avif")
+	if err := os.WriteFile(inPath, pngBytes, 0o600); err != nil {
+		log.Printf("warning: AVIF input write: %v", err)
+		return nil
+	}
+	if err := exec.Command(magick, inPath, "-strip", "-quality", "65", "-define", "heic:speed=2", outPath).Run(); err != nil {
+		log.Printf("warning: magick AVIF encoding failed: %v", err)
+		return nil
+	}
+	b, err := os.ReadFile(outPath)
+	if err != nil || len(b) == 0 {
+		return nil
+	}
+	return b
+}
+
+func encodeWebP(pngBytes []byte) []byte {
+	dir, err := os.MkdirTemp("", "lime-webp-*")
+	if err != nil {
+		log.Printf("warning: WebP temp dir: %v", err)
+		return nil
+	}
+	defer os.RemoveAll(dir)
+	inPath := filepath.Join(dir, "in.png")
+	outPath := filepath.Join(dir, "out.webp")
+	if err := os.WriteFile(inPath, pngBytes, 0o600); err != nil {
+		log.Printf("warning: WebP input write: %v", err)
+		return nil
+	}
+	if magick, err := exec.LookPath("magick"); err == nil {
+		if err := exec.Command(magick, inPath, "-strip", "-quality", "85", "-define", "webp:method=6", "-define", "webp:alpha-quality=95", outPath).Run(); err == nil {
+			if b, err := os.ReadFile(outPath); err == nil && len(b) > 0 {
+				return b
+			}
+		}
+	}
+	if cwebp, err := exec.LookPath("cwebp"); err == nil {
+		if err := exec.Command(cwebp, "-quiet", "-q", "85", "-m", "6", "-alpha_q", "95", inPath, "-o", outPath).Run(); err == nil {
+			if b, err := os.ReadFile(outPath); err == nil && len(b) > 0 {
+				return b
+			}
+		}
+	}
+	log.Printf("warning: neither magick nor cwebp encoded WebP; skipping WebP")
+	return nil
+}
+
+func buildOGImage() (name string, width, height int, ok bool) {
+	candidates := []struct {
+		path string
+		ext  string
+	}{
+		{"website/og.png", ".png"},
+		{"website/og.jpg", ".jpg"},
+		{"website/og.jpeg", ".jpg"},
+	}
+	for _, c := range candidates {
+		raw, err := os.ReadFile(c.path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			log.Fatal(err)
+		}
+		width, height = 1200, 630
+		if cfg, _, err := image.DecodeConfig(bytes.NewReader(raw)); err == nil && cfg.Width > 0 && cfg.Height > 0 {
+			width, height = cfg.Width, cfg.Height
+		}
+		var outBytes []byte
+		if c.ext == ".png" {
+			outBytes = optimizePNG(raw)
+		} else {
+			outBytes = optimizeJPEG(raw)
+		}
+		name = "og." + shortHash(outBytes) + c.ext
+		if err := os.WriteFile(filepath.Join(out, name), outBytes, 0o644); err != nil {
+			log.Fatal(err)
+		}
+		return name, width, height, true
+	}
+	log.Printf("note: website/og.png not found; omitting OG image meta tags")
+	return "", 0, 0, false
+}
+
+func stripBlock(s, start, end string) string {
+	i := strings.Index(s, start)
+	if i < 0 {
+		return s
+	}
+	j := strings.Index(s[i:], end)
+	if j < 0 {
+		return s
+	}
+	endIdx := i + j + len(end)
+	if endIdx < len(s) && s[endIdx] == '\n' {
+		endIdx++
+	}
+	return s[:i] + s[endIdx:]
 }
 
 func buildDemoJSON() []byte {

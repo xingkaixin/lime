@@ -5,6 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lime — a plain text editor on Sublime Text's keys</title>
 <meta name="description" content="Lime is a native text editor in the manner of Sublime Text: tabs, groups, Goto Anything and multiple carets, written in pure Go.">
+<link rel="canonical" href="https://lime.xingkaixin.me/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lime.xingkaixin.me/">
+<meta property="og:title" content="Lime — a plain text editor on Sublime Text's keys">
+<meta property="og:description" content="Lime is a native text editor in the manner of Sublime Text: tabs, groups, Goto Anything and multiple carets, written in pure Go.">
+<!--__OG_IMAGE_START__-->
+<meta property="og:image" content="https://lime.xingkaixin.me/__OG_URL__">
+<meta property="og:image:width" content="__OG_WIDTH__">
+<meta property="og:image:height" content="__OG_HEIGHT__">
+<!--__OG_IMAGE_END__-->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Lime — a plain text editor on Sublime Text's keys">
+<meta name="twitter:description" content="Lime is a native text editor in the manner of Sublime Text: tabs, groups, Goto Anything and multiple carets, written in pure Go.">
+<!--__TWITTER_IMAGE_START__-->
+<meta name="twitter:image" content="https://lime.xingkaixin.me/__OG_URL__">
+<!--__TWITTER_IMAGE_END__-->
 <link rel="icon" href="__ICON_URL__">
 <link rel="preload" href="__WASM_URL__" as="fetch" crossorigin>
 <link rel="preload" href="__DEMO_URL__" as="fetch" crossorigin>
@@ -93,6 +109,7 @@ window.__limePreload = {
   }
   a { color: inherit; text-decoration: none; }
   h1, h2, h3, p { margin: 0; }
+  picture { display: contents; }
   kbd {
     display: inline-flex; align-items: center; justify-content: center;
     min-width: 22px; height: 22px; padding: 0 6px;
@@ -214,7 +231,7 @@ window.__limePreload = {
   .layout:hover { border-color: var(--accent); }
   .layout:hover i { background: var(--accent); }
 
-  .platforms { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+  .platforms { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--line); }
   .platforms > div { padding: 30px 28px 34px; }
   .platforms > div + div { border-left: 1px solid var(--line); }
   .platforms .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
@@ -257,7 +274,7 @@ window.__limePreload = {
 <body>
 <header class="nav">
   <div class="col">
-    <a class="brand" href="#"><img src="__ICON_URL__" width="26" height="26" decoding="async" alt="">Lime</a>
+    <a class="brand" href="#"><picture><source srcset="__ICON_AVIF_URL__" type="image/avif"><source srcset="__ICON_WEBP_URL__" type="image/webp"><img src="__ICON_URL__" width="26" height="26" decoding="async" alt=""></picture>Lime</a>
     <nav class="links">
       <a href="#features">Features</a>
       <a href="#download">Download</a>
@@ -285,7 +302,7 @@ window.__limePreload = {
         <span>View source</span>
       </a>
     </div>
-    <p class="avail">For macOS, Windows and Linux</p>
+    <p class="avail">For macOS and Windows</p>
   </section>
 
   <section class="demo" id="demo">
@@ -293,7 +310,7 @@ window.__limePreload = {
       <div class="titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="title" id="title">Lime</span></div>
       <div class="screen" id="screen">
         <iframe id="app" src="app.html" title="Lime, running in this page"></iframe>
-        <div class="boot" id="boot"><img src="__ICON_URL__" width="64" height="64" decoding="async" alt=""><span id="boot-text">Starting Lime…</span><progress id="boot-bar" max="1" value="0"></progress></div>
+        <div class="boot" id="boot"><picture><source srcset="__ICON_AVIF_URL__" type="image/avif"><source srcset="__ICON_WEBP_URL__" type="image/webp"><img src="__ICON_URL__" width="64" height="64" decoding="async" alt=""></picture><span id="boot-text">Starting Lime…</span><progress id="boot-bar" max="1" value="0"></progress></div>
       </div>
     </div>
     <div class="try" id="try">
@@ -308,7 +325,7 @@ window.__limePreload = {
     </div>
     <div>
       <h3>Pure Go</h3>
-      <p>One Go package that builds with CGO_ENABLED=0 for macOS, Windows, Linux, and the browser you're reading this in.</p>
+      <p>One Go package that builds with CGO_ENABLED=0 for macOS, Windows, and the browser you're reading this in.</p>
     </div>
     <div>
       <h3>Sublime Text's keys</h3>
@@ -326,15 +343,11 @@ window.__limePreload = {
     <div class="platforms">
       <div>
         <h3>macOS</h3>
-        <div class="row"><a class="btn small" data-dl href="#">Apple silicon</a><a class="btn small" data-dl href="#">Intel</a></div>
+        <div class="row"><a class="btn small" data-dl href="https://github.com/xingkaixin/lime/releases/latest">Apple silicon</a><a class="btn small" data-dl href="https://github.com/xingkaixin/lime/releases/latest">Intel</a></div>
       </div>
       <div>
         <h3>Windows</h3>
-        <div class="row"><a class="btn small" data-dl href="#">x64</a><a class="btn small" data-dl href="#">Arm64</a></div>
-      </div>
-      <div>
-        <h3>Linux</h3>
-        <div class="row"><a class="btn small" data-dl href="#">x64</a><a class="btn small" data-dl href="#">Arm64</a></div>
+        <div class="row"><a class="btn small" data-dl href="https://github.com/xingkaixin/lime/releases/latest">x64</a><a class="btn small" data-dl href="https://github.com/xingkaixin/lime/releases/latest">Arm64</a></div>
       </div>
     </div>
     <div class="source">
@@ -346,7 +359,7 @@ window.__limePreload = {
 
 <footer>
   <div class="col">
-    <a class="brand" href="#"><img src="__ICON_URL__" width="26" height="26" decoding="async" alt="">Lime</a>
+    <a class="brand" href="#"><picture><source srcset="__ICON_AVIF_URL__" type="image/avif"><source srcset="__ICON_WEBP_URL__" type="image/webp"><img src="__ICON_URL__" width="26" height="26" decoding="async" alt=""></picture>Lime</a>
     <a href="https://github.com/egoist/mygo">Built with MyGo</a>
     <a href="https://github.com/xingkaixin/lime">GitHub</a>
   </div>
@@ -355,7 +368,7 @@ window.__limePreload = {
 <script>
   const releases = "https://github.com/xingkaixin/lime/releases/latest"
   const mac = navigator.platform.startsWith("Mac")
-  const os = mac ? "macOS" : /Win/.test(navigator.platform) ? "Windows" : /Linux/.test(navigator.platform) ? "Linux" : ""
+  const os = mac ? "macOS" : /Win/.test(navigator.platform) ? "Windows" : ""
   if (os) document.querySelector("#get span").textContent = "Download for " + os
   for (const a of document.querySelectorAll("[data-dl]")) a.href = releases
 
