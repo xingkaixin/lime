@@ -34,9 +34,11 @@ func (a *app) makeWindow(r mygo.Rectangle) {
 		o.Vibrancy, o.TitleBarStyle = mygo.VibrancySidebar, mygo.TitleBarHidden
 	}
 	a.win = mygo.NewWindow(o)
+	a.l.syncDocWatches()
 	a.win.OnFocus(func() {
 		a.l.last, a.l.menuState = a, menuStateKey{}
 		a.syncMenu()
+		a.l.syncDocWatches()
 		a.reloadChanged()
 		a.readGit()
 		a.readMarks()

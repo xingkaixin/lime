@@ -399,20 +399,21 @@ func (a *app) applyWatchBatch(batch *projWatchBatch, dirs, paths map[string]bool
 	}
 	if len(paths) > 0 {
 		for _, w := range a.l.wins {
-			if w.hasOpenPath(paths) {
-				w.reloadChanged()
+			if docs := w.openDocsAtPaths(paths); len(docs) > 0 {
+				w.reloadDocs(docs)
 			}
 		}
 	}
 }
 
-func (a *app) hasOpenPath(paths map[string]bool) bool {
+func (a *app) openDocsAtPaths(paths map[string]bool) []*doc {
+	var docs []*doc
 	for _, d := range a.allDocs() {
 		if d.path != "" && paths[d.path] {
-			return true
+			docs = append(docs, d)
 		}
 	}
-	return false
+	return docs
 }
 
 func (p *project) forgetHidden() {
@@ -1041,13 +1042,15 @@ func renameNew(from, to string) error {
 
 func (a *app) renamed(from, to string) {
 	a.l.renameRecent(from, to)
+	docsMoved := false
 	for _, w := range a.l.wins {
 		for _, d := range w.allDocs() {
 			if p := moved(d.path, from, to); p != d.path {
 				d.path = p
 				d.st.Buffer.SetLanguage(editor.LanguageFor(p))
+				docsMoved = true
 				if w.reloading {
-					w.reloadAgain = true
+					w.reloadAll = true
 				}
 			}
 		}
@@ -1073,6 +1076,9 @@ func (a *app) renamed(from, to string) {
 			w.proj.jump = true
 			w.refreshFolders()
 		}
+	}
+	if docsMoved {
+		a.l.syncDocWatches()
 	}
 	a.l.redraw()
 }
