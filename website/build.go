@@ -191,7 +191,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	const robotsTxt = "User-agent: *\nAllow: /\nDisallow: /app.html\n\nSitemap: https://lime.xingkaixin.me/sitemap.xml\n"
+	const robotsTxt = "User-agent: *\nAllow: /\n\nSitemap: https://lime.xingkaixin.me/sitemap.xml\n"
 	if err := os.WriteFile(filepath.Join(out, "robots.txt"), []byte(robotsTxt), 0o644); err != nil {
 		log.Fatal(err)
 	}
