@@ -190,6 +190,8 @@ var appKeys = func() []appKey {
 		k(cmd, ui.KeyB, "toggle_side_bar"),
 		// Zed's keys, which Sublime Text has no panels for.
 		k(cmd|sh, ui.KeyE, "toggle_files_panel"), k(ctrl|sh, ui.KeyG, "toggle_git_panel"),
+		k(ctrl, ui.KeyBackquote, "toggle_terminal"), k(cmd, ui.KeyJ, "toggle_bottom_dock"),
+		k(ctrl|sh, ui.KeyBackquote, "new_terminal"), k(sh, ui.KeyEscape, "toggle_terminal_zoom"),
 
 		ch(0, ui.KeyB, "toggle_side_bar"),
 		ch(0, ui.KeyU, "upper_case"), ch(0, ui.KeyL, "lower_case"), ch(0, ui.KeyD, "find_under_expand_skip"),

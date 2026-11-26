@@ -35,6 +35,12 @@ func (a *app) view(c *ui.Context) {
 	}
 	c.SetTheme(a.uiThemeCached)
 	a.syncFocus(c.Modifiers()&ui.Ctrl != 0)
+	panelFocused := a.term.panelFocused(c)
+	if panelFocused && !a.termPanelFocused {
+		a.focused = place{}
+	}
+	a.termFocused = a.term.viewFocused(c)
+	a.termPanelFocused = panelFocused
 	if a.gitDir() != a.git.dir {
 		a.readGit()
 	}
@@ -82,9 +88,9 @@ func (a *app) view(c *ui.Context) {
 			}
 			hide, show := a.dividers(c)
 			hide()
-			ui.Split(c, &a.set.SideBarWidth, func() { show(); a.sideBar(c) }, func() { show(); a.groupsView(c) }).Grow(1).FillWidth().MinHeight(0)
+			ui.Split(c, &a.set.SideBarWidth, func() { show(); a.sideBar(c) }, func() { show(); a.workspaceView(c) }).Grow(1).FillWidth().MinHeight(0)
 		} else {
-			a.groupsView(c)
+			a.workspaceView(c)
 		}
 		a.findInFilesBar(c)
 		a.statusBar(c)
@@ -889,6 +895,7 @@ func (a *app) ensureBoundShortcuts() {
 		id := k.id
 		if k.chord {
 			a.boundChordKeys = append(a.boundChordKeys, boundShortcut{
+				id:   id,
 				mods: k.mods,
 				key:  k.key,
 				fn: func() {
@@ -898,6 +905,7 @@ func (a *app) ensureBoundShortcuts() {
 			})
 		} else {
 			a.boundKeys = append(a.boundKeys, boundShortcut{
+				id:   id,
 				mods: k.mods,
 				key:  k.key,
 				fn:   func() { a.run(id) },
@@ -946,13 +954,41 @@ func (a *app) shortcuts(c *ui.Context) {
 		c.OnShortcut(ui.Ctrl, ui.KeyEnter, a.commitCycle)
 		c.OnShortcut(0, ui.KeyEnter, a.commitCycle)
 	}
-	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.chord = true })
-	// A mouse's side buttons, as in Zed: Sublime Text's switch tabs.
-	c.OnShortcut(0, ui.KeyBack, func() { a.run("jump_back") })
-	c.OnShortcut(0, ui.KeyForward, func() { a.run("jump_forward") })
+	if !a.termFocused {
+		c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.chord = true })
+		// A mouse's side buttons, as in Zed: Sublime Text's switch tabs.
+		c.OnShortcut(0, ui.KeyBack, func() { a.run("jump_back") })
+		c.OnShortcut(0, ui.KeyForward, func() { a.run("jump_forward") })
+	}
 	for _, k := range a.boundKeys {
+		if a.termFocused && !terminalAllowsShortcut(k.id, k.mods, k.key) {
+			continue
+		}
 		c.OnShortcut(k.mods, k.key, k.fn)
 	}
+}
+
+func terminalAllowsShortcut(id string, mods ui.Modifiers, key ui.Key) bool {
+	if isTerminalCommand(id) {
+		return true
+	}
+	if mac {
+		if mods&ui.Super != 0 {
+			return true
+		}
+		return id == "toggle_git_panel" && mods&ui.Shift != 0
+	}
+	if mods == ui.Ctrl && key >= ui.KeyA && key <= ui.KeyZ {
+		return false
+	}
+	switch id {
+	case "show_command_palette", "toggle_files_panel", "toggle_git_panel",
+		"show_panel find_in_files", "show_settings", "new_window", "close_window",
+		"increase_font_size", "decrease_font_size", "reset_font_size",
+		"next_view", "prev_view", "close":
+		return true
+	}
+	return false
 }
 
 func (a *app) syncTitle() {
@@ -998,6 +1034,11 @@ func key(p any) any {
 	case *group:
 		if v.keyAny == nil {
 			v.keyAny = groupElemKey(nextElemID.Add(1))
+		}
+		return v.keyAny
+	case *termTab:
+		if v.keyAny == nil {
+			v.keyAny = termTabElemKey(nextElemID.Add(1))
 		}
 		return v.keyAny
 	default:

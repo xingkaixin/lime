@@ -26,6 +26,7 @@ type settings struct {
 	WordWrap          bool       `json:"word_wrap"`
 	SideBar           bool       `json:"side_bar"`
 	SideBarWidth      float32    `json:"side_bar_width"`
+	TerminalSplit     float32    `json:"terminal_split,omitempty"`
 	TabSize           int        `json:"tab_size"`
 	Rulers            rulers     `json:"rulers"`
 	DrawWhiteSpace    whiteSpace `json:"draw_white_space"`
@@ -91,7 +92,7 @@ func settingsPath(dir string) string { return filepath.Join(dir, "settings.json"
 func loadSettings(dir string) (settings, error) {
 	s := settings{
 		Language: followSystem, Appearance: followSystem, LightTheme: "GitHub Light", DarkTheme: "GitHub Dark",
-		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, LayoutStyle: compactLayout, FileIcons: fileIconsDefault, TabSize: 4, AutoComplete: true,
+		FontSize: defaultFontSize, WordWrap: true, SideBar: true, SideBarWidth: 220, TerminalSplit: defaultTerminalSplit, LayoutStyle: compactLayout, FileIcons: fileIconsDefault, TabSize: 4, AutoComplete: true,
 		GitDiffTarget: "index", DetectIndentation: true, FallbackEncoding: defaultFallback,
 		Rulers: rulers{}, DrawWhiteSpace: whiteSpace{"selection"}, LineNumbers: true, DrawIndentGuides: true,
 		ScrollPastEnd: true, FontOptions: []string{}, InlineBlame: true, CursorStyle: "bar",
@@ -111,6 +112,9 @@ func loadSettings(dir string) (settings, error) {
 // and the themes: "Auto" followed the system with GitHub's schemes, and
 // any other scheme showed whatever the system's appearance.
 func (s *settings) migrate() {
+	if s.TerminalSplit < 20 || s.TerminalSplit > 85 {
+		s.TerminalSplit = defaultTerminalSplit
+	}
 	name := s.ColorScheme
 	if name == "" {
 		return

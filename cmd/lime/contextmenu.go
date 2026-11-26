@@ -114,6 +114,9 @@ func (a *app) folderMenu(c *ui.Context, m *ui.Menu, dir string, root bool) {
 	if m.Item(locales.MenuOpenFolder()).Chosen() {
 		mygo.Shell.OpenPath(dir)
 	}
+	if terminalSupported && m.Item(locales.MenuOpenInTerminal()).Chosen() {
+		a.openTerminalInDir(dir)
+	}
 	if m.Item(locales.MenuCopyPath()).Chosen() {
 		c.Services().WriteClipboard(dir)
 	}

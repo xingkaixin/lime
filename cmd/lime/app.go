@@ -386,8 +386,11 @@ type app struct {
 	changes     changes
 	gitTab      int
 	remote      string
-	side        sidePanel
-	bounds      mygo.Rectangle
+	side             sidePanel
+	term             terminalDock
+	termFocused      bool
+	termPanelFocused bool
+	bounds           mygo.Rectangle
 	drag        *tabDrag
 	prefs       prefs
 	notice      notice
@@ -421,6 +424,7 @@ type app struct {
 }
 
 type boundShortcut struct {
+	id   string
 	mods ui.Modifiers
 	key  ui.Key
 	fn   func()
@@ -429,8 +433,9 @@ type boundShortcut struct {
 var nextElemID atomic.Uint64
 
 type (
-	docElemKey   uint64
-	groupElemKey uint64
+	docElemKey     uint64
+	groupElemKey   uint64
+	termTabElemKey uint64
 )
 
 func newLime(dir string) *lime {
@@ -443,7 +448,7 @@ func newLime(dir string) *lime {
 func newApp(dir string) *app { return newLime(dir).newWindow() }
 
 func (l *lime) newWindow() *app {
-	a := &app{l: l, set: &l.set, layout: layouts[0], groups: []*group{{active: -1}}}
+	a := &app{l: l, set: &l.set, layout: layouts[0], groups: []*group{{active: -1}}, term: terminalDock{active: -1}}
 	a.scheme = l.set.scheme(true)
 	if l.set.SideBar {
 		a.side = filesPanel
@@ -1764,6 +1769,7 @@ func (l *lime) keep(e interface{ PreventDefault() }) bool {
 }
 
 func (l *lime) closed(a *app) {
+	a.closeAllTerminals()
 	release(a.allDocs()...)
 	a.proj.unwatch()
 	l.wins = slices.DeleteFunc(l.wins, func(w *app) bool { return w == a })
