@@ -135,18 +135,64 @@ func (d *terminalDock) panelFocused(c *ui.Context) bool {
 }
 
 func (a *app) terminalDir() string {
-	if d := a.current(); d != nil && d.path != "" {
+	activePath := docFilePath(a.current())
+	if len(a.proj.folders) > 0 {
+		if activePath != "" {
+			best := ""
+			for _, f := range a.proj.folders {
+				if within(activePath, f) && len(f) > len(best) && isExistingDir(f) {
+					best = f
+				}
+			}
+			if best != "" {
+				return best
+			}
+		}
 		for _, f := range a.proj.folders {
-			if within(d.path, f) {
+			if isExistingDir(f) {
 				return f
 			}
 		}
-		return filepath.Dir(d.path)
 	}
-	if len(a.proj.folders) > 0 {
-		return a.proj.folders[0]
+	if activePath != "" {
+		if fi, err := os.Stat(activePath); err == nil && !fi.IsDir() {
+			if dir := filepath.Dir(activePath); isExistingDir(dir) {
+				return dir
+			}
+		}
+	}
+	return defaultTerminalDir()
+}
+
+func docFilePath(d *doc) string {
+	if d == nil {
+		return ""
+	}
+	if d.path != "" {
+		return d.path
+	}
+	if d.cmp != nil && d.cmp.src != nil && d.cmp.src.path != "" {
+		return d.cmp.src.path
+	}
+	if d.md != nil && d.md.src != nil && d.md.src.path != "" {
+		return d.md.src.path
 	}
 	return ""
+}
+
+func defaultTerminalDir() string {
+	if home, err := os.UserHomeDir(); err == nil && isExistingDir(home) {
+		return home
+	}
+	return ""
+}
+
+func isExistingDir(path string) bool {
+	if path == "" {
+		return false
+	}
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
 }
 
 func (a *app) toggleTerminal() {
@@ -211,6 +257,9 @@ func (a *app) newTerminal() {
 func (a *app) openTerminalInDir(dir string) *termTab {
 	if !terminalSupported && a.term.newSession == nil {
 		return nil
+	}
+	if dir == "" {
+		dir = defaultTerminalDir()
 	}
 	makeSess := a.term.newSession
 	if makeSess == nil {
