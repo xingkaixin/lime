@@ -55,6 +55,7 @@
   "menuFindInFiles": "Find in Files…",
   "menuView": "View",
   "menuSideBar": "Side Bar",
+  "menuTerminal": "Terminal",
   "menuLayout": "Layout",
   "menuGroups": "Groups",
   "menuNewGroup": "New Group",
@@ -114,6 +115,7 @@
   "menuCloseUnmodifiedTabs": "Close Unmodified Tabs",
   "menuCloseDeletedTabs": "Close Tabs With Deleted Files",
   "menuOpenFile": "Open File…",
+  "menuOpenInTerminal": "Open in Terminal",
   "menuOpenPreview": "Open Preview",
   "menuOpenPreviewToTheSide": "Open Preview to the Side",
 
@@ -160,6 +162,15 @@
   "cmdToggleSideBar": "View: Toggle Side Bar",
   "cmdToggleFilesPanel": "View: Toggle Files Panel",
   "cmdToggleGitPanel": "View: Toggle Git Panel",
+  "cmdToggleTerminal": "Terminal: Toggle",
+  "cmdToggleBottomDock": "Workspace: Toggle Bottom Dock",
+  "cmdNewTerminal": "Terminal: New Terminal",
+  "cmdCloseTerminal": "Terminal: Close Terminal",
+  "cmdClearTerminal": "Terminal: Clear",
+  "cmdToggleTerminalZoom": "Terminal: Toggle Zoom",
+  "cmdNextTerminal": "Terminal: Next Terminal",
+  "cmdPrevTerminal": "Terminal: Previous Terminal",
+  "cmdFindInTerminal": "Terminal: Find…",
   "cmdToggleWordWrap": "Word Wrap: Toggle",
   "cmdToggleRampageMode": "Rampage Mode: Toggle",
   "cmdIncreaseFontSize": "Font: Increase",
@@ -787,5 +798,25 @@
   "shortcutMoveToGroup": "Move to Group {index}",
   "@shortcutMoveToGroup": {
     "placeholders": { "index": { "type": "int", "example": "2" } }
-  }
+  },
+  "terminalPanel": "Terminal Panel",
+  "terminalDefaultTitle": "Terminal",
+  "terminalNew": "New Terminal",
+  "terminalMaximize": "Maximize Terminal",
+  "terminalRestore": "Restore Terminal",
+  "terminalHide": "Hide Terminal",
+  "terminalStartFailed": "Unable to start terminal: {err}",
+  "@terminalStartFailed": {
+    "placeholders": { "err": { "type": "String", "example": "permission denied" } }
+  },
+  "shortcutGroupTerminal": "Terminal",
+  "shortcutToggleTerminal": "Toggle Terminal",
+  "shortcutToggleBottomDock": "Toggle Bottom Dock",
+  "shortcutNewTerminal": "New Terminal",
+  "shortcutCloseTerminal": "Close Terminal",
+  "shortcutClearTerminal": "Clear Terminal",
+  "shortcutToggleTerminalZoom": "Toggle Terminal Zoom",
+  "shortcutNextTerminal": "Next Terminal",
+  "shortcutPrevTerminal": "Previous Terminal",
+  "shortcutFindInTerminal": "Find in Terminal"
 }
