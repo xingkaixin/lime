@@ -29,6 +29,8 @@ type doc struct {
 	tabHandle    ui.Handle
 	editorHandle ui.Handle
 	path         string
+	watchPath    string
+	watchDir     string
 	st           *editor.State
 	columns      bool
 	peak         int
@@ -347,6 +349,7 @@ type lime struct {
 	lastReclaim    time.Time
 	needReclaim    bool
 	quitting       bool
+	docWatches     docWatchSet
 }
 
 type app struct {
@@ -354,46 +357,48 @@ type app struct {
 	win *mygo.Window
 	set *settings
 
-	groups     []*group
-	layout     layout
-	cols       []float32
-	rows       []float32
-	focus      int
-	focused    place
+	groups      []*group
+	layout      layout
+	cols        []float32
+	rows        []float32
+	focus       int
+	focused     place
 	mru         []*doc
 	cycle       []*doc
 	cycleAt     int
 	cycleFrom   *doc
 	cycleReveal bool
 	closed      []string
-	chordKeyUp ui.Key
-	revealPath string
-	chord      bool
-	title      string
-	scheme     *scheme
-	panel      *panel
-	scroll     *peek
-	jumps      jumps
-	find       finding
-	fif        findInFiles
-	proj       project
-	marks      gitMarks
-	git        gitRepo
-	hist       history
-	changes    changes
-	gitTab     int
-	remote     string
-	side       sidePanel
-	bounds     mygo.Rectangle
-	drag       *tabDrag
-	prefs      prefs
-	notice     notice
-	others     *tabWords
+	chordKeyUp  ui.Key
+	revealPath  string
+	chord       bool
+	title       string
+	scheme      *scheme
+	panel       *panel
+	scroll      *peek
+	jumps       jumps
+	find        finding
+	fif         findInFiles
+	proj        project
+	marks       gitMarks
+	git         gitRepo
+	hist        history
+	changes     changes
+	gitTab      int
+	remote      string
+	side        sidePanel
+	bounds      mygo.Rectangle
+	drag        *tabDrag
+	prefs       prefs
+	notice      notice
+	others      *tabWords
 
-	reloading, reloadAgain bool
-	closingPrompt          bool
-	messageDialog          func(mygo.MessageOptions) (mygo.MessageResult, error)
-	saveDialog             func(mygo.SaveDialogOptions) (string, error)
+	reloading     bool
+	reloadAll     bool
+	reloadPending map[*doc]bool
+	closingPrompt bool
+	messageDialog func(mygo.MessageOptions) (mygo.MessageResult, error)
+	saveDialog    func(mygo.SaveDialogOptions) (string, error)
 
 	uiThemeScheme *scheme
 	uiThemeFont   string
@@ -683,34 +688,68 @@ func changedOnDisk(docs []*doc, paths []string, stamps []stamp, encs []*fileEnco
 
 func (a *app) reloadChanged() {
 	if a.reloading {
-		a.reloadAgain = true
+		a.reloadAll = true
 		return
 	}
 	var docs []*doc
-	var paths []string
-	var stamps []stamp
-	var encs []*fileEncoding
 	for _, d := range a.allDocs() {
 		if d.path != "" && d.kind == textDoc && d.cmp == nil {
-			docs, paths, stamps, encs = append(docs, d), append(paths, d.path), append(stamps, d.disk), append(encs, d.encoding())
+			docs = append(docs, d)
 		}
 	}
 	if len(docs) == 0 {
 		return
 	}
 	a.readBases(docs...)
+	a.startReload(docs, false)
+}
+
+func (a *app) reloadDocs(targets []*doc) {
+	var docs []*doc
+	for _, d := range targets {
+		if d != nil && d.path != "" && d.kind == textDoc && d.cmp == nil && !d.dirty() {
+			docs = append(docs, d)
+		}
+	}
+	if len(docs) == 0 {
+		return
+	}
+	if a.reloading {
+		if !a.reloadAll {
+			if a.reloadPending == nil {
+				a.reloadPending = make(map[*doc]bool, len(docs))
+			}
+			for _, d := range docs {
+				a.reloadPending[d] = true
+			}
+		}
+		return
+	}
+	a.startReload(docs, true)
+}
+
+func (a *app) startReload(docs []*doc, refreshBases bool) {
+	paths := make([]string, len(docs))
+	stamps := make([]stamp, len(docs))
+	encs := make([]*fileEncoding, len(docs))
+	for i, d := range docs {
+		paths[i], stamps[i], encs[i] = d.path, d.disk, d.encoding()
+	}
 	a.reloading = true
 	fallback := a.set.FallbackEncoding
 	a.background(func() func() {
 		rs := changedOnDisk(docs, paths, stamps, encs, fallback)
-		return func() { a.applyReloads(rs) }
+		return func() { a.applyReloadsWith(rs, refreshBases) }
 	})
 }
 
-func (a *app) applyReloads(rs []reload) {
+func (a *app) applyReloads(rs []reload) { a.applyReloadsWith(rs, false) }
+
+func (a *app) applyReloadsWith(rs []reload, refreshBases bool) {
+	var reloaded []*doc
 	for _, r := range rs {
 		d := r.d
-		if d.path != r.path || d.disk != r.was || d.dirty() {
+		if gi, _ := a.locate(d); gi < 0 || d.path != r.path || d.disk != r.was || d.dirty() {
 			continue
 		}
 		d.disk = r.disk
@@ -725,11 +764,31 @@ func (a *app) applyReloads(rs []reload) {
 			d.diffDisk()
 		}
 		a.l.diskChanged(d)
+		if refreshBases {
+			reloaded = append(reloaded, d)
+		}
+	}
+	if len(reloaded) > 0 {
+		a.readBases(reloaded...)
 	}
 	a.reloading = false
-	if a.reloadAgain {
-		a.reloadAgain = false
+	if a.reloadAll {
+		a.reloadAll = false
+		clear(a.reloadPending)
 		a.reloadChanged()
+		return
+	}
+	if len(a.reloadPending) > 0 {
+		var pending []*doc
+		for _, d := range a.allDocs() {
+			if a.reloadPending[d] {
+				pending = append(pending, d)
+			}
+		}
+		clear(a.reloadPending)
+		if len(pending) > 0 {
+			a.reloadDocs(pending)
+		}
 	}
 }
 
@@ -755,6 +814,7 @@ func (a *app) addDoc(d *doc) *doc {
 		g.docs = append(g.docs, d)
 	}
 	a.show(d)
+	a.l.syncDocWatches()
 	return d
 }
 
@@ -861,8 +921,9 @@ func (a *app) open(paths []string) {
 			continue
 		}
 		if it.kind != textDoc {
-			d := a.addDoc(newDocWithStamp(it.path, "", it.disk))
+			d := newDocWithStamp(it.path, "", it.disk)
 			d.kind = it.kind
+			a.addDoc(d)
 			seen[it.path] = d
 			if seenCanon != nil {
 				seenCanon[keyP] = d
@@ -1084,6 +1145,7 @@ func (a *app) writeIn(d *doc, path string, want *fileEncoding) error {
 	if path != d.path {
 		d.path, d.base = path, ""
 		d.st.Buffer.SetLanguage(editor.LanguageFor(path))
+		a.l.syncDocWatches()
 	}
 	d.st.Buffer.MarkSaved()
 	d.saved, d.savedEnding = snap, d.lineEnding()
@@ -1372,6 +1434,7 @@ func (a *app) remove(d *doc) {
 	}
 	release(d)
 	a.closeViews(d)
+	a.l.syncDocWatches()
 }
 
 // closeViews closes the tabs of every window that show d, gone: a diff
@@ -1704,6 +1767,7 @@ func (l *lime) closed(a *app) {
 	release(a.allDocs()...)
 	a.proj.unwatch()
 	l.wins = slices.DeleteFunc(l.wins, func(w *app) bool { return w == a })
+	l.syncDocWatches()
 	if l.last == a {
 		l.last = nil
 		if len(l.wins) > 0 {
