@@ -14,6 +14,7 @@ import (
 type menuStateKey struct {
 	valid       bool
 	side        sidePanel
+	termOpen    bool
 	wordWrap    bool
 	rampage     bool
 	layout      string
@@ -166,8 +167,15 @@ func (l *lime) newMenu() *mygo.Menu {
 			mygo.Separator(),
 			l.menuItem(locales.MenuFindInFiles(), "show_panel find_in_files"),
 		}},
-		{Label: locales.MenuView(), Submenu: []*mygo.MenuItem{
-			l.check(locales.MenuSideBar(), "toggle_side_bar", mygo.MenuItemCheckbox),
+		{Label: locales.MenuView(), Submenu: slices.Concat(func() []*mygo.MenuItem {
+			items := []*mygo.MenuItem{
+				l.check(locales.MenuSideBar(), "toggle_side_bar", mygo.MenuItemCheckbox),
+			}
+			if terminalSupported {
+				items = append(items, l.check(locales.MenuTerminal(), "toggle_terminal", mygo.MenuItemCheckbox))
+			}
+			return items
+		}(), []*mygo.MenuItem{
 			mygo.Separator(),
 			{Label: locales.MenuLayout(), Submenu: layoutItems},
 			{Label: locales.MenuGroups(), Submenu: []*mygo.MenuItem{
@@ -196,7 +204,7 @@ func (l *lime) newMenu() *mygo.Menu {
 			l.menuItem(locales.MenuResetFontSize(), "reset_font_size"),
 			mygo.Separator(),
 			{Role: mygo.RoleToggleFullScreen},
-		}},
+		})},
 		{Label: locales.MenuGoto(), Submenu: []*mygo.MenuItem{
 			l.menuItem(locales.MenuGotoAnything(), "show_goto"),
 			l.menuItem(locales.MenuGotoSymbol(), "goto_symbol"),
@@ -241,7 +249,7 @@ func (a *app) syncMenu() {
 	if l.last != a {
 		return
 	}
-	l.pauseMenu(a.prefs.rec.id != "" || a.chord || a.chordKeyUp != ui.KeyUnknown)
+	l.pauseMenu(a.prefs.rec.id != "" || a.chord || a.chordKeyUp != ui.KeyUnknown || (!mac && a.termFocused))
 	if l.menu == nil {
 		return
 	}
@@ -251,7 +259,7 @@ func (a *app) syncMenu() {
 		ending, reopen, revert = d.lineEnding(), reopenable(d), d.path != ""
 	}
 	state := menuStateKey{
-		valid: true, side: a.side, wordWrap: a.set.WordWrap, rampage: a.set.rampage(),
+		valid: true, side: a.side, termOpen: a.term.open, wordWrap: a.set.WordWrap, rampage: a.set.rampage(),
 		layout: a.layout.name, layoutStyle: a.set.LayoutStyle, scheme: a.scheme.name,
 		tabSize: tabSize, spaces: spaces, ending: ending, reopen: reopen, revert: revert,
 	}
@@ -265,6 +273,7 @@ func (a *app) syncMenu() {
 		}
 	}
 	check("toggle_side_bar", a.side != noPanel)
+	check("toggle_terminal", a.term.open)
 	check("toggle_word_wrap", a.set.WordWrap)
 	check("toggle_rampage_mode", a.set.rampage())
 	check(a.layout.id(), true)

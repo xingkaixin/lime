@@ -128,6 +128,7 @@ func (a *app) panelButtons(c *ui.Context) {
 	ui.Row(c).Gap(2).Children(func() {
 		a.panelButton(c, filesPanel, filesIcon, locales.SideBarFilesPanel(), "toggle_files_panel")
 		a.panelButton(c, gitPanel, branchIcon, locales.SideBarGitPanel(), "toggle_git_panel")
+		a.terminalPanelButton(c)
 	})
 }
 

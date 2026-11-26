@@ -149,6 +149,13 @@ var shortcutGroups = func() []shortcutGroup {
 			s("toggle_blame", m.ShortcutToggleBlame), s("toggle_inline_blame", m.ShortcutToggleInlineBlame),
 			s("copy_permalink_to_line", m.MenuCopyPermalink), s("open_permalink_to_line", m.MenuOpenOnGitHub),
 		}},
+		{m.ShortcutGroupTerminal, []shortcut{
+			s("toggle_terminal", m.ShortcutToggleTerminal), s("toggle_bottom_dock", m.ShortcutToggleBottomDock),
+			s("new_terminal", m.ShortcutNewTerminal), s("close_terminal", m.ShortcutCloseTerminal),
+			s("clear_terminal", m.ShortcutClearTerminal), s("toggle_terminal_zoom", m.ShortcutToggleTerminalZoom),
+			s("next_terminal", m.ShortcutNextTerminal), s("prev_terminal", m.ShortcutPrevTerminal),
+			s("find_in_terminal", m.ShortcutFindInTerminal),
+		}},
 	}
 }()
 
@@ -503,7 +510,7 @@ func refusal(k appKey) string {
 	switch {
 	case k.chord:
 		return ""
-	case k.mods&(ui.Super|ui.Ctrl|ui.Alt) == 0 && (k.key < ui.KeyF1 || k.key > ui.KeyF12):
+	case k.mods&(ui.Super|ui.Ctrl|ui.Alt) == 0 && (k.key < ui.KeyF1 || k.key > ui.KeyF12) && !(k.key == ui.KeyEscape && k.mods != 0):
 		return locales.SettingsShortcutNeedsModifier()
 	case reserved[k.seq()]:
 		return locales.SettingsShortcutReserved(k.String())

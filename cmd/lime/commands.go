@@ -225,7 +225,13 @@ func makeCommands() []command {
 		{id: "prompt_save_as", caption: locales.Messages.CmdSaveAs, run: withSource((*app).saveAs)},
 		{id: "save_all", caption: locales.Messages.CmdSaveAll, run: (*app).saveAll},
 		{id: "revert", caption: locales.Messages.CmdRevertFile, enabled: currentRevertable, run: withDoc((*app).revert)},
-		{id: "close", caption: locales.Messages.CmdClose, run: (*app).closeCurrent},
+		{id: "close", caption: locales.Messages.CmdClose, run: func(a *app) {
+			if a.termPanelFocused {
+				a.closeTerminal()
+				return
+			}
+			a.closeCurrent()
+		}},
 		{id: "close_other_tabs", caption: locales.Messages.CmdCloseOtherTabs, enabled: func(a *app) bool { return len(a.group().docs) > 1 }, run: func(a *app) {
 			if d := a.current(); d != nil {
 				a.closeOtherTabs(a.group(), d)
@@ -255,13 +261,31 @@ func makeCommands() []command {
 		{id: "goto_symbol", caption: locales.Messages.CmdGotoSymbol, run: func(a *app) { a.showGoto("@") }},
 		{id: "jump_back", caption: locales.Messages.CmdJumpBack, run: func(a *app) { a.jump(&a.jumps.back, &a.jumps.forward) }},
 		{id: "jump_forward", caption: locales.Messages.CmdJumpForward, run: func(a *app) { a.jump(&a.jumps.forward, &a.jumps.back) }},
-		{id: "show_panel find", run: func(a *app) { a.showFind(false) }},
+		{id: "show_panel find", run: func(a *app) {
+			if a.termPanelFocused {
+				a.showTerminalFind()
+				return
+			}
+			a.showFind(false)
+		}},
 		{id: "show_panel replace", run: func(a *app) { a.showFind(true) }},
 		{id: "show_panel find_in_files", run: func(a *app) { a.showFindInFiles("") }},
 		{id: "next_result", run: func(a *app) { a.stepResult(1) }},
 		{id: "prev_result", run: func(a *app) { a.stepResult(-1) }},
-		{id: "next_view", run: func(a *app) { a.selectTab(a.group().active + 1) }},
-		{id: "prev_view", run: func(a *app) { a.selectTab(a.group().active - 1) }},
+		{id: "next_view", run: func(a *app) {
+			if a.termFocused {
+				a.stepTerminal(1)
+				return
+			}
+			a.selectTab(a.group().active + 1)
+		}},
+		{id: "prev_view", run: func(a *app) {
+			if a.termFocused {
+				a.stepTerminal(-1)
+				return
+			}
+			a.selectTab(a.group().active - 1)
+		}},
 		{id: "next_view_in_stack", run: func(a *app) { a.cycleTabs(1) }},
 		{id: "prev_view_in_stack", run: func(a *app) { a.cycleTabs(-1) }},
 		{id: "select_last_tab", run: func(a *app) { a.selectTab(-1) }},
@@ -275,6 +299,15 @@ func makeCommands() []command {
 		}},
 		{id: "toggle_files_panel", caption: locales.Messages.CmdToggleFilesPanel, run: func(a *app) { a.togglePanel(filesPanel) }},
 		{id: "toggle_git_panel", caption: locales.Messages.CmdToggleGitPanel, run: func(a *app) { a.togglePanel(gitPanel) }},
+		{id: "toggle_terminal", caption: realTerminal(locales.Messages.CmdToggleTerminal), run: (*app).toggleTerminal},
+		{id: "toggle_bottom_dock", caption: realTerminal(locales.Messages.CmdToggleBottomDock), run: (*app).toggleBottomDock},
+		{id: "new_terminal", caption: realTerminal(locales.Messages.CmdNewTerminal), run: (*app).newTerminal},
+		{id: "close_terminal", caption: realTerminal(locales.Messages.CmdCloseTerminal), enabled: func(a *app) bool { return a.term.current() != nil }, run: (*app).closeTerminal},
+		{id: "clear_terminal", caption: realTerminal(locales.Messages.CmdClearTerminal), enabled: func(a *app) bool { return a.term.current() != nil }, run: (*app).clearTerminal},
+		{id: "toggle_terminal_zoom", caption: realTerminal(locales.Messages.CmdToggleTerminalZoom), enabled: func(a *app) bool { return a.term.open || len(a.term.tabs) > 0 }, run: (*app).toggleTerminalZoom},
+		{id: "next_terminal", caption: realTerminal(locales.Messages.CmdNextTerminal), enabled: func(a *app) bool { return len(a.term.tabs) > 1 }, run: func(a *app) { a.stepTerminal(1) }},
+		{id: "prev_terminal", caption: realTerminal(locales.Messages.CmdPrevTerminal), enabled: func(a *app) bool { return len(a.term.tabs) > 1 }, run: func(a *app) { a.stepTerminal(-1) }},
+		{id: "find_in_terminal", caption: realTerminal(locales.Messages.CmdFindInTerminal), enabled: func(a *app) bool { return a.term.open && a.term.current() != nil }, run: (*app).showTerminalFind},
 		{id: "toggle_word_wrap", caption: locales.Messages.CmdToggleWordWrap, run: func(a *app) {
 			a.set.WordWrap = !a.set.WordWrap
 			a.l.saveSettings()
@@ -383,8 +416,20 @@ func makeCommands() []command {
 		edit("delete_to_eol", nil, editor.DeleteToLineEnd),
 		edit("delete_to_bol", nil, editor.DeleteToLineStart),
 		edit("show_at_center", nil, editor.ScrollCursorCenter),
-		{id: "find_next", run: func(a *app) { a.findStep(editor.FindNext) }},
-		{id: "find_prev", run: func(a *app) { a.findStep(editor.FindPrevious) }},
+		{id: "find_next", run: func(a *app) {
+			if a.termPanelFocused && a.term.findOpen {
+				a.terminalFindNext()
+				return
+			}
+			a.findStep(editor.FindNext)
+		}},
+		{id: "find_prev", run: func(a *app) {
+			if a.termPanelFocused && a.term.findOpen {
+				a.terminalFindPrev()
+				return
+			}
+			a.findStep(editor.FindPrevious)
+		}},
 		{id: "find_under_expand", run: quickFind(func(st *editor.State) { st.Run(editor.SelectNext) })},
 		{id: "find_all_under", run: quickFind(func(st *editor.State) { st.Run(editor.SelectAllMatches) })},
 		{id: "find_under_expand_skip", run: quickFind(skipNext)},

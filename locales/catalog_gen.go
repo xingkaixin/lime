@@ -564,6 +564,16 @@ func (msgs Messages) MenuSideBar() string {
 	return Catalog.Format(msgs.locale, "menuSideBar", nil)
 }
 
+// MenuTerminal says "Terminal"
+// in the language the app shows.
+func MenuTerminal() string { return In(i18n.Locale()).MenuTerminal() }
+
+// MenuTerminal says "Terminal"
+// in the language of msgs.
+func (msgs Messages) MenuTerminal() string {
+	return Catalog.Format(msgs.locale, "menuTerminal", nil)
+}
+
 // MenuLayout says "Layout"
 // in the language the app shows.
 func MenuLayout() string { return In(i18n.Locale()).MenuLayout() }
@@ -1124,6 +1134,16 @@ func (msgs Messages) MenuOpenFile() string {
 	return Catalog.Format(msgs.locale, "menuOpenFile", nil)
 }
 
+// MenuOpenInTerminal says "Open in Terminal"
+// in the language the app shows.
+func MenuOpenInTerminal() string { return In(i18n.Locale()).MenuOpenInTerminal() }
+
+// MenuOpenInTerminal says "Open in Terminal"
+// in the language of msgs.
+func (msgs Messages) MenuOpenInTerminal() string {
+	return Catalog.Format(msgs.locale, "menuOpenInTerminal", nil)
+}
+
 // MenuOpenPreview says "Open Preview"
 // in the language the app shows.
 func MenuOpenPreview() string { return In(i18n.Locale()).MenuOpenPreview() }
@@ -1562,6 +1582,96 @@ func CmdToggleGitPanel() string { return In(i18n.Locale()).CmdToggleGitPanel() }
 // in the language of msgs.
 func (msgs Messages) CmdToggleGitPanel() string {
 	return Catalog.Format(msgs.locale, "cmdToggleGitPanel", nil)
+}
+
+// CmdToggleTerminal says "Terminal: Toggle"
+// in the language the app shows.
+func CmdToggleTerminal() string { return In(i18n.Locale()).CmdToggleTerminal() }
+
+// CmdToggleTerminal says "Terminal: Toggle"
+// in the language of msgs.
+func (msgs Messages) CmdToggleTerminal() string {
+	return Catalog.Format(msgs.locale, "cmdToggleTerminal", nil)
+}
+
+// CmdToggleBottomDock says "Workspace: Toggle Bottom Dock"
+// in the language the app shows.
+func CmdToggleBottomDock() string { return In(i18n.Locale()).CmdToggleBottomDock() }
+
+// CmdToggleBottomDock says "Workspace: Toggle Bottom Dock"
+// in the language of msgs.
+func (msgs Messages) CmdToggleBottomDock() string {
+	return Catalog.Format(msgs.locale, "cmdToggleBottomDock", nil)
+}
+
+// CmdNewTerminal says "Terminal: New Terminal"
+// in the language the app shows.
+func CmdNewTerminal() string { return In(i18n.Locale()).CmdNewTerminal() }
+
+// CmdNewTerminal says "Terminal: New Terminal"
+// in the language of msgs.
+func (msgs Messages) CmdNewTerminal() string {
+	return Catalog.Format(msgs.locale, "cmdNewTerminal", nil)
+}
+
+// CmdCloseTerminal says "Terminal: Close Terminal"
+// in the language the app shows.
+func CmdCloseTerminal() string { return In(i18n.Locale()).CmdCloseTerminal() }
+
+// CmdCloseTerminal says "Terminal: Close Terminal"
+// in the language of msgs.
+func (msgs Messages) CmdCloseTerminal() string {
+	return Catalog.Format(msgs.locale, "cmdCloseTerminal", nil)
+}
+
+// CmdClearTerminal says "Terminal: Clear"
+// in the language the app shows.
+func CmdClearTerminal() string { return In(i18n.Locale()).CmdClearTerminal() }
+
+// CmdClearTerminal says "Terminal: Clear"
+// in the language of msgs.
+func (msgs Messages) CmdClearTerminal() string {
+	return Catalog.Format(msgs.locale, "cmdClearTerminal", nil)
+}
+
+// CmdToggleTerminalZoom says "Terminal: Toggle Zoom"
+// in the language the app shows.
+func CmdToggleTerminalZoom() string { return In(i18n.Locale()).CmdToggleTerminalZoom() }
+
+// CmdToggleTerminalZoom says "Terminal: Toggle Zoom"
+// in the language of msgs.
+func (msgs Messages) CmdToggleTerminalZoom() string {
+	return Catalog.Format(msgs.locale, "cmdToggleTerminalZoom", nil)
+}
+
+// CmdNextTerminal says "Terminal: Next Terminal"
+// in the language the app shows.
+func CmdNextTerminal() string { return In(i18n.Locale()).CmdNextTerminal() }
+
+// CmdNextTerminal says "Terminal: Next Terminal"
+// in the language of msgs.
+func (msgs Messages) CmdNextTerminal() string {
+	return Catalog.Format(msgs.locale, "cmdNextTerminal", nil)
+}
+
+// CmdPrevTerminal says "Terminal: Previous Terminal"
+// in the language the app shows.
+func CmdPrevTerminal() string { return In(i18n.Locale()).CmdPrevTerminal() }
+
+// CmdPrevTerminal says "Terminal: Previous Terminal"
+// in the language of msgs.
+func (msgs Messages) CmdPrevTerminal() string {
+	return Catalog.Format(msgs.locale, "cmdPrevTerminal", nil)
+}
+
+// CmdFindInTerminal says "Terminal: Find…"
+// in the language the app shows.
+func CmdFindInTerminal() string { return In(i18n.Locale()).CmdFindInTerminal() }
+
+// CmdFindInTerminal says "Terminal: Find…"
+// in the language of msgs.
+func (msgs Messages) CmdFindInTerminal() string {
+	return Catalog.Format(msgs.locale, "cmdFindInTerminal", nil)
 }
 
 // CmdToggleWordWrap says "Word Wrap: Toggle"
@@ -5368,4 +5478,174 @@ func ShortcutMoveToGroup(index int) string { return In(i18n.Locale()).ShortcutMo
 // in the language of msgs.
 func (msgs Messages) ShortcutMoveToGroup(index int) string {
 	return Catalog.Format(msgs.locale, "shortcutMoveToGroup", map[string]any{"index": index})
+}
+
+// TerminalPanel says "Terminal Panel"
+// in the language the app shows.
+func TerminalPanel() string { return In(i18n.Locale()).TerminalPanel() }
+
+// TerminalPanel says "Terminal Panel"
+// in the language of msgs.
+func (msgs Messages) TerminalPanel() string {
+	return Catalog.Format(msgs.locale, "terminalPanel", nil)
+}
+
+// TerminalDefaultTitle says "Terminal"
+// in the language the app shows.
+func TerminalDefaultTitle() string { return In(i18n.Locale()).TerminalDefaultTitle() }
+
+// TerminalDefaultTitle says "Terminal"
+// in the language of msgs.
+func (msgs Messages) TerminalDefaultTitle() string {
+	return Catalog.Format(msgs.locale, "terminalDefaultTitle", nil)
+}
+
+// TerminalNew says "New Terminal"
+// in the language the app shows.
+func TerminalNew() string { return In(i18n.Locale()).TerminalNew() }
+
+// TerminalNew says "New Terminal"
+// in the language of msgs.
+func (msgs Messages) TerminalNew() string {
+	return Catalog.Format(msgs.locale, "terminalNew", nil)
+}
+
+// TerminalMaximize says "Maximize Terminal"
+// in the language the app shows.
+func TerminalMaximize() string { return In(i18n.Locale()).TerminalMaximize() }
+
+// TerminalMaximize says "Maximize Terminal"
+// in the language of msgs.
+func (msgs Messages) TerminalMaximize() string {
+	return Catalog.Format(msgs.locale, "terminalMaximize", nil)
+}
+
+// TerminalRestore says "Restore Terminal"
+// in the language the app shows.
+func TerminalRestore() string { return In(i18n.Locale()).TerminalRestore() }
+
+// TerminalRestore says "Restore Terminal"
+// in the language of msgs.
+func (msgs Messages) TerminalRestore() string {
+	return Catalog.Format(msgs.locale, "terminalRestore", nil)
+}
+
+// TerminalHide says "Hide Terminal"
+// in the language the app shows.
+func TerminalHide() string { return In(i18n.Locale()).TerminalHide() }
+
+// TerminalHide says "Hide Terminal"
+// in the language of msgs.
+func (msgs Messages) TerminalHide() string {
+	return Catalog.Format(msgs.locale, "terminalHide", nil)
+}
+
+// TerminalStartFailed says "Unable to start terminal: {err}"
+// in the language the app shows.
+func TerminalStartFailed(err string) string { return In(i18n.Locale()).TerminalStartFailed(err) }
+
+// TerminalStartFailed says "Unable to start terminal: {err}"
+// in the language of msgs.
+func (msgs Messages) TerminalStartFailed(err string) string {
+	return Catalog.Format(msgs.locale, "terminalStartFailed", map[string]any{"err": err})
+}
+
+// ShortcutGroupTerminal says "Terminal"
+// in the language the app shows.
+func ShortcutGroupTerminal() string { return In(i18n.Locale()).ShortcutGroupTerminal() }
+
+// ShortcutGroupTerminal says "Terminal"
+// in the language of msgs.
+func (msgs Messages) ShortcutGroupTerminal() string {
+	return Catalog.Format(msgs.locale, "shortcutGroupTerminal", nil)
+}
+
+// ShortcutToggleTerminal says "Toggle Terminal"
+// in the language the app shows.
+func ShortcutToggleTerminal() string { return In(i18n.Locale()).ShortcutToggleTerminal() }
+
+// ShortcutToggleTerminal says "Toggle Terminal"
+// in the language of msgs.
+func (msgs Messages) ShortcutToggleTerminal() string {
+	return Catalog.Format(msgs.locale, "shortcutToggleTerminal", nil)
+}
+
+// ShortcutToggleBottomDock says "Toggle Bottom Dock"
+// in the language the app shows.
+func ShortcutToggleBottomDock() string { return In(i18n.Locale()).ShortcutToggleBottomDock() }
+
+// ShortcutToggleBottomDock says "Toggle Bottom Dock"
+// in the language of msgs.
+func (msgs Messages) ShortcutToggleBottomDock() string {
+	return Catalog.Format(msgs.locale, "shortcutToggleBottomDock", nil)
+}
+
+// ShortcutNewTerminal says "New Terminal"
+// in the language the app shows.
+func ShortcutNewTerminal() string { return In(i18n.Locale()).ShortcutNewTerminal() }
+
+// ShortcutNewTerminal says "New Terminal"
+// in the language of msgs.
+func (msgs Messages) ShortcutNewTerminal() string {
+	return Catalog.Format(msgs.locale, "shortcutNewTerminal", nil)
+}
+
+// ShortcutCloseTerminal says "Close Terminal"
+// in the language the app shows.
+func ShortcutCloseTerminal() string { return In(i18n.Locale()).ShortcutCloseTerminal() }
+
+// ShortcutCloseTerminal says "Close Terminal"
+// in the language of msgs.
+func (msgs Messages) ShortcutCloseTerminal() string {
+	return Catalog.Format(msgs.locale, "shortcutCloseTerminal", nil)
+}
+
+// ShortcutClearTerminal says "Clear Terminal"
+// in the language the app shows.
+func ShortcutClearTerminal() string { return In(i18n.Locale()).ShortcutClearTerminal() }
+
+// ShortcutClearTerminal says "Clear Terminal"
+// in the language of msgs.
+func (msgs Messages) ShortcutClearTerminal() string {
+	return Catalog.Format(msgs.locale, "shortcutClearTerminal", nil)
+}
+
+// ShortcutToggleTerminalZoom says "Toggle Terminal Zoom"
+// in the language the app shows.
+func ShortcutToggleTerminalZoom() string { return In(i18n.Locale()).ShortcutToggleTerminalZoom() }
+
+// ShortcutToggleTerminalZoom says "Toggle Terminal Zoom"
+// in the language of msgs.
+func (msgs Messages) ShortcutToggleTerminalZoom() string {
+	return Catalog.Format(msgs.locale, "shortcutToggleTerminalZoom", nil)
+}
+
+// ShortcutNextTerminal says "Next Terminal"
+// in the language the app shows.
+func ShortcutNextTerminal() string { return In(i18n.Locale()).ShortcutNextTerminal() }
+
+// ShortcutNextTerminal says "Next Terminal"
+// in the language of msgs.
+func (msgs Messages) ShortcutNextTerminal() string {
+	return Catalog.Format(msgs.locale, "shortcutNextTerminal", nil)
+}
+
+// ShortcutPrevTerminal says "Previous Terminal"
+// in the language the app shows.
+func ShortcutPrevTerminal() string { return In(i18n.Locale()).ShortcutPrevTerminal() }
+
+// ShortcutPrevTerminal says "Previous Terminal"
+// in the language of msgs.
+func (msgs Messages) ShortcutPrevTerminal() string {
+	return Catalog.Format(msgs.locale, "shortcutPrevTerminal", nil)
+}
+
+// ShortcutFindInTerminal says "Find in Terminal"
+// in the language the app shows.
+func ShortcutFindInTerminal() string { return In(i18n.Locale()).ShortcutFindInTerminal() }
+
+// ShortcutFindInTerminal says "Find in Terminal"
+// in the language of msgs.
+func (msgs Messages) ShortcutFindInTerminal() string {
+	return Catalog.Format(msgs.locale, "shortcutFindInTerminal", nil)
 }

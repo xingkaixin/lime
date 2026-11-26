@@ -11,6 +11,7 @@
     "github": "xingkaixin/lime"
   },
   "macos": {
+    "minimumSystemVersion": "13.0",
     "infoPlist": {
       "CFBundleDocumentTypes": [
         {
