@@ -278,3 +278,110 @@ func TestTerminalRealSession(t *testing.T) {
 		t.Fatalf("expected closeAllTerminals to clean up dock")
 	}
 }
+
+func TestTerminalWorkingDir(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+
+	projA := t.TempDir()
+	projB := t.TempDir()
+	otherDir := t.TempDir()
+
+	projAFile := filepath.Join(projA, "sub", "a.go")
+	if err := os.MkdirAll(filepath.Dir(projAFile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(projAFile, []byte("package sub\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	projBFile := filepath.Join(projB, "b.go")
+	if err := os.WriteFile(projBFile, []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	otherFile := filepath.Join(otherDir, "notes.md")
+	if err := os.WriteFile(otherFile, []byte("# notes\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	unsavedPath := filepath.Join(otherDir, "not-saved-yet.txt")
+
+	t.Run("project open uses project root even when active tab is outside project", func(t *testing.T) {
+		a := newApp("")
+		a.proj.folders = []string{projA}
+		a.add(otherFile, "# notes\n")
+		if got := a.terminalDir(); got != projA {
+			t.Fatalf("terminalDir() = %q, want %q", got, projA)
+		}
+	})
+
+	t.Run("multi-folder project prefers folder containing active tab", func(t *testing.T) {
+		a := newApp("")
+		a.proj.folders = []string{projA, projB}
+		a.add(projBFile, "package main\n")
+		if got := a.terminalDir(); got != projB {
+			t.Fatalf("terminalDir() = %q, want %q", got, projB)
+		}
+
+		a.add(otherFile, "# notes\n")
+		if got := a.terminalDir(); got != projA {
+			t.Fatalf("terminalDir() with outside file = %q, want %q", got, projA)
+		}
+	})
+
+	t.Run("project open with untitled or no tab uses project root", func(t *testing.T) {
+		a := newApp("")
+		a.proj.folders = []string{projA}
+		if got := a.terminalDir(); got != projA {
+			t.Fatalf("terminalDir() with no tab = %q, want %q", got, projA)
+		}
+		a.newFile()
+		if got := a.terminalDir(); got != projA {
+			t.Fatalf("terminalDir() with untitled tab = %q, want %q", got, projA)
+		}
+	})
+
+	t.Run("no project with existing local file uses file directory", func(t *testing.T) {
+		a := newApp("")
+		a.add(projAFile, "package sub\n")
+		want := filepath.Dir(projAFile)
+		if got := a.terminalDir(); got != want {
+			t.Fatalf("terminalDir() = %q, want %q", got, want)
+		}
+
+		created := installFakeTerminals(a)
+		a.showTerminal()
+		if len(*created) != 1 || (*created)[0].opts.dir != want {
+			t.Fatalf("opened session dir = %v, want %q", *created, want)
+		}
+	})
+
+	t.Run("no project with markdown preview uses source file directory", func(t *testing.T) {
+		a := newApp("")
+		src := a.add(otherFile, "# notes\n")
+		a.openPreview(src, false)
+		if got := a.terminalDir(); got != otherDir {
+			t.Fatalf("terminalDir() for preview = %q, want %q", got, otherDir)
+		}
+	})
+
+	t.Run("no project with unsaved, untitled, or no tab falls back to user home dir", func(t *testing.T) {
+		a := newApp("")
+		if got := a.terminalDir(); got != home {
+			t.Fatalf("terminalDir() with no tab = %q, want %q", got, home)
+		}
+
+		a.newFile()
+		if got := a.terminalDir(); got != home {
+			t.Fatalf("terminalDir() with untitled tab = %q, want %q", got, home)
+		}
+
+		a.add(unsavedPath, "draft")
+		if got := a.terminalDir(); got != home {
+			t.Fatalf("terminalDir() with non-existent path = %q, want %q", got, home)
+		}
+	})
+}
