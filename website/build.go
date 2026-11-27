@@ -157,6 +157,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	var cfg struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal([]byte(mustRead("mygo.json")), &cfg); err != nil {
+		log.Fatal(err)
+	}
+	if cfg.Version == "" {
+		log.Fatal("mygo.json: missing version")
+	}
+
 	indexHTML := mustRead("website/index.html")
 	if iconAVIFName != "" {
 		indexHTML = strings.ReplaceAll(indexHTML, "__ICON_AVIF_URL__", iconAVIFName)
@@ -186,6 +196,7 @@ func main() {
 		"__ICON_URL__", iconName,
 		"__WASM_URL__", wasmName,
 		"__DEMO_URL__", demoName,
+		"__VERSION__", cfg.Version,
 	).Replace(indexHTML)
 	if err := os.WriteFile(filepath.Join(out, "index.html"), []byte(indexHTML), 0o644); err != nil {
 		log.Fatal(err)
