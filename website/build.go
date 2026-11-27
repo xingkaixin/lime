@@ -167,40 +167,54 @@ func main() {
 		log.Fatal("mygo.json: missing version")
 	}
 
-	indexHTML := mustRead("website/index.html")
-	if iconAVIFName != "" {
-		indexHTML = strings.ReplaceAll(indexHTML, "__ICON_AVIF_URL__", iconAVIFName)
-	} else {
-		indexHTML = strings.ReplaceAll(indexHTML, `<source srcset="__ICON_AVIF_URL__" type="image/avif">`, "")
+	sharedCSS := mustRead("website/style.css")
+	renderPage := func(srcPath, dstRel string) {
+		html := mustRead(srcPath)
+		html = strings.ReplaceAll(html, "/*__SHARED_CSS__*/", sharedCSS)
+		if iconAVIFName != "" {
+			html = strings.ReplaceAll(html, "__ICON_AVIF_URL__", iconAVIFName)
+		} else {
+			html = strings.ReplaceAll(html, `<source srcset="/__ICON_AVIF_URL__" type="image/avif">`, "")
+			html = strings.ReplaceAll(html, `<source srcset="__ICON_AVIF_URL__" type="image/avif">`, "")
+		}
+		if iconWEBPName != "" {
+			html = strings.ReplaceAll(html, "__ICON_WEBP_URL__", iconWEBPName)
+		} else {
+			html = strings.ReplaceAll(html, `<source srcset="/__ICON_WEBP_URL__" type="image/webp">`, "")
+			html = strings.ReplaceAll(html, `<source srcset="__ICON_WEBP_URL__" type="image/webp">`, "")
+		}
+		if hasOG {
+			html = strings.NewReplacer(
+				"<!--__OG_IMAGE_START__-->\n", "",
+				"<!--__OG_IMAGE_END__-->\n", "",
+				"<!--__TWITTER_IMAGE_START__-->\n", "",
+				"<!--__TWITTER_IMAGE_END__-->\n", "",
+				"__OG_URL__", ogName,
+				"__OG_WIDTH__", strconv.Itoa(ogW),
+				"__OG_HEIGHT__", strconv.Itoa(ogH),
+			).Replace(html)
+		} else {
+			html = stripBlock(html, "<!--__OG_IMAGE_START__-->", "<!--__OG_IMAGE_END__-->")
+			html = stripBlock(html, "<!--__TWITTER_IMAGE_START__-->", "<!--__TWITTER_IMAGE_END__-->")
+		}
+		html = strings.NewReplacer(
+			"__ICON_URL__", iconName,
+			"__WASM_URL__", wasmName,
+			"__DEMO_URL__", demoName,
+			"__VERSION__", cfg.Version,
+		).Replace(html)
+		dst := filepath.Join(out, dstRel)
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			log.Fatal(err)
+		}
+		if err := os.WriteFile(dst, []byte(html), 0o644); err != nil {
+			log.Fatal(err)
+		}
 	}
-	if iconWEBPName != "" {
-		indexHTML = strings.ReplaceAll(indexHTML, "__ICON_WEBP_URL__", iconWEBPName)
-	} else {
-		indexHTML = strings.ReplaceAll(indexHTML, `<source srcset="__ICON_WEBP_URL__" type="image/webp">`, "")
-	}
-	if hasOG {
-		indexHTML = strings.NewReplacer(
-			"<!--__OG_IMAGE_START__-->\n", "",
-			"<!--__OG_IMAGE_END__-->\n", "",
-			"<!--__TWITTER_IMAGE_START__-->\n", "",
-			"<!--__TWITTER_IMAGE_END__-->\n", "",
-			"__OG_URL__", ogName,
-			"__OG_WIDTH__", strconv.Itoa(ogW),
-			"__OG_HEIGHT__", strconv.Itoa(ogH),
-		).Replace(indexHTML)
-	} else {
-		indexHTML = stripBlock(indexHTML, "<!--__OG_IMAGE_START__-->", "<!--__OG_IMAGE_END__-->")
-		indexHTML = stripBlock(indexHTML, "<!--__TWITTER_IMAGE_START__-->", "<!--__TWITTER_IMAGE_END__-->")
-	}
-	indexHTML = strings.NewReplacer(
-		"__ICON_URL__", iconName,
-		"__WASM_URL__", wasmName,
-		"__DEMO_URL__", demoName,
-		"__VERSION__", cfg.Version,
-	).Replace(indexHTML)
-	if err := os.WriteFile(filepath.Join(out, "index.html"), []byte(indexHTML), 0o644); err != nil {
-		log.Fatal(err)
-	}
+
+	renderPage("website/index.html", "index.html")
+	renderPage("website/zh/index.html", filepath.Join("zh", "index.html"))
+	renderPage("website/sublime-text-alternative/index.html", filepath.Join("sublime-text-alternative", "index.html"))
 
 	const robotsTxt = "User-agent: *\nAllow: /\n\nSitemap: https://lime.xingkaixin.me/sitemap.xml\n"
 	if err := os.WriteFile(filepath.Join(out, "robots.txt"), []byte(robotsTxt), 0o644); err != nil {
@@ -208,9 +222,21 @@ func main() {
 	}
 
 	const sitemapXML = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://lime.xingkaixin.me/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lime.xingkaixin.me/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://lime.xingkaixin.me/zh/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lime.xingkaixin.me/"/>
+  </url>
+  <url>
+    <loc>https://lime.xingkaixin.me/zh/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lime.xingkaixin.me/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://lime.xingkaixin.me/zh/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lime.xingkaixin.me/"/>
+  </url>
+  <url>
+    <loc>https://lime.xingkaixin.me/sublime-text-alternative/</loc>
   </url>
 </urlset>
 `
