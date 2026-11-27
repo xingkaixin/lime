@@ -111,6 +111,10 @@ func (l *lime) newMenu() *mygo.Menu {
 	// Settings and updates go in the app's menu on macOS, and in File elsewhere.
 	settingsItem := l.menuItem(locales.MenuSettings(), "show_settings")
 	updateItem := updaterMenuItem()
+	var installCLIItem *mygo.MenuItem
+	if cliSupported {
+		installCLIItem = l.menuItem(locales.MenuInstallCLI(), "install_cli")
+	}
 	appMenu := &mygo.MenuItem{Role: mygo.RoleAppMenu}
 	var fileSettings []*mygo.MenuItem
 	if mac {
@@ -118,14 +122,21 @@ func (l *lime) newMenu() *mygo.Menu {
 		if updateItem != nil {
 			appMenu.Submenu = append(appMenu.Submenu, updateItem)
 		}
+		appMenu.Submenu = append(appMenu.Submenu, mygo.Separator(), settingsItem)
+		if installCLIItem != nil {
+			appMenu.Submenu = append(appMenu.Submenu, installCLIItem)
+		}
 		appMenu.Submenu = append(appMenu.Submenu, []*mygo.MenuItem{
-			mygo.Separator(), settingsItem, mygo.Separator(),
+			mygo.Separator(),
 			{Role: mygo.RoleServices}, mygo.Separator(),
 			{Role: mygo.RoleHide}, {Role: mygo.RoleHideOthers}, {Role: mygo.RoleUnhide}, mygo.Separator(),
 			{Role: mygo.RoleQuit},
 		}...)
 	} else {
 		fileSettings = []*mygo.MenuItem{mygo.Separator(), settingsItem}
+		if installCLIItem != nil {
+			fileSettings = append(fileSettings, installCLIItem)
+		}
 		if updateItem != nil {
 			fileSettings = append(fileSettings, updateItem)
 		}

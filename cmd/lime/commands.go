@@ -324,6 +324,7 @@ func makeCommands() []command {
 		{id: "decrease_font_size", caption: locales.Messages.CmdDecreaseFontSize, run: func(a *app) { a.setFontSize(a.set.FontSize - 1) }},
 		{id: "reset_font_size", caption: locales.Messages.CmdResetFontSize, run: func(a *app) { a.setFontSize(defaultFontSize) }},
 		{id: "show_settings", caption: locales.Messages.CmdSettings, run: (*app).showSettings},
+		{id: "install_cli", caption: realCLI(locales.Messages.CmdInstallCLI), run: (*app).installCLI},
 		{id: "select_color_scheme", caption: locales.Messages.CmdSelectColorScheme, run: (*app).showSchemes},
 		{id: "select_syntax", caption: locales.Messages.CmdSetSyntax, run: (*app).showSyntaxes},
 		{id: "new_pane", caption: locales.Messages.CmdNewPane, run: (*app).newPane},
