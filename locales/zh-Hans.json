@@ -560,5 +560,11 @@
   "shortcutToggleTerminalZoom": "最大化或还原终端",
   "shortcutNextTerminal": "下一个终端",
   "shortcutPrevTerminal": "上一个终端",
-  "shortcutFindInTerminal": "在终端中查找"
+  "shortcutFindInTerminal": "在终端中查找",
+  "menuInstallCLI": "安装命令行工具",
+  "cmdInstallCLI": "安装命令行工具",
+  "dialogCLIInstalled": "已安装命令行工具",
+  "dialogCLIInstalledMacDetail": "已将「lime」安装到 {path}。现在可以在终端中运行「lime」命令。",
+  "dialogCLIInstalledWinDetail": "已将 {path} 添加到用户 PATH。重新打开终端即可运行「lime」命令。",
+  "dialogUnableToInstallCLI": "无法安装命令行工具"
 }

@@ -1,0 +1,48 @@
+#!/bin/sh
+set -eu
+
+usage() {
+  cat <<'EOF'
+Usage: lime [OPTIONS] [PATHS...]
+
+Examples:
+  lime                       Simply opens Lime
+  lime path-to-your-project  Open your project in Lime
+  lime -n path-to-file       Open file/folder in a new window
+
+Options:
+  -n, --new   Open in a new window
+  -h, --help  Show this help message
+EOF
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    --) break ;;
+    -h|--help) usage; exit 0 ;;
+  esac
+done
+
+# Resolve symlinks so /usr/local/bin/lime finds Lime.app/Contents/MacOS/Lime.
+SELF="$0"
+while [ -L "$SELF" ]; do
+  DIR="$(cd -P "$(dirname "$SELF")" && pwd)"
+  TARGET="$(readlink "$SELF")"
+  case "$TARGET" in
+    /*) SELF="$TARGET" ;;
+    *)  SELF="$DIR/$TARGET" ;;
+  esac
+done
+BIN_DIR="$(cd -P "$(dirname "$SELF")" && pwd)"
+EXE="$BIN_DIR/../../MacOS/Lime"
+
+if [ ! -x "$EXE" ]; then
+  echo "lime: Lime executable not found at $EXE" >&2
+  exit 1
+fi
+
+if [ "$#" -gt 0 ]; then
+  nohup "$EXE" "$@" </dev/null >/dev/null 2>&1 &
+else
+  nohup "$EXE" </dev/null >/dev/null 2>&1 &
+fi

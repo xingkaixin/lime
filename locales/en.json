@@ -818,5 +818,17 @@
   "shortcutToggleTerminalZoom": "Toggle Terminal Zoom",
   "shortcutNextTerminal": "Next Terminal",
   "shortcutPrevTerminal": "Previous Terminal",
-  "shortcutFindInTerminal": "Find in Terminal"
+  "shortcutFindInTerminal": "Find in Terminal",
+  "menuInstallCLI": "Install CLI",
+  "cmdInstallCLI": "Install CLI",
+  "dialogCLIInstalled": "CLI Installed",
+  "dialogCLIInstalledMacDetail": "Installed “lime” at {path}. You can now run “lime” from your terminal.",
+  "@dialogCLIInstalledMacDetail": {
+    "placeholders": { "path": { "type": "String", "example": "/usr/local/bin/lime" } }
+  },
+  "dialogCLIInstalledWinDetail": "Added {path} to your user PATH. Open a new terminal to run “lime”.",
+  "@dialogCLIInstalledWinDetail": {
+    "placeholders": { "path": { "type": "String", "example": "C:\\Users\\Alice\\AppData\\Local\\Programs\\Lime\\bin" } }
+  },
+  "dialogUnableToInstallCLI": "Unable to install CLI"
 }
