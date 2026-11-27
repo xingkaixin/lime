@@ -177,7 +177,9 @@ async function start() {
   const files = Object.fromEntries(limeGit.load(project, demo))
   for (const [p, text] of Object.entries(files)) limeFS.put(project + "/" + p, text)
   limeFS.mkdirs("/tmp")
-  limeFS.put(config + "/settings.json", JSON.stringify({ language: "en", appearance: "system", cursor_style: "spark", typing_mode: "rampage" }))
+  const langParam = new URLSearchParams(location.search).get("lang")
+  const language = langParam === "zh-Hans" ? "zh-Hans" : "en"
+  limeFS.put(config + "/settings.json", JSON.stringify({ language, appearance: "system", cursor_style: "spark", typing_mode: "rampage" }))
   limeFS.put(config + "/session.json", JSON.stringify({
     windows: [{
       layout: "Single", focus: 0, folders: [project], side_bar: "files",
