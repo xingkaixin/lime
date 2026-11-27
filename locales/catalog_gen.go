@@ -5649,3 +5649,67 @@ func ShortcutFindInTerminal() string { return In(i18n.Locale()).ShortcutFindInTe
 func (msgs Messages) ShortcutFindInTerminal() string {
 	return Catalog.Format(msgs.locale, "shortcutFindInTerminal", nil)
 }
+
+// MenuInstallCLI says "Install CLI"
+// in the language the app shows.
+func MenuInstallCLI() string { return In(i18n.Locale()).MenuInstallCLI() }
+
+// MenuInstallCLI says "Install CLI"
+// in the language of msgs.
+func (msgs Messages) MenuInstallCLI() string {
+	return Catalog.Format(msgs.locale, "menuInstallCLI", nil)
+}
+
+// CmdInstallCLI says "Install CLI"
+// in the language the app shows.
+func CmdInstallCLI() string { return In(i18n.Locale()).CmdInstallCLI() }
+
+// CmdInstallCLI says "Install CLI"
+// in the language of msgs.
+func (msgs Messages) CmdInstallCLI() string {
+	return Catalog.Format(msgs.locale, "cmdInstallCLI", nil)
+}
+
+// DialogCLIInstalled says "CLI Installed"
+// in the language the app shows.
+func DialogCLIInstalled() string { return In(i18n.Locale()).DialogCLIInstalled() }
+
+// DialogCLIInstalled says "CLI Installed"
+// in the language of msgs.
+func (msgs Messages) DialogCLIInstalled() string {
+	return Catalog.Format(msgs.locale, "dialogCLIInstalled", nil)
+}
+
+// DialogCLIInstalledMacDetail says "Installed “lime” at {path}. You can now run “lime” from your terminal."
+// in the language the app shows.
+func DialogCLIInstalledMacDetail(path string) string {
+	return In(i18n.Locale()).DialogCLIInstalledMacDetail(path)
+}
+
+// DialogCLIInstalledMacDetail says "Installed “lime” at {path}. You can now run “lime” from your terminal."
+// in the language of msgs.
+func (msgs Messages) DialogCLIInstalledMacDetail(path string) string {
+	return Catalog.Format(msgs.locale, "dialogCLIInstalledMacDetail", map[string]any{"path": path})
+}
+
+// DialogCLIInstalledWinDetail says "Added {path} to your user PATH. Open a new terminal to run “lime”."
+// in the language the app shows.
+func DialogCLIInstalledWinDetail(path string) string {
+	return In(i18n.Locale()).DialogCLIInstalledWinDetail(path)
+}
+
+// DialogCLIInstalledWinDetail says "Added {path} to your user PATH. Open a new terminal to run “lime”."
+// in the language of msgs.
+func (msgs Messages) DialogCLIInstalledWinDetail(path string) string {
+	return Catalog.Format(msgs.locale, "dialogCLIInstalledWinDetail", map[string]any{"path": path})
+}
+
+// DialogUnableToInstallCLI says "Unable to install CLI"
+// in the language the app shows.
+func DialogUnableToInstallCLI() string { return In(i18n.Locale()).DialogUnableToInstallCLI() }
+
+// DialogUnableToInstallCLI says "Unable to install CLI"
+// in the language of msgs.
+func (msgs Messages) DialogUnableToInstallCLI() string {
+	return Catalog.Format(msgs.locale, "dialogUnableToInstallCLI", nil)
+}

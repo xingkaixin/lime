@@ -56,17 +56,23 @@ var shortcutGroups = func() []shortcutGroup {
 	for _, fs := range fileIconSets {
 		fileIconItems = append(fileIconItems, shortcut{fs.id(), func(msgs m) string { return msgs.CmdFileIcons(fs.label(msgs)) }})
 	}
+	fileItems := []shortcut{
+		s("new_file", m.MenuNewFile), s("new_window", m.MenuNewWindow), s("prompt_open", m.MenuOpen),
+		s("prompt_open_folder", m.MenuOpenFolder), s("reopen_last_file", m.MenuReopenClosedFile),
+		s("revert", m.MenuRevertFile),
+		s("save", m.MenuSave), s("prompt_save_as", m.MenuSaveAs), s("save_all", m.MenuSaveAll),
+		s("close", m.MenuCloseFile), s("close_window", m.MenuCloseWindow), s("show_settings", m.MenuSettings),
+	}
+	if cliSupported {
+		fileItems = append(fileItems, s("install_cli", m.MenuInstallCLI))
+	}
+	fileItems = append(fileItems,
+		s("copy_path", m.MenuCopyPath), s("reveal_in_side_bar", m.MenuRevealInSideBar), s("reveal_in_finder", m.MenuRevealInFinder),
+		s("compare_with", m.CmdCompareWith), s("compare_with_clipboard", m.CmdCompareWithClipboard),
+		s("diff_changes", m.CmdShowUnsavedChanges),
+	)
 	return []shortcutGroup{
-		{m.MenuFile, append([]shortcut{
-			s("new_file", m.MenuNewFile), s("new_window", m.MenuNewWindow), s("prompt_open", m.MenuOpen),
-			s("prompt_open_folder", m.MenuOpenFolder), s("reopen_last_file", m.MenuReopenClosedFile),
-			s("revert", m.MenuRevertFile),
-			s("save", m.MenuSave), s("prompt_save_as", m.MenuSaveAs), s("save_all", m.MenuSaveAll),
-			s("close", m.MenuCloseFile), s("close_window", m.MenuCloseWindow), s("show_settings", m.MenuSettings),
-			s("copy_path", m.MenuCopyPath), s("reveal_in_side_bar", m.MenuRevealInSideBar), s("reveal_in_finder", m.MenuRevealInFinder),
-			s("compare_with", m.CmdCompareWith), s("compare_with_clipboard", m.CmdCompareWithClipboard),
-			s("diff_changes", m.CmdShowUnsavedChanges),
-		}, encodingItems...)},
+		{m.MenuFile, append(fileItems, encodingItems...)},
 		{m.ShortcutGroupEdit, []shortcut{
 			s("soft_undo", m.ShortcutSoftUndo), s("soft_redo", m.ShortcutSoftRedo),
 			s("toggle_comment", m.CmdToggleComment), s("toggle_block_comment", m.CmdToggleBlockComment),

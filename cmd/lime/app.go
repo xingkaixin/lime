@@ -349,6 +349,7 @@ type lime struct {
 	lastReclaim    time.Time
 	needReclaim    bool
 	quitting       bool
+	ready          bool
 	docWatches     docWatchSet
 }
 
