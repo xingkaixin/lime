@@ -330,6 +330,13 @@ func (s *settings) fileExcludes() []string {
 	return fileExclude
 }
 
+func (s *settings) indexFileExcludes() []string {
+	if s != nil && s.FileExcludePatterns != nil {
+		return s.FileExcludePatterns
+	}
+	return indexFileExclude
+}
+
 func writeSettingsAtomic(dir string, data []byte) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -371,7 +378,7 @@ func (l *lime) reloadSettings() {
 		return
 	}
 	rev := l.set.diffRev()
-	oldFolders, oldFiles := l.set.folderExcludes(), l.set.fileExcludes()
+	oldFolders, oldFiles, oldIndexFiles := l.set.folderExcludes(), l.set.fileExcludes(), l.set.indexFileExcludes()
 	l.set = s
 	l.keys = newKeymap(l.set.Keys)
 	mygo.App.SetLocale(l.set.locale())
@@ -382,7 +389,9 @@ func (l *lime) reloadSettings() {
 			a.reloadChanged()
 		}
 	}
-	if !slices.Equal(oldFolders, l.set.folderExcludes()) || !slices.Equal(oldFiles, l.set.fileExcludes()) {
+	if !slices.Equal(oldFolders, l.set.folderExcludes()) ||
+		!slices.Equal(oldFiles, l.set.fileExcludes()) ||
+		!slices.Equal(oldIndexFiles, l.set.indexFileExcludes()) {
 		for _, a := range l.wins {
 			a.proj.unwatch()
 			clear(a.proj.watches)

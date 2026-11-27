@@ -441,8 +441,9 @@ func wholeWordAt(text string, a, b int) bool {
 }
 
 type scope struct {
-	paths, folders   []string
-	include, exclude []string
+	paths, folders       []string
+	include, exclude     []string
+	folderExcl, fileExcl []string
 }
 
 func parseWhere(where string, folders []string) scope {
@@ -908,6 +909,14 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source, fallb
 				return false
 			}
 		}
+		folderExcl := sc.folderExcl
+		if folderExcl == nil {
+			folderExcl = folderExclude
+		}
+		fileExcl := sc.fileExcl
+		if fileExcl == nil {
+			fileExcl = indexFileExclude
+		}
 		for _, p := range sc.paths {
 			if searchCtx.Err() != nil {
 				return
@@ -932,7 +941,7 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source, fallb
 			if !fi.IsDir() {
 				if fi.Mode().IsRegular() {
 					name := filepath.Base(p)
-					if sc.wants(name, "") && !excluded(name, fileExclude) && !excluded(name, binaryFiles) {
+					if sc.wants(name, "") && !excluded(name, fileExcl) && !excluded(name, binaryFiles) {
 						s, ok := byReal[root]
 						if !ok {
 							s = source{name: p, path: p}
@@ -959,12 +968,12 @@ func searchFiles(ctx context.Context, m *matcher, sc scope, open []source, fallb
 				}
 				switch name := e.Name(); {
 				case e.IsDir():
-					if path != p && (excluded(name, folderExclude) || fifMatchWhere(name, rel, sc.exclude) || ig.ignored(path, true)) {
+					if path != p && (excluded(name, folderExcl) || fifMatchWhere(name, rel, sc.exclude) || ig.ignored(path, true)) {
 						return filepath.SkipDir
 					}
 					ig.load(path)
 				case !regular(path, e.Type()):
-				case sc.wants(name, rel) && !excluded(name, fileExclude) && !excluded(name, binaryFiles) && !ig.ignored(path, false):
+				case sc.wants(name, rel) && !excluded(name, fileExcl) && !excluded(name, binaryFiles) && !ig.ignored(path, false):
 					real := filepath.Join(root, path[len(p):])
 					if e.Type()&fs.ModeSymlink != 0 {
 						real = realPath(path)
@@ -1102,7 +1111,10 @@ func (a *app) prepareSearch(j *job) (*matcher, scope, []source, context.Context)
 			open = append(open, s)
 		}
 	}
-	return m, parseWhere(f.where, a.proj.folders), open, j.start()
+	sc := parseWhere(f.where, a.proj.folders)
+	sc.folderExcl = append([]string{}, a.set.folderExcludes()...)
+	sc.fileExcl = append([]string{}, a.set.indexFileExcludes()...)
+	return m, sc, open, j.start()
 }
 
 func (a *app) searchInFiles() {

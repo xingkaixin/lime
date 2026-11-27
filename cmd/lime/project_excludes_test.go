@@ -76,6 +76,8 @@ func TestCustomExcludePatterns(t *testing.T) {
 		"notes.bak",
 		"secret.txt",
 		"old.pyc",
+		"app.exe",
+		".DS_Store",
 	} {
 		p := filepath.Join(dir, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
@@ -93,11 +95,40 @@ func TestCustomExcludePatterns(t *testing.T) {
 	a := newApp(cfgDir)
 	a.addFolder(dir)
 	if slices.Contains(a.proj.files, filepath.Join(dir, ".git", "HEAD")) ||
-		slices.Contains(a.proj.files, filepath.Join(dir, "old.pyc")) {
+		slices.Contains(a.proj.files, filepath.Join(dir, "old.pyc")) ||
+		slices.Contains(a.proj.files, filepath.Join(dir, "app.exe")) ||
+		slices.Contains(a.proj.files, filepath.Join(dir, ".DS_Store")) {
 		t.Fatalf("default excludes did not apply: %v", a.proj.files)
 	}
 	if !slices.Contains(a.proj.files, filepath.Join(dir, "vendor", "lib.go")) {
 		t.Fatalf("vendor/lib.go should be indexed under defaults: %v", a.proj.files)
+	}
+	var defaultSidebar []string
+	for _, e := range a.shownDir(dir) {
+		defaultSidebar = append(defaultSidebar, e.Name())
+	}
+	if !slices.Contains(defaultSidebar, "app.exe") || !slices.Contains(defaultSidebar, "old.pyc") {
+		t.Fatalf("sidebar should show binary files under defaults; got %v", defaultSidebar)
+	}
+	if slices.Contains(defaultSidebar, ".DS_Store") || slices.Contains(defaultSidebar, ".git") {
+		t.Fatalf("sidebar should hide default metadata excludes; got %v", defaultSidebar)
+	}
+
+	// Git worktree/submodule .git regular files must also be hidden by default.
+	worktreeDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(worktreeDir, ".git"), []byte("gitdir: ../repo/.git/worktrees/wt\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(worktreeDir, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range a.shownDir(worktreeDir) {
+		if e.Name() == ".git" {
+			t.Fatalf("sidebar should hide .git file in worktrees/submodules")
+		}
+	}
+	if slices.Contains(walkFolders([]string{worktreeDir}), filepath.Join(worktreeDir, ".git")) {
+		t.Fatalf("walkFolders should skip .git file in worktrees/submodules")
 	}
 
 	a.set.FolderExcludePatterns = []string{"vendor", "build", ".git"}
@@ -115,7 +146,8 @@ func TestCustomExcludePatterns(t *testing.T) {
 		}
 	}
 	if !slices.Contains(a.proj.files, filepath.Join(dir, "src", "main.go")) ||
-		!slices.Contains(a.proj.files, filepath.Join(dir, "old.pyc")) {
+		!slices.Contains(a.proj.files, filepath.Join(dir, "old.pyc")) ||
+		!slices.Contains(a.proj.files, filepath.Join(dir, "app.exe")) {
 		t.Fatalf("expected non-excluded files in index: %v", a.proj.files)
 	}
 
@@ -128,8 +160,34 @@ func TestCustomExcludePatterns(t *testing.T) {
 			t.Fatalf("sidebar should exclude %q; got %v", hidden, sidebarNames)
 		}
 	}
-	if !slices.Contains(sidebarNames, "src") || !slices.Contains(sidebarNames, "old.pyc") {
+	if !slices.Contains(sidebarNames, "src") || !slices.Contains(sidebarNames, "old.pyc") || !slices.Contains(sidebarNames, "app.exe") {
 		t.Fatalf("sidebar missing expected entries: %v", sidebarNames)
+	}
+
+	// Find in Files respects the same default and custom file_exclude_patterns.
+	exePath := filepath.Join(dir, "app.exe")
+	if err := os.WriteFile(exePath, []byte("needle_in_exe\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	searchWith := func(where string) found {
+		a.fif.query = "needle_in_exe"
+		a.fif.where = where
+		m, sc, open, ctx := a.prepareSearch(&a.fif.finding)
+		return searchFiles(ctx, m, sc, open, a.set.FallbackEncoding, maxResults)
+	}
+	a.set.FileExcludePatterns = nil
+	if res := searchWith(""); res.matches != 0 {
+		t.Fatalf("default Find in Files should skip app.exe, got %d matches", res.matches)
+	}
+	if res := searchWith(exePath); res.matches != 0 {
+		t.Fatalf("default single-file Find in Files should skip app.exe, got %d matches", res.matches)
+	}
+	a.set.FileExcludePatterns = []string{}
+	if res := searchWith(""); res.matches != 1 {
+		t.Fatalf("Find in Files with empty file_exclude_patterns should match app.exe, got %d", res.matches)
+	}
+	if res := searchWith(exePath); res.matches != 1 {
+		t.Fatalf("single-file Find in Files with empty file_exclude_patterns should match app.exe, got %d", res.matches)
 	}
 }
 

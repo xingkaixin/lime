@@ -23,13 +23,19 @@ import (
 	"lime/locales"
 )
 
-// Sublime Text's default patterns of what folders leave out: of the side
-// bar, and binaryFiles of Goto Anything too.
+// Default patterns of what folders leave out: VCS and OS/IDE metadata from the
+// side bar (aligned with Zed's file_scan_exclusions, plus .Trash*, .directory,
+// desktop.ini, and *.sublime-workspace), and compiled/binary files from default
+// project indexing and Find in Files.
 var (
-	folderExclude = []string{".svn", ".git", ".hg", "CVS", ".Trash", ".Trash-*"}
-	fileExclude   = []string{"*.pyc", "*.pyo", "*.exe", "*.dll", "*.obj", "*.o", "*.a", "*.lib", "*.so", "*.dylib",
-		"*.ncb", "*.sdf", "*.suo", "*.pdb", "*.idb", ".DS_Store", ".directory", "desktop.ini", "*.class", "*.psd", "*.db",
-		"*.sublime-workspace"}
+	folderExclude = []string{".git", ".svn", ".hg", ".jj", ".sl", ".repo", "CVS", ".Trash", ".Trash-*", ".settings"}
+	fileExclude   = []string{".git", ".DS_Store", "Thumbs.db", ".directory", "desktop.ini", ".classpath", "*.sublime-workspace"}
+	// indexFileExclude omits build artifacts and compiled binaries during
+	// default project indexing and file search while keeping them visible in
+	// the side bar. Overriding file_exclude_patterns replaces this list too.
+	indexFileExclude = append(slices.Clone(fileExclude),
+		"*.pyc", "*.pyo", "*.exe", "*.dll", "*.obj", "*.o", "*.a", "*.lib", "*.so", "*.dylib",
+		"*.ncb", "*.sdf", "*.suo", "*.pdb", "*.idb", "*.class", "*.psd", "*.db")
 	binaryFiles = []string{"*.jpg", "*.jpeg", "*.png", "*.gif", "*.ttf", "*.tga", "*.dds", "*.ico", "*.eot", "*.pdf",
 		"*.swf", "*.jar", "*.zip"}
 )
@@ -636,7 +642,7 @@ func projMatchSegs(pSegs, tSegs []string) bool {
 }
 
 func walkFolders(folders []string) []string {
-	return walkFoldersWith(folders, folderExclude, fileExclude)
+	return walkFoldersWith(folders, folderExclude, indexFileExclude)
 }
 
 func dirExcluded(dir string, folderExcl []string) bool {
@@ -721,7 +727,7 @@ func walkFoldersWith(folders, folderExcl, fileExcl []string) []string {
 func (a *app) indexFolders() {
 	a.proj.gen++
 	gen, folders := a.proj.gen, slices.Clone(a.proj.folders)
-	folderExcl, fileExcl := slices.Clone(a.set.folderExcludes()), slices.Clone(a.set.fileExcludes())
+	folderExcl, fileExcl := slices.Clone(a.set.folderExcludes()), slices.Clone(a.set.indexFileExcludes())
 	if a.win == nil {
 		a.proj.files = walkFoldersWith(folders, folderExcl, fileExcl)
 		return
