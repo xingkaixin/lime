@@ -1,0 +1,221 @@
+name: Sync Release to R2
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to sync (e.g. v0.2.0; defaults to latest)"
+        required: false
+        type: string
+      skip_cleanup:
+        description: "Skip pruning versions beyond the latest 10 in R2"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-r2-lime
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync Release Assets to R2
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      # AWS CLI v2.23+ enables flexible CRC32 checksum streaming by default, which R2 rejects on some PUT requests.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: public-releases
+      R2_PREFIX: lime
+      KEEP_VERSIONS: "10"
+    steps:
+      - name: Verify R2 secrets
+        run: |
+          missing=()
+          [ -z "${AWS_ACCESS_KEY_ID:-}" ] && missing+=(R2_ACCESS_KEY_ID)
+          [ -z "${AWS_SECRET_ACCESS_KEY:-}" ] && missing+=(R2_SECRET_ACCESS_KEY)
+          [ -z "${R2_ENDPOINT:-}" ] && missing+=(R2_ENDPOINT)
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing required secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Resolve release tag and download assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="${EVENT_TAG:-$INPUT_TAG}"
+          if [ -z "$tag" ]; then
+            tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+          fi
+          echo "SYNC_TAG=$tag" >> "$GITHUB_ENV"
+          mkdir -p stage
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir stage
+          ls -la stage
+
+      - name: Upload assets to R2 (manifests last)
+        run: |
+          python3 - <<'PY'
+          import os, subprocess, sys
+
+          stage = "stage"
+          endpoint = os.environ["R2_ENDPOINT"]
+          bucket = os.environ["R2_BUCKET"]
+          prefix = os.environ["R2_PREFIX"].strip("/")
+
+          content_types = {
+              ".dmg": "application/x-apple-diskimage",
+              ".exe": "application/vnd.microsoft.portable-executable",
+              ".deb": "application/vnd.debian.binary-package",
+              ".rpm": "application/x-rpm",
+              ".gz": "application/gzip",
+              ".delta": "application/octet-stream",
+              ".json": "application/json",
+              ".sh": "text/plain; charset=utf-8",
+              ".ps1": "text/plain; charset=utf-8",
+          }
+
+          def content_type(name: str) -> str:
+              if name == "SHA256SUMS":
+                  return "text/plain; charset=utf-8"
+              _, ext = os.path.splitext(name)
+              return content_types.get(ext, "application/octet-stream")
+
+          def is_manifest(name: str) -> bool:
+              return name.startswith("update-") and name.endswith(".json")
+
+          def is_mutable(name: str) -> bool:
+              return is_manifest(name) or name in ("SHA256SUMS", "install.sh", "install.ps1")
+
+          names = sorted(f for f in os.listdir(stage) if os.path.isfile(os.path.join(stage, f)))
+          if not names:
+              sys.exit("no release assets downloaded")
+
+          immutable = [n for n in names if not is_mutable(n)]
+          mutable_other = [n for n in names if is_mutable(n) and not is_manifest(n)]
+          manifests = [n for n in names if is_manifest(n)]
+
+          for name in immutable + mutable_other + manifests:
+              path = os.path.join(stage, name)
+              cc = "no-cache" if is_mutable(name) else "public, max-age=31536000, immutable"
+              ct = content_type(name)
+              dest = f"s3://{bucket}/{prefix}/{name}"
+              print(f"Uploading {name} ({ct}, {cc}) -> {dest}", flush=True)
+              subprocess.run(
+                  [
+                      "aws", "s3", "cp", path, dest,
+                      "--endpoint-url", endpoint,
+                      "--content-type", ct,
+                      "--cache-control", cc,
+                      "--only-show-errors",
+                  ],
+                  check=True,
+              )
+          PY
+
+      - name: Prune older versions in R2
+        if: ${{ inputs.skip_cleanup != true }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess
+
+          endpoint = os.environ["R2_ENDPOINT"]
+          bucket = os.environ["R2_BUCKET"]
+          prefix = os.environ["R2_PREFIX"].strip("/") + "/"
+          keep_n = int(os.environ.get("KEEP_VERSIONS", "10"))
+          current_ver = os.environ["SYNC_TAG"].lstrip("v")
+
+          ver_re = r"([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)"
+          patterns = [
+              re.compile(rf"^lime-.+-to-{ver_re}-(?:darwin|windows|linux)-[0-9A-Za-z_]+\.delta$"),
+              re.compile(rf"^lime-{ver_re}-(?:darwin|windows|linux)-[0-9A-Za-z_]+\.tar\.gz$"),
+              re.compile(rf"^lime-setup-{ver_re}-[0-9A-Za-z_]+\.exe$"),
+              re.compile(rf"^lime-{ver_re}-[0-9A-Za-z_]+\.dmg$"),
+              re.compile(rf"^lime[-_]{ver_re}[-_].+\.(?:deb|rpm)$"),
+          ]
+
+          def extract_version(name: str):
+              for p in patterns:
+                  m = p.match(name)
+                  if m:
+                      return m.group(1)
+              return None
+
+          def semver_key(ver: str):
+              core, _, pre = ver.partition("-")
+              nums = tuple(int(x) for x in core.split("."))
+              if not pre:
+                  return (nums, 1, ())
+              pre_parts = tuple((0, int(p)) if p.isdigit() else (1, p) for p in pre.split("."))
+              return (nums, 0, pre_parts)
+
+          keys = []
+          token = None
+          while True:
+              cmd = [
+                  "aws", "s3api", "list-objects-v2",
+                  "--endpoint-url", endpoint,
+                  "--bucket", bucket,
+                  "--prefix", prefix,
+                  "--output", "json",
+              ]
+              if token:
+                  cmd.extend(["--continuation-token", token])
+              out = subprocess.check_output(cmd, text=True)
+              data = json.loads(out) if out.strip() else {}
+              for obj in data.get("Contents", []):
+                  keys.append(obj["Key"])
+              if not data.get("IsTruncated"):
+                  break
+              token = data.get("NextContinuationToken")
+
+          by_version = {}
+          for key in keys:
+              rel = key[len(prefix):] if key.startswith(prefix) else key
+              if "/" in rel:
+                  continue
+              ver = extract_version(rel)
+              if ver:
+                  by_version.setdefault(ver, []).append(key)
+
+          versions = sorted(by_version.keys(), key=semver_key, reverse=True)
+          keep = set(versions[:keep_n])
+          if current_ver in by_version:
+              keep.add(current_ver)
+
+          print(f"Found {len(versions)} version(s) in R2: {versions}")
+          print(f"Keeping {len(keep)} version(s): {sorted(keep, key=semver_key, reverse=True)}")
+
+          to_delete = []
+          for ver in versions:
+              if ver not in keep:
+                  to_delete.extend(sorted(by_version[ver]))
+
+          if not to_delete:
+              print("No old version files to prune.")
+          else:
+              for key in to_delete:
+                  print(f"Deleting {key}", flush=True)
+                  subprocess.run(
+                      [
+                          "aws", "s3api", "delete-object",
+                          "--endpoint-url", endpoint,
+                          "--bucket", bucket,
+                          "--key", key,
+                      ],
+                      check=True,
+                  )
+              print(f"Pruned {len(to_delete)} file(s).")
+          PY
