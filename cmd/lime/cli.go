@@ -24,6 +24,7 @@ type openArg struct {
 
 type cliRequest struct {
 	newWindow bool
+	wd        string
 	args      []openArg
 }
 
@@ -39,9 +40,10 @@ func parseCLIArgs(args []string) []openArg {
 }
 
 func parseCLIRequest(args []string, wd string) cliRequest {
-	var req cliRequest
+	req := cliRequest{wd: wd}
 	literal := false
-	for _, arg := range args {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
 		if !literal {
 			switch {
 			case arg == "--":
@@ -50,11 +52,18 @@ func parseCLIRequest(args []string, wd string) cliRequest {
 			case arg == "-n" || arg == "--new":
 				req.newWindow = true
 				continue
+			case arg == "--cwd" && i+1 < len(args):
+				i++
+				req.wd = args[i]
+				continue
+			case strings.HasPrefix(arg, "--cwd="):
+				req.wd = strings.TrimPrefix(arg, "--cwd=")
+				continue
 			case strings.HasPrefix(arg, "-"):
 				continue
 			}
 		}
-		req.args = append(req.args, parseOpenArgIn(arg, wd))
+		req.args = append(req.args, parseOpenArgIn(arg, req.wd))
 	}
 	return req
 }
@@ -186,7 +195,7 @@ func (l *lime) openCLILaunch(args []string, wd string, hadSession bool) {
 		l.last = target
 	}
 	if len(req.args) > 0 {
-		target.openCLIIn(req.args, wd)
+		target.openCLIIn(req.args, req.wd)
 	}
 }
 
@@ -215,7 +224,7 @@ func (l *lime) openCLISecondInstance(args []string, wd string) {
 			b.makeWindow(bounds)
 			b.win.Update(func() {
 				if len(req.args) > 0 {
-					b.openCLIIn(req.args, wd)
+					b.openCLIIn(req.args, req.wd)
 				}
 				if b.docCount() == 0 {
 					b.newFile()
@@ -225,7 +234,7 @@ func (l *lime) openCLISecondInstance(args []string, wd string) {
 			b.win.Focus()
 		} else {
 			if len(req.args) > 0 {
-				b.openCLIIn(req.args, wd)
+				b.openCLIIn(req.args, req.wd)
 			}
 			if b.docCount() == 0 {
 				b.newFile()
@@ -246,9 +255,9 @@ func (l *lime) openCLISecondInstance(args []string, wd string) {
 	a := l.last
 	if a != nil && len(req.args) > 0 {
 		if a.win == nil {
-			a.openCLIIn(req.args, wd)
+			a.openCLIIn(req.args, req.wd)
 		} else {
-			a.win.Update(func() { a.openCLIIn(req.args, wd) })
+			a.win.Update(func() { a.openCLIIn(req.args, req.wd) })
 		}
 	}
 	if l.ready {

@@ -37,6 +37,14 @@ func TestParseCLIRequestAndRelativePaths(t *testing.T) {
 	if req.args[2] != (openArg{path: "-n"}) {
 		t.Fatalf("arg[2] = %+v, want literal -n after --", req.args[2])
 	}
+
+	cwdReq := parseCLIRequest([]string{"--cwd", sub, "main.go:2:1", "--", "--cwd"}, "/")
+	if cwdReq.wd != sub {
+		t.Fatalf("cwdReq.wd = %q, want %q", cwdReq.wd, sub)
+	}
+	if len(cwdReq.args) != 2 || cwdReq.args[0] != (openArg{path: "main.go", line: 2, col: 1}) || cwdReq.args[1] != (openArg{path: "--cwd"}) {
+		t.Fatalf("cwdReq.args = %+v", cwdReq.args)
+	}
 }
 
 func TestOpenCLILaunchAndSecondInstance(t *testing.T) {
@@ -90,6 +98,14 @@ func TestOpenCLILaunchAndSecondInstance(t *testing.T) {
 	}
 	if l.last != l.wins[2] || l.last.current() == nil || l.last.current().path != f1 {
 		t.Fatalf("third window current = %v, want %s", l.last.current(), f1)
+	}
+
+	// Cold launch with --cwd resolves relative paths against --cwd instead of process wd.
+	lCWD := newLime("")
+	wCWD := lCWD.newWindow()
+	lCWD.openCLILaunch([]string{"--cwd", dir, "a.txt"}, "/", false)
+	if wCWD.current() == nil || wCWD.current().path != f1 {
+		t.Fatalf("wCWD current = %v, want %s", wCWD.current(), f1)
 	}
 
 	// Bare "lime" does not open extra windows or tabs.
