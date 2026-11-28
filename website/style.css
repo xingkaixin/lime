@@ -142,6 +142,8 @@
   :lang(zh-Hans) .lede { font: 15.5px/1.75 var(--sans); }
   .cta { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
   .avail { margin-top: 16px; font: 13px var(--mono); color: var(--muted); }
+  .text-link { text-decoration: underline; text-underline-offset: 3px; }
+  .text-link:hover { color: var(--ink); }
 
   .demo { border-top: 0; padding: 8px 40px 40px; }
   .window { border-radius: 12px; overflow: hidden; background: var(--app); box-shadow: var(--shadow); }

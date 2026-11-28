@@ -8,7 +8,7 @@
   "i18n": { "dir": "locales", "source": "en" },
   "updates": {
     "publicKey": "ZEjKEsm/54wjyUcbbHClx+yhQ2rcUHrWZYYD/OXCgpk=",
-    "github": "xingkaixin/lime"
+    "url": "https://r2.xingkaixin.me/lime"
   },
   "macos": {
     "minimumSystemVersion": "13.0",
