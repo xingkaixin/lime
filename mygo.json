@@ -1,7 +1,7 @@
 {
   "name": "Lime",
   "identifier": "me.xingkaixin.lime",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "main": "./cmd/lime",
   "out": "build",
   "resources": ["cmd/lime/fileicons/LICENSE-pierre-icons.md"],
