@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"syscall"
 	"unsafe"
 
 	"github.com/egoist/mygo"
@@ -17,6 +19,23 @@ import (
 )
 
 const cliSupported = true
+
+func launchCLI(args []string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	wd, _ := os.Getwd()
+	cmd := exec.Command(exe, args...)
+	cmd.Dir = wd
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: windows.DETACHED_PROCESS | windows.CREATE_NEW_PROCESS_GROUP,
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
+}
 
 var (
 	user32DLL           = windows.NewLazySystemDLL("user32.dll")

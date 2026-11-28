@@ -143,8 +143,8 @@ func TestDarwinLauncherSymlinkAndArgs(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	lines := strings.Split(strings.TrimSuffix(got, "\n"), "\n")
-	if len(lines) != 3 {
-		t.Fatalf("launcher forwarded %q, want 3 lines", got)
+	if len(lines) != 4 {
+		t.Fatalf("launcher forwarded %q, want 4 lines", got)
 	}
 	gotWork, err := filepath.EvalSymlinks(lines[0])
 	if err != nil {
@@ -154,7 +154,123 @@ func TestDarwinLauncherSymlinkAndArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EvalSymlinks(%q): %v", workDir, err)
 	}
-	if gotWork != wantWork || lines[1] != "-n" || lines[2] != "file with space.txt" {
-		t.Fatalf("launcher forwarded wd=%q args=%q, want wd=%q args=%q", gotWork, lines[1:], wantWork, []string{"-n", "file with space.txt"})
+	if gotWork != wantWork || lines[1] != "--cli" || lines[2] != "-n" || lines[3] != "file with space.txt" {
+		t.Fatalf("launcher forwarded wd=%q args=%q, want wd=%q args=%q", gotWork, lines[1:], wantWork, []string{"--cli", "-n", "file with space.txt"})
+	}
+}
+
+func TestLaunchCLIDarwinRouting(t *testing.T) {
+	dir := t.TempDir()
+	bundle := filepath.Join(dir, "Lime.app")
+	contents := filepath.Join(bundle, "Contents")
+	exe := filepath.Join(contents, "MacOS", "Lime")
+	if err := os.MkdirAll(filepath.Dir(exe), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(contents, "Info.plist"), []byte("<plist/>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(exe, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	realBundle, err := filepath.EvalSymlinks(bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var openedBundle, openedWD string
+	var openedArgs []string
+	var detachedExe, detachedWD string
+	var detachedArgs []string
+	reset := func() {
+		openedBundle, openedWD, openedArgs = "", "", nil
+		detachedExe, detachedWD, detachedArgs = "", "", nil
+	}
+	openFn := func(b, wd string, args []string) error {
+		openedBundle, openedWD, openedArgs = b, wd, append([]string(nil), args...)
+		return nil
+	}
+	detachFn := func(e, wd string, args []string) error {
+		detachedExe, detachedWD, detachedArgs = e, wd, append([]string(nil), args...)
+		return nil
+	}
+
+	// Cold start with args launches via LaunchServices.
+	if err := launchCLIDarwin(exe, "/work", []string{"."}, func(string) bool { return false }, openFn, detachFn); err != nil {
+		t.Fatalf("cold start: %v", err)
+	}
+	if openedBundle != realBundle || openedWD != "/work" || len(openedArgs) != 1 || openedArgs[0] != "." || detachedExe != "" {
+		t.Fatalf("cold start got open=(%q,%q,%q) detach=%q", openedBundle, openedWD, openedArgs, detachedExe)
+	}
+
+	// Bare invocation uses LaunchServices even when already running.
+	reset()
+	if err := launchCLIDarwin(exe, "/work", nil, func(string) bool { return true }, openFn, detachFn); err != nil {
+		t.Fatalf("bare warm start: %v", err)
+	}
+	if openedBundle != realBundle || len(openedArgs) != 0 || detachedExe != "" {
+		t.Fatalf("bare warm start got open=(%q,%q) detach=%q", openedBundle, openedArgs, detachedExe)
+	}
+
+	// Warm start with args forwards via detached process to avoid `open -n` Dock flicker.
+	reset()
+	if err := launchCLIDarwin(exe, "/work", []string{"-n", "."}, func(string) bool { return true }, openFn, detachFn); err != nil {
+		t.Fatalf("warm start with args: %v", err)
+	}
+	if openedBundle != "" || detachedExe != exe || detachedWD != "/work" || len(detachedArgs) != 2 || detachedArgs[0] != "-n" || detachedArgs[1] != "." {
+		t.Fatalf("warm start got open=%q detach=(%q,%q,%q)", openedBundle, detachedExe, detachedWD, detachedArgs)
+	}
+
+	// Standalone binary outside an .app bundle always launches detached.
+	reset()
+	standalone := filepath.Join(dir, "lime-dev")
+	if err := os.WriteFile(standalone, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := launchCLIDarwin(standalone, "/work", []string{"."}, func(string) bool { return false }, openFn, detachFn); err != nil {
+		t.Fatalf("standalone: %v", err)
+	}
+	if openedBundle != "" || detachedExe != standalone {
+		t.Fatalf("standalone got open=%q detach=%q", openedBundle, detachedExe)
+	}
+}
+
+func TestStartDetachedDarwinDetachesSession(t *testing.T) {
+	dir := t.TempDir()
+	outFile := filepath.Join(dir, "proc.txt")
+	exe := filepath.Join(dir, "fake-lime")
+	script := "#!/bin/sh\n" +
+		"ps -o pid=,pgid=,tty= -p $$ > \"" + outFile + "\"\n" +
+		"sleep 2\n"
+	if err := os.WriteFile(exe, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	if err := startDetachedDarwin(exe, dir, nil); err != nil {
+		t.Fatalf("startDetachedDarwin: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("startDetachedDarwin blocked for %v, expected immediate return", elapsed)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	var fields []string
+	for time.Now().Before(deadline) {
+		if b, err := os.ReadFile(outFile); err == nil && len(strings.Fields(string(b))) == 3 {
+			fields = strings.Fields(string(b))
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(fields) != 3 {
+		t.Fatalf("child did not write process info")
+	}
+	pid, pgid, tty := fields[0], fields[1], fields[2]
+	if pid != pgid {
+		t.Fatalf("child not session leader: pid=%s pgid=%s", pid, pgid)
+	}
+	if tty != "??" {
+		t.Fatalf("child still attached to controlling tty: %s", tty)
 	}
 }
