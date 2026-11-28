@@ -42,7 +42,7 @@ if [ ! -x "$EXE" ]; then
 fi
 
 if [ "$#" -gt 0 ]; then
-  nohup "$EXE" "$@" </dev/null >/dev/null 2>&1 &
+  exec "$EXE" --cli "$@"
 else
-  nohup "$EXE" </dev/null >/dev/null 2>&1 &
+  exec "$EXE" --cli
 fi

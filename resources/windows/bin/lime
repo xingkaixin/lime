@@ -41,7 +41,7 @@ if [ ! -f "$EXE" ]; then
 fi
 
 if [ "$#" -gt 0 ]; then
-  "$EXE" "$@" </dev/null >/dev/null 2>&1 &
+  exec "$EXE" --cli "$@"
 else
-  "$EXE" </dev/null >/dev/null 2>&1 &
+  exec "$EXE" --cli
 fi

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -46,6 +47,13 @@ func (a *app) makeWindow(r mygo.Rectangle) {
 }
 
 func main() {
+	if cliSupported && len(os.Args) > 1 && os.Args[1] == "--cli" {
+		if err := launchCLI(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "lime: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if cliSupported && !mygo.App.RequestSingleInstanceLock() {
 		return
 	}
